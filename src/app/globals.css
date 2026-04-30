@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 255 255 255;
+  --fg: 15 15 19;
+  --card: 248 248 252;
+  --border: 229 231 235;
+  --muted: 107 114 128;
+  --brand: 99 102 241;
+}
+
+.dark {
+  --bg: 15 15 19;
+  --fg: 240 240 248;
+  --card: 26 26 36;
+  --border: 42 42 58;
+  --muted: 148 163 184;
+  --brand: 129 140 248;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#__next {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.card {
+  background-color: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.btn-primary {
+  background-color: rgb(var(--brand));
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  cursor: pointer;
+  border: none;
+}
+.btn-primary:active { transform: scale(0.95); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-weight: 500;
+  color: rgb(var(--muted));
+  transition: all 0.15s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+.btn-ghost:hover  { background-color: rgb(var(--card)); }
+.btn-ghost:active { transform: scale(0.95); }
+
+.bottom-safe {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+.input {
+  width: 100%;
+  background-color: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  color: rgb(var(--fg));
+  outline: none;
+  transition: border-color 0.15s;
+  font-size: 1rem;
+}
+.input:focus {
+  border-color: rgb(var(--brand));
+}
+
+@keyframes slideUp {
+  0%   { transform: translateY(12px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-fade-in  { animation: fadeIn 0.2s ease-out; }
