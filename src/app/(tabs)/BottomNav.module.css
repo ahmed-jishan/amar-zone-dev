@@ -1,0 +1,155 @@
+/* src/app/(tabs)/BottomNav.module.css */
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: rgba(var(--bg), 0.8);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(var(--border), 0.5);
+  padding: 8px 16px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+  gap: 8px;
+}
+
+.item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 8px 12px;
+  border-radius: 48px;
+  text-decoration: none;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.item.active {
+  background: linear-gradient(135deg, rgba(var(--brand), 0.15), rgba(var(--brand), 0.08));
+  box-shadow: 0 4px 12px rgba(var(--brand), 0.15);
+  border: 1px solid rgba(var(--brand), 0.25);
+  backdrop-filter: blur(4px);
+}
+
+.item:active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  background: rgba(var(--brand), 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease-out, height 0.3s ease-out;
+  pointer-events: none;
+}
+
+.iconWrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.icon {
+  transition: transform 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
+  color: rgb(var(--muted));
+}
+
+.active .icon {
+  color: rgb(var(--brand));
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 6px rgba(var(--brand), 0.6));
+  animation: iconBounce 0.4s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+@keyframes iconBounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1.12); }
+}
+
+.activeGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--brand), 0.35) 0%, transparent 70%);
+  opacity: 0;
+  animation: glowPulse 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes glowPulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: rgb(var(--muted));
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.active .label {
+  color: rgb(var(--brand));
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.labelUnderline {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: rgb(var(--brand));
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(var(--brand), 0.6);
+  animation: underlineSlide 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+@keyframes underlineSlide {
+  0% { width: 0; opacity: 0; transform: translateX(-50%) scaleX(0); }
+  70% { width: 28px; }
+  100% { width: 20px; opacity: 1; transform: translateX(-50%) scaleX(1); }
+}
+
+@media (hover: hover) {
+  .item:not(.active):hover {
+    transform: translateY(-2px);
+  }
+  .item:not(.active):hover .icon {
+    transform: scale(1.05);
+    color: rgba(var(--brand), 0.8);
+  }
+  .item:not(.active):hover .label {
+    color: rgba(var(--brand), 0.8);
+  }
+}
+
+.item:active {
+  transform: scale(0.96);
+  transition: transform 0.05s;
+}

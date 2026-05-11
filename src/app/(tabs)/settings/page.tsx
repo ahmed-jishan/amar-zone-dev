@@ -1,70 +1,143 @@
+// src/app/(tabs)/settings/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Sun, Moon, Monitor, Globe, Lock, Download,
   Upload, Trash2, ChevronRight, Check, Shield,
-  Smartphone, Info, Palette, Bell, Eye, EyeOff, X
+  Info, Palette, Bell, Eye, EyeOff, X
 } from 'lucide-react'
+import { useSettingsStore, type Theme, type Language } from '@/lib/store/settingsStore'
 
-// ─── Types ───────────────────────────────────────────────
-type Theme = 'light' | 'dark' | 'system'
-type Language = 'bn' | 'en'
-
-interface AppSettings {
-  theme: Theme
-  language: Language
-  currency: 'BDT' | 'USD'
-  currency_symbol: string
-  pinEnabled: boolean
-  pinHash?: string
-  onboardingComplete: boolean
-  notificationsEnabled: boolean
-}
-
-const DEFAULT_SETTINGS: AppSettings = {
-  theme: 'dark',
-  language: 'bn',
-  currency: 'BDT',
-  currency_symbol: '৳',
-  pinEnabled: false,
-  onboardingComplete: true,
-  notificationsEnabled: true,
-}
-
-// ─── Store ───────────────────────────────────────────────
-function useSettings() {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('amar-zone-settings')
-    if (saved) {
-      try { setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) }) }
-      catch { setSettings(DEFAULT_SETTINGS) }
-    }
-    setReady(true)
-  }, [])
-
-  const update = (patch: Partial<AppSettings>) => {
-    const next = { ...settings, ...patch }
-    setSettings(next)
-    localStorage.setItem('amar-zone-settings', JSON.stringify(next))
-    // Apply theme immediately
-    if (patch.theme) applyTheme(patch.theme)
+// ==================== Translations ====================
+const translations = {
+  bn: {
+    customize: 'কাস্টমাইজ করুন',
+    settings: 'সেটিংস',
+    sub: 'অ্যাপের পছন্দ ও ডেটা নিয়ন্ত্রণ করুন',
+    theme: 'থিম',
+    themeLight: 'আলো',
+    themeDark: 'অন্ধকার',
+    themeSystem: 'সিস্টেম',
+    langCurrency: 'ভাষা ও মুদ্রা',
+    language: 'ভাষা',
+    bnLabel: 'বাংলা',
+    enLabel: 'English',
+    currency: 'মুদ্রা',
+    bdtLabel: '৳ BDT',
+    usdLabel: '$ USD',
+    notifications: 'নোটিফিকেশন',
+    namazReminder: 'নামাজের রিমাইন্ডার',
+    namazSub: 'সময় হলে জানাবে',
+    security: 'নিরাপত্তা',
+    pinLock: 'PIN লক',
+    pinActive: 'সক্রিয় আছে ✓',
+    pinInactive: 'নিষ্ক্রিয়',
+    dataManage: 'ডেটা ব্যবস্থাপনা',
+    backup: 'ব্যাকআপ করুন',
+    backupSub: 'JSON ফাইলে সংরক্ষণ করুন',
+    restore: 'ডেটা পুনরুদ্ধার করুন',
+    restoreSub: 'JSON ফাইল থেকে লোড করুন',
+    clearData: 'সব ডেটা মুছুন',
+    clearSub: 'স্থায়ীভাবে সরিয়ে ফেলবে',
+    about: 'অ্যাপ সম্পর্কে',
+    version: 'সংস্করণ ১.০.০ · লোকাল-ফার্স্ট',
+    storageUsed: 'স্টোরেজ ব্যবহার',
+    localNote: 'সমস্ত ডেটা শুধু আপনার ডিভাইসে সংরক্ষিত। কোনো সার্ভারে পাঠানো হয় না।',
+    backupTitle: 'ব্যাকআপ করুন',
+    backupBody: 'সমস্ত ডেটা একটি JSON ফাইলে সংরক্ষিত হবে।',
+    backupConfirm: 'ডাউনলোড করুন',
+    restoreTitle: 'ডেটা পুনরুদ্ধার করুন',
+    restoreBody: 'ব্যাকআপ JSON ফাইল নির্বাচন করুন',
+    restoreSelect: 'ফাইল নির্বাচন করুন',
+    restoreWarn: '⚠ বিদ্যমান ডেটা প্রতিস্থাপিত হবে',
+    clearTitle: 'সব ডেটা মুছুন?',
+    clearBody: 'এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না। সমস্ত লেনদেন, ধার, এবং নামাজের রেকর্ড মুছে যাবে।',
+    clearConfirm: 'মুছে ফেলুন',
+    cancel: 'বাতিল করুন',
+    pinSetupTitle: 'PIN সেট করুন',
+    pinEnter: 'নতুন PIN দিন (কমপক্ষে ৪ সংখ্যা)',
+    pinConfirm: 'আবার PIN দিন (নিশ্চিত করুন)',
+    pinNext: 'পরবর্তী',
+    pinSave: 'সংরক্ষণ করুন',
+    pinDisableTitle: 'PIN বন্ধ করুন',
+    pinDisableConfirm: 'বর্তমান PIN দিন',
+    pinDisableBtn: 'PIN বন্ধ করুন',
+    pinErrorShort: 'কমপক্ষে ৪ সংখ্যা দিন',
+    pinErrorMismatch: 'PIN মেলেনি',
+    pinErrorWrong: 'ভুল PIN',
+    toastBackup: 'ব্যাকআপ সংরক্ষিত হয়েছে ✓',
+    toastPinSet: 'PIN সেট হয়েছে ✓',
+    toastPinRemoved: 'PIN মুছে ফেলা হয়েছে',
+    toastDataCleared: 'সব ডেটা মুছে ফেলা হয়েছে',
+    toastRestore: 'ডেটা পুনরুদ্ধার হয়েছে। রিফ্রেশ করুন।',
+    toastRestoreError: 'ফাইল পড়তে সমস্যা হয়েছে',
+  },
+  en: {
+    customize: 'Customize',
+    settings: 'Settings',
+    sub: 'Control app preferences & data',
+    theme: 'Theme',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeSystem: 'System',
+    langCurrency: 'Language & Currency',
+    language: 'Language',
+    bnLabel: 'বাংলা',
+    enLabel: 'English',
+    currency: 'Currency',
+    bdtLabel: '৳ BDT',
+    usdLabel: '$ USD',
+    notifications: 'Notifications',
+    namazReminder: 'Prayer Reminders',
+    namazSub: 'Notify at prayer times',
+    security: 'Security',
+    pinLock: 'PIN Lock',
+    pinActive: 'Active ✓',
+    pinInactive: 'Disabled',
+    dataManage: 'Data Management',
+    backup: 'Backup',
+    backupSub: 'Save to JSON file',
+    restore: 'Restore Data',
+    restoreSub: 'Load from JSON file',
+    clearData: 'Clear All Data',
+    clearSub: 'Permanently remove',
+    about: 'About',
+    version: 'Version 1.0.0 · Local-first',
+    storageUsed: 'Storage used',
+    localNote: 'All data is stored only on your device. No data is sent to any server.',
+    backupTitle: 'Backup',
+    backupBody: 'All data will be saved as a JSON file.',
+    backupConfirm: 'Download',
+    restoreTitle: 'Restore Data',
+    restoreBody: 'Select a backup JSON file',
+    restoreSelect: 'Select file',
+    restoreWarn: '⚠ Existing data will be replaced',
+    clearTitle: 'Clear all data?',
+    clearBody: 'This action cannot be undone. All transactions, loans, and prayer records will be lost.',
+    clearConfirm: 'Delete',
+    cancel: 'Cancel',
+    pinSetupTitle: 'Set PIN',
+    pinEnter: 'Enter new PIN (at least 4 digits)',
+    pinConfirm: 'Confirm PIN',
+    pinNext: 'Next',
+    pinSave: 'Save',
+    pinDisableTitle: 'Disable PIN',
+    pinDisableConfirm: 'Enter current PIN',
+    pinDisableBtn: 'Disable PIN',
+    pinErrorShort: 'At least 4 digits required',
+    pinErrorMismatch: 'PINs do not match',
+    pinErrorWrong: 'Wrong PIN',
+    toastBackup: 'Backup saved ✓',
+    toastPinSet: 'PIN set ✓',
+    toastPinRemoved: 'PIN removed',
+    toastDataCleared: 'All data cleared',
+    toastRestore: 'Data restored. Refresh the page.',
+    toastRestoreError: 'Failed to read file',
   }
-
-  return { settings, update, ready }
 }
 
-function applyTheme(theme: Theme) {
-  const root = document.documentElement
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const isDark = theme === 'dark' || (theme === 'system' && prefersDark)
-  root.classList.toggle('dark', isDark)
-}
-
-// ─── Helpers ─────────────────────────────────────────────
+// ==================== Helper ====================
 function hashPin(pin: string): string {
   let hash = 0
   for (let i = 0; i < pin.length; i++) {
@@ -75,9 +148,33 @@ function hashPin(pin: string): string {
   return String(hash)
 }
 
-// ─── Main Page ───────────────────────────────────────────
+function getStorageSize(): string {
+  let total = 0
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && (key.startsWith('amar') || key.startsWith('money'))) {
+      total += (localStorage.getItem(key) || '').length
+    }
+  }
+  const kb = (total / 1024).toFixed(1)
+  return `${kb} KB`
+}
+
+// ==================== Main Page ====================
 export default function SettingsPage() {
-  const { settings, update, ready } = useSettings()
+  const {
+    language,
+    theme,
+    currency,
+    currency_symbol,
+    pinEnabled,
+    pinHash,
+    notificationsEnabled,
+    update
+  } = useSettingsStore()
+
+  const t = translations[language]
+
   const [showPinSetup, setShowPinSetup] = useState(false)
   const [showPinDisable, setShowPinDisable] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
@@ -104,7 +201,7 @@ export default function SettingsPage() {
     a.download = `amar-zone-backup-${new Date().toISOString().split('T')[0]}.json`
     a.click()
     URL.revokeObjectURL(url)
-    showToast('ব্যাকআপ সংরক্ষিত হয়েছে ✓')
+    showToast(t.toastBackup)
     setShowBackupModal(false)
   }
 
@@ -116,10 +213,11 @@ export default function SettingsPage() {
         Object.keys(data).forEach(k => {
           if (!k.startsWith('_')) localStorage.setItem(k, JSON.stringify(data[k]))
         })
-        showToast('ডেটা পুনরুদ্ধার হয়েছে। রিফ্রেশ করুন।')
+        showToast(t.toastRestore)
         setShowRestoreModal(false)
+        setTimeout(() => window.location.reload(), 1000)
       } catch {
-        showToast('ফাইল পড়তে সমস্যা হয়েছে')
+        showToast(t.toastRestoreError)
       }
     }
     reader.readAsText(file)
@@ -128,158 +226,171 @@ export default function SettingsPage() {
   const handleClearData = () => {
     const keys = ['money_transactions', 'money_loans', 'amar-zone-tasks', 'amar-zone-namaz']
     keys.forEach(k => localStorage.removeItem(k))
-    showToast('সব ডেটা মুছে ফেলা হয়েছে')
+    showToast(t.toastDataCleared)
     setShowClearModal(false)
   }
 
-  if (!ready) return null
-
   return (
     <div className="st-root">
-      {/* Header */}
       <div className="st-header">
         <div className="st-header-bg" />
         <div className="st-header-inner">
-          <p className="st-header-eyebrow">কাস্টমাইজ করুন</p>
-          <h1 className="st-header-title">সেটিংস</h1>
-          <p className="st-header-sub">অ্যাপের পছন্দ ও ডেটা নিয়ন্ত্রণ করুন</p>
+          <p className="st-header-eyebrow">{t.customize}</p>
+          <h1 className="st-header-title">{t.settings}</h1>
+          <p className="st-header-sub">{t.sub}</p>
         </div>
       </div>
 
       <div className="st-body">
-
-        {/* ─ Theme ───────────────────────────────────────── */}
-        <Section icon={<Palette size={15} />} title="থিম">
+        {/* Theme */}
+        <Section icon={<Palette size={15} />} title={t.theme}>
           <div className="st-theme-grid">
-            {([
-              { val: 'light' as Theme, icon: <Sun size={18} />, label: 'আলো' },
-              { val: 'dark' as Theme,  icon: <Moon size={18} />, label: 'অন্ধকার' },
-              { val: 'system' as Theme, icon: <Monitor size={18} />, label: 'সিস্টেম' },
-            ]).map(({ val, icon, label }) => (
+            {[
+              { val: 'light' as Theme, icon: <Sun size={18} />, label: t.themeLight },
+              { val: 'dark' as Theme,  icon: <Moon size={18} />, label: t.themeDark },
+              { val: 'system' as Theme, icon: <Monitor size={18} />, label: t.themeSystem },
+            ].map(({ val, icon, label }) => (
               <button
                 key={val}
-                className={`st-theme-btn ${settings.theme === val ? 'st-theme-btn--on' : ''}`}
+                className={`st-theme-btn ${theme === val ? 'st-theme-btn--on' : ''}`}
                 onClick={() => update({ theme: val })}
               >
                 <span className="st-theme-icon">{icon}</span>
                 <span className="st-theme-label">{label}</span>
-                {settings.theme === val && <span className="st-theme-check"><Check size={10} /></span>}
+                {theme === val && <span className="st-theme-check"><Check size={10} /></span>}
               </button>
             ))}
           </div>
         </Section>
 
-        {/* ─ Language ────────────────────────────────────── */}
-        <Section icon={<Globe size={15} />} title="ভাষা ও মুদ্রা">
+        {/* Language & Currency */}
+        <Section icon={<Globe size={15} />} title={t.langCurrency}>
           <RowToggle
-            label="ভাষা"
-            left="বাংলা" right="English"
-            active={settings.language === 'bn'}
+            label={t.language}
+            left={t.bnLabel}
+            right={t.enLabel}
+            active={language === 'bn'}
             onLeft={() => update({ language: 'bn' })}
             onRight={() => update({ language: 'en' })}
           />
           <div className="st-divider" />
           <RowToggle
-            label="মুদ্রা"
-            left="৳ BDT" right="$ USD"
-            active={settings.currency === 'BDT'}
+            label={t.currency}
+            left={t.bdtLabel}
+            right={t.usdLabel}
+            active={currency === 'BDT'}
             onLeft={() => update({ currency: 'BDT', currency_symbol: '৳' })}
             onRight={() => update({ currency: 'USD', currency_symbol: '$' })}
           />
         </Section>
 
-        {/* ─ Notifications ───────────────────────────────── */}
-        <Section icon={<Bell size={15} />} title="নোটিফিকেশন">
+        {/* Notifications */}
+        <Section icon={<Bell size={15} />} title={t.notifications}>
           <RowSwitch
-            label="নামাজের রিমাইন্ডার"
-            sub="সময় হলে জানাবে"
-            value={settings.notificationsEnabled}
+            label={t.namazReminder}
+            sub={t.namazSub}
+            value={notificationsEnabled}
             onChange={v => update({ notificationsEnabled: v })}
           />
         </Section>
 
-        {/* ─ Security ────────────────────────────────────── */}
-        <Section icon={<Shield size={15} />} title="নিরাপত্তা">
+        {/* Security */}
+        <Section icon={<Shield size={15} />} title={t.security}>
           <RowArrow
-            label="PIN লক"
-            sub={settings.pinEnabled ? 'সক্রিয় আছে ✓' : 'নিষ্ক্রিয়'}
-            accent={settings.pinEnabled}
-            onClick={() => settings.pinEnabled ? setShowPinDisable(true) : setShowPinSetup(true)}
+            label={t.pinLock}
+            sub={pinEnabled ? t.pinActive : t.pinInactive}
+            accent={pinEnabled}
+            onClick={() => pinEnabled ? setShowPinDisable(true) : setShowPinSetup(true)}
           />
         </Section>
 
-        {/* ─ Data ────────────────────────────────────────── */}
-        <Section icon={<Download size={15} />} title="ডেটা ব্যবস্থাপনা">
-          <RowArrow
-            label="ব্যাকআপ করুন"
-            sub="JSON ফাইলে সংরক্ষণ করুন"
-            onClick={() => setShowBackupModal(true)}
-          />
+        {/* Data Management */}
+        <Section icon={<Download size={15} />} title={t.dataManage}>
+          <RowArrow label={t.backup} sub={t.backupSub} onClick={() => setShowBackupModal(true)} />
           <div className="st-divider" />
-          <RowArrow
-            label="ডেটা পুনরুদ্ধার করুন"
-            sub="JSON ফাইল থেকে লোড করুন"
-            onClick={() => setShowRestoreModal(true)}
-          />
+          <RowArrow label={t.restore} sub={t.restoreSub} onClick={() => setShowRestoreModal(true)} />
           <div className="st-divider" />
-          <RowArrow
-            label="সব ডেটা মুছুন"
-            sub="স্থায়ীভাবে সরিয়ে ফেলবে"
-            danger
-            onClick={() => setShowClearModal(true)}
-          />
+          <RowArrow label={t.clearData} sub={t.clearSub} danger onClick={() => setShowClearModal(true)} />
         </Section>
 
-        {/* ─ About ───────────────────────────────────────── */}
-        <Section icon={<Info size={15} />} title="অ্যাপ সম্পর্কে">
+        {/* About */}
+        <Section icon={<Info size={15} />} title={t.about}>
           <div className="st-about-card">
             <div className="st-about-logo">AZ</div>
             <div>
               <p className="st-about-name">Amar Zone</p>
-              <p className="st-about-ver">সংস্করণ ১.০.০ · লোকাল-ফার্স্ট</p>
+              <p className="st-about-ver">{t.version}</p>
             </div>
           </div>
           <div className="st-divider" />
-          <RowArrow label="স্টোরেজ ব্যবহার" sub={getStorageSize()} onClick={() => {}} noArrow />
+          <RowArrow label={t.storageUsed} sub={getStorageSize()} onClick={() => {}} noArrow />
           <div className="st-divider" />
           <div className="st-local-note">
             <Lock size={11} />
-            সমস্ত ডেটা শুধু আপনার ডিভাইসে সংরক্ষিত। কোনো সার্ভারে পাঠানো হয় না।
+            {t.localNote}
           </div>
         </Section>
 
         <div style={{ height: 40 }} />
       </div>
 
-      {/* ─── Modals ──────────────────────────────────────── */}
-      {showPinSetup && <PinSetupModal onClose={() => setShowPinSetup(false)} onSave={(pin) => { update({ pinEnabled: true, pinHash: hashPin(pin) }); showToast('PIN সেট হয়েছে ✓'); setShowPinSetup(false) }} />}
-      {showPinDisable && <PinDisableModal pinHash={settings.pinHash} onClose={() => setShowPinDisable(false)} onConfirm={() => { update({ pinEnabled: false, pinHash: undefined }); showToast('PIN মুছে ফেলা হয়েছে'); setShowPinDisable(false) }} />}
-
+      {/* Modals */}
+      {showPinSetup && (
+        <PinSetupModal
+          language={language}
+          onClose={() => setShowPinSetup(false)}
+          onSave={(pin) => {
+            update({ pinEnabled: true, pinHash: hashPin(pin) })
+            showToast(translations[language].toastPinSet)
+            setShowPinSetup(false)
+          }}
+        />
+      )}
+      {showPinDisable && (
+        <PinDisableModal
+          language={language}
+          pinHash={pinHash}
+          onClose={() => setShowPinDisable(false)}
+          onConfirm={() => {
+            update({ pinEnabled: false, pinHash: undefined })
+            showToast(translations[language].toastPinRemoved)
+            setShowPinDisable(false)
+          }}
+        />
+      )}
       {showBackupModal && (
         <ConfirmModal
-          title="ব্যাকআপ করুন"
-          body="সমস্ত ডেটা একটি JSON ফাইলে সংরক্ষিত হবে।"
-          confirmLabel="ডাউনলোড করুন" confirmClass="mo-submit--neu"
-          onConfirm={handleBackup} onClose={() => setShowBackupModal(false)}
+          language={language}
+          title={t.backupTitle}
+          body={t.backupBody}
+          confirmLabel={t.backupConfirm}
+          confirmClass="mo-submit--neu"
+          onConfirm={handleBackup}
+          onClose={() => setShowBackupModal(false)}
           icon={<Download size={22} />}
         />
       )}
-
       {showRestoreModal && (
-        <RestoreModal onClose={() => setShowRestoreModal(false)} onRestore={handleRestore} />
+        <RestoreModal
+          language={language}
+          onClose={() => setShowRestoreModal(false)}
+          onRestore={handleRestore}
+        />
       )}
-
       {showClearModal && (
         <ConfirmModal
-          title="সব ডেটা মুছুন?"
-          body="এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না। সমস্ত লেনদেন, ধার, এবং নামাজের রেকর্ড মুছে যাবে।"
-          confirmLabel="মুছে ফেলুন" confirmClass="mo-submit--exp"
-          onConfirm={handleClearData} onClose={() => setShowClearModal(false)}
-          icon={<Trash2 size={22} />} danger
+          language={language}
+          title={t.clearTitle}
+          body={t.clearBody}
+          confirmLabel={t.clearConfirm}
+          confirmClass="mo-submit--exp"
+          onConfirm={handleClearData}
+          onClose={() => setShowClearModal(false)}
+          icon={<Trash2 size={22} />}
+          danger
         />
       )}
 
-      {/* Toast */}
       {toast && <div className="st-toast">{toast}</div>}
 
       <style>{CSS}</style>
@@ -287,19 +398,7 @@ export default function SettingsPage() {
   )
 }
 
-// ─── Utility ─────────────────────────────────────────────
-function getStorageSize(): string {
-  let total = 0
-  for (let k in localStorage) {
-    if (localStorage.hasOwnProperty(k) && k.startsWith('amar') || k.startsWith('money')) {
-      total += (localStorage.getItem(k) || '').length
-    }
-  }
-  const kb = (total / 1024).toFixed(1)
-  return `~${kb} KB ব্যবহৃত`
-}
-
-// ─── Sub-components ───────────────────────────────────────
+// ==================== Sub-components ====================
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <div className="st-section">
@@ -350,7 +449,7 @@ function RowArrow({ label, sub, onClick, danger, accent, noArrow }: { label: str
   )
 }
 
-// ─── Modals ───────────────────────────────────────────────
+// ==================== Modals ====================
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="mo-backdrop" onClick={onClose}>
@@ -366,7 +465,8 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
   )
 }
 
-function PinSetupModal({ onClose, onSave }: { onClose: () => void; onSave: (pin: string) => void }) {
+function PinSetupModal({ language, onClose, onSave }: { language: Language; onClose: () => void; onSave: (pin: string) => void }) {
+  const t = translations[language]
   const [step, setStep] = useState<'enter' | 'confirm'>('enter')
   const [pin, setPin] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -374,33 +474,33 @@ function PinSetupModal({ onClose, onSave }: { onClose: () => void; onSave: (pin:
   const [error, setError] = useState('')
 
   const handleNext = () => {
-    if (pin.length < 4) { setError('কমপক্ষে ৪ সংখ্যা দিন'); return }
+    if (pin.length < 4) { setError(t.pinErrorShort); return }
     setStep('confirm'); setError('')
   }
   const handleConfirm = () => {
-    if (pin !== confirm) { setError('PIN মেলেনি'); return }
+    if (pin !== confirm) { setError(t.pinErrorMismatch); return }
     onSave(pin)
   }
 
   return (
-    <ModalShell title="PIN সেট করুন" onClose={onClose}>
+    <ModalShell title={t.pinSetupTitle} onClose={onClose}>
       <div className="st-pin-wrap">
         {step === 'enter' ? (
           <>
-            <p className="st-pin-hint">নতুন PIN দিন (কমপক্ষে ৪ সংখ্যা)</p>
+            <p className="st-pin-hint">{t.pinEnter}</p>
             <div className="st-pin-input-row">
-              <input className="mo-inp" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={e => setPin(e.target.value.replace(/\D/, ''))} autoFocus />
+              <input className="mo-inp" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} autoFocus />
               <button className="st-eye" onClick={() => setShow(!show)}>{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
             </div>
             {error && <p className="st-error">{error}</p>}
-            <button className="mo-submit mo-submit--neu" onClick={handleNext}>পরবর্তী</button>
+            <button className="mo-submit mo-submit--neu" onClick={handleNext}>{t.pinNext}</button>
           </>
         ) : (
           <>
-            <p className="st-pin-hint">আবার PIN দিন (নিশ্চিত করুন)</p>
-            <input className="mo-inp" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={8} placeholder="••••" value={confirm} onChange={e => setConfirm(e.target.value.replace(/\D/, ''))} autoFocus />
+            <p className="st-pin-hint">{t.pinConfirm}</p>
+            <input className="mo-inp" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={8} placeholder="••••" value={confirm} onChange={e => setConfirm(e.target.value.replace(/\D/g, ''))} autoFocus />
             {error && <p className="st-error">{error}</p>}
-            <button className="mo-submit mo-submit--neu" onClick={handleConfirm}>সংরক্ষণ করুন</button>
+            <button className="mo-submit mo-submit--neu" onClick={handleConfirm}>{t.pinSave}</button>
           </>
         )}
       </div>
@@ -408,24 +508,26 @@ function PinSetupModal({ onClose, onSave }: { onClose: () => void; onSave: (pin:
   )
 }
 
-function PinDisableModal({ pinHash, onClose, onConfirm }: { pinHash?: string; onClose: () => void; onConfirm: () => void }) {
+function PinDisableModal({ language, pinHash, onClose, onConfirm }: { language: Language; pinHash?: string; onClose: () => void; onConfirm: () => void }) {
+  const t = translations[language]
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const handleCheck = () => {
     if (hashPin(pin) === pinHash) onConfirm()
-    else setError('ভুল PIN')
+    else setError(t.pinErrorWrong)
   }
   return (
-    <ModalShell title="PIN বন্ধ করুন" onClose={onClose}>
-      <p className="st-pin-hint">বর্তমান PIN দিয়ে নিশ্চিত করুন</p>
-      <input className="mo-inp" type="password" inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={e => setPin(e.target.value.replace(/\D/, ''))} autoFocus />
+    <ModalShell title={t.pinDisableTitle} onClose={onClose}>
+      <p className="st-pin-hint">{t.pinDisableConfirm}</p>
+      <input className="mo-inp" type="password" inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} autoFocus />
       {error && <p className="st-error">{error}</p>}
-      <button className="mo-submit mo-submit--exp" onClick={handleCheck}>PIN বন্ধ করুন</button>
+      <button className="mo-submit mo-submit--exp" onClick={handleCheck}>{t.pinDisableBtn}</button>
     </ModalShell>
   )
 }
 
-function ConfirmModal({ title, body, confirmLabel, confirmClass, onConfirm, onClose, icon, danger }: { title: string; body: string; confirmLabel: string; confirmClass: string; onConfirm: () => void; onClose: () => void; icon?: React.ReactNode; danger?: boolean }) {
+function ConfirmModal({ language, title, body, confirmLabel, confirmClass, onConfirm, onClose, icon, danger }: { language: Language; title: string; body: string; confirmLabel: string; confirmClass: string; onConfirm: () => void; onClose: () => void; icon?: React.ReactNode; danger?: boolean }) {
+  const t = translations[language]
   return (
     <ModalShell title={title} onClose={onClose}>
       <div className="st-confirm-body">
@@ -433,183 +535,694 @@ function ConfirmModal({ title, body, confirmLabel, confirmClass, onConfirm, onCl
         <p className="st-confirm-text">{body}</p>
       </div>
       <button className={`mo-submit ${confirmClass}`} onClick={onConfirm}>{confirmLabel}</button>
-      <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>বাতিল করুন</button>
+      <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>{t.cancel}</button>
     </ModalShell>
   )
 }
 
-function RestoreModal({ onClose, onRestore }: { onClose: () => void; onRestore: (f: File) => void }) {
+function RestoreModal({ language, onClose, onRestore }: { language: Language; onClose: () => void; onRestore: (f: File) => void }) {
+  const t = translations[language]
   return (
-    <ModalShell title="ডেটা পুনরুদ্ধার করুন" onClose={onClose}>
+    <ModalShell title={t.restoreTitle} onClose={onClose}>
       <div className="st-restore-body">
         <Upload size={30} className="st-restore-icon" />
-        <p className="st-restore-text">ব্যাকআপ JSON ফাইল নির্বাচন করুন</p>
+        <p className="st-restore-text">{t.restoreBody}</p>
         <label className="st-file-label">
-          ফাইল নির্বাচন করুন
+          {t.restoreSelect}
           <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) onRestore(f) }} />
         </label>
-        <p className="st-restore-warn">⚠ বিদ্যমান ডেটা প্রতিস্থাপিত হবে</p>
+        <p className="st-restore-warn">{t.restoreWarn}</p>
       </div>
     </ModalShell>
   )
 }
 
-// ─── CSS ──────────────────────────────────────────────────
+// ==================== CSS ====================
 const CSS = `
-/* root */
-.st-root { min-height: 100%; background: #080c14; color: #e8eaf0; font-family: 'Siyam Rupali', 'Noto Sans Bengali', system-ui, sans-serif; }
+.st-root {
+  --bg-primary: rgb(var(--bg));
+  --bg-secondary: rgb(var(--card));
+  --surface: rgb(var(--card));
+  --text-primary: rgb(var(--fg));
+  --text-secondary: rgb(var(--fg));
+  --text-muted: rgb(var(--muted));
+  --border: rgb(var(--border));
+  --accent: #4ade80;
+  --accent-glow: #4ade8040;
+  --danger: #f87171;
+  min-height: 100%;
+  background: var(--bg-primary, #080c14);
+  color: var(--text-primary, #e8eaf0);
+  font-family: 'Siyam Rupali', 'Noto Sans Bengali', system-ui, sans-serif;
+}
 
-/* header */
-.st-header { position: relative; overflow: hidden; padding-bottom: 4px; }
-.st-header-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 100% 120% at 0% 0%, #1a2d1a 0%, #080c14 65%); }
-.st-header-inner { position: relative; z-index: 1; padding: 32px 20px 24px; }
-.st-header-eyebrow { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #4ade80; opacity: 0.7; margin-bottom: 6px; }
-.st-header-title { font-size: 32px; font-weight: 800; color: #e8f4f0; letter-spacing: -1px; line-height: 1; }
-.st-header-sub { font-size: 13px; color: #334a3a; margin-top: 6px; }
+/* Professional light-mode palette */
+html:not(.dark) .st-root {
+  --bg-primary: #f6f8fc;
+  --bg-secondary: #ffffff;
+  --surface: #f8fbff;
+  --text-primary: #0f172a;
+  --text-secondary: #1f2937;
+  --text-muted: #64748b;
+  --border: #dbe3ef;
+  --accent: #2563eb;
+  --accent-glow: #2563eb22;
+}
 
-/* body */
-.st-body { padding: 8px 16px; display: flex; flex-direction: column; gap: 10px; }
+html:not(.dark) .st-header-bg {
+  background: radial-gradient(ellipse 100% 120% at 0% 0%, #dce7ff 0%, var(--bg-primary) 68%);
+}
 
-/* section */
+html:not(.dark) .st-section {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+}
+
+html:not(.dark) .st-row-btn:active {
+  background: #f1f5ff;
+}
+
+html:not(.dark) .st-theme-btn {
+  background: #fbfdff;
+}
+
+html:not(.dark) .st-theme-btn--on,
+html:not(.dark) .st-toggle-opt--on {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+html:not(.dark) .st-theme-check {
+  color: #ffffff;
+}
+
+html:not(.dark) .st-switch--on {
+  background: #bfdbfe;
+}
+
+html:not(.dark) .st-switch--on .st-switch-thumb {
+  background: #2563eb;
+}
+
+html:not(.dark) .st-about-logo {
+  background: linear-gradient(135deg, #eaf2ff, #dbeafe);
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+html:not(.dark) .st-toast {
+  background: #f8fbff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+html:not(.dark) .st-file-label {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+html:not(.dark) .st-file-label:active {
+  background: #dbeafe;
+}
+
+html:not(.dark) .mo-backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+html:not(.dark) .mo-sheet {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+html:not(.dark) .mo-submit--neu {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html:not(.dark) .mo-close:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  html:not(.dark) .st-eye:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+  }
+
+  html:not(.dark) .st-file-label:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+  }
+
+  html:not(.dark) .mo-submit--neu:hover {
+    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.28);
+  }
+
+  html:not(.dark) .mo-submit--exp:hover {
+    box-shadow: 0 12px 26px rgba(231, 76, 60, 0.24);
+  }
+
+  html:not(.dark) .mo-submit--cancel:hover {
+    background: #eef2f7;
+    color: #1f2937;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+  }
+}
+
+.st-header {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 4px;
+}
+.st-header-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 100% 120% at 0% 0%, #1a2d1a 0%, var(--bg-primary) 65%);
+}
+.st-header-inner {
+  position: relative;
+  z-index: 1;
+  padding: 32px 20px 24px;
+}
+.st-header-eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent, #4ade80);
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+.st-header-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-primary, #e8f4f0);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.st-header-sub {
+  font-size: 13px;
+  color: var(--text-muted, #556677);
+  margin-top: 6px;
+}
+
+.st-body {
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .st-section {
-  background: #0f1520; border: 1px solid #1a2535; border-radius: 20px; overflow: hidden;
+  background: var(--bg-secondary, #0f1520);
+  border: 1px solid var(--border, #1a2535);
+  border-radius: 20px;
+  overflow: hidden;
   animation: stFade 0.35s ease-out both;
 }
 .st-section-head {
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 13px 16px 11px;
-  border-bottom: 1px solid #1a2535;
+  border-bottom: 1px solid var(--border, #1a2535);
 }
-.st-section-icon { color: #4ade80; opacity: 0.8; display: flex; }
-.st-section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #3a5a4a; }
-.st-section-body { }
+.st-section-icon {
+  color: var(--accent, #4ade80);
+  opacity: 0.8;
+  display: flex;
+}
+.st-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted, #556677);
+}
 
-/* row */
 .st-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; width: 100%; text-align: left;
-  background: transparent; border: none; cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: default;
 }
-.st-row-btn { cursor: pointer; transition: background 0.15s; }
-.st-row-btn:active { background: #0a1018; }
-.st-row--danger:active { background: #1a0810; }
-.st-row-info { display: flex; flex-direction: column; gap: 3px; }
-.st-row-label { font-size: 14px; font-weight: 500; color: #b8c8d8; }
-.st-row-sub { font-size: 11px; color: #334455; }
-.st-label--danger { color: #f87171 !important; }
-.st-label--accent { color: #4ade80 !important; }
-.st-row-arrow { color: #2a3d4a; flex-shrink: 0; }
-
-.st-divider { height: 1px; background: #1a2535; margin: 0 16px; }
-
-/* theme grid */
-.st-theme-grid { display: flex; gap: 10px; padding: 14px 16px; }
-.st-theme-btn {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 14px 8px; border-radius: 14px;
-  border: 1.5px solid #1a2535; background: #080c14;
-  color: #445566; cursor: pointer; transition: all 0.2s;
-  position: relative;
-}
-.st-theme-btn--on { border-color: #4ade8060; background: #0f2018; color: #4ade80; }
-.st-theme-icon { font-size: 20px; display: flex; }
-.st-theme-label { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
-.st-theme-check {
-  position: absolute; top: 6px; right: 6px;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #4ade80; color: #080c14;
-  display: flex; align-items: center; justify-content: center;
-}
-
-/* toggle */
-.st-toggle { display: flex; background: #080c14; border: 1px solid #1a2535; border-radius: 10px; overflow: hidden; }
-.st-toggle-opt { padding: 7px 12px; font-size: 12px; font-weight: 500; color: #445566; border: none; background: transparent; cursor: pointer; transition: all 0.2s; }
-.st-toggle-opt--on { background: #0f2018; color: #4ade80; }
-
-/* switch */
-.st-switch {
-  width: 44px; height: 26px; border-radius: 999px;
-  background: #1a2535; border: none; cursor: pointer;
-  position: relative; transition: background 0.3s; flex-shrink: 0;
-}
-.st-switch--on { background: #4ade8080; }
-.st-switch-thumb {
-  position: absolute; top: 3px; left: 3px;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: #445566; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), background 0.3s;
-}
-.st-switch--on .st-switch-thumb { transform: translateX(18px); background: #4ade80; }
-
-/* about */
-.st-about-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
-.st-about-logo {
-  width: 44px; height: 44px; border-radius: 14px;
-  background: linear-gradient(135deg, #0f2018, #1a3828);
-  border: 1px solid #4ade8030;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 800; color: #4ade80; letter-spacing: -0.5px;
-}
-.st-about-name { font-size: 15px; font-weight: 700; color: #b8c8d8; }
-.st-about-ver { font-size: 11px; color: #334455; margin-top: 2px; }
-.st-local-note {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 12px 16px; font-size: 12px; color: #334455; line-height: 1.5;
-}
-
-/* toast */
-.st-toast {
-  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-  background: #0f2018; border: 1px solid #4ade8040;
-  color: #4ade80; font-size: 13px; font-weight: 500;
-  padding: 10px 20px; border-radius: 999px;
-  white-space: nowrap; z-index: 1000;
-  animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
-}
-@keyframes toastIn { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
-
-/* pin modal */
-.st-pin-wrap { }
-.st-pin-hint { font-size: 13px; color: #556677; margin-bottom: 14px; }
-.st-pin-input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.st-pin-input-row .mo-inp { margin-bottom: 0; flex: 1; letter-spacing: 4px; font-size: 20px; }
-.st-eye { width: 40px; height: 46px; background: #0f1520; border: 1.5px solid #1a2535; border-radius: 12px; color: #556677; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
-.st-error { font-size: 12px; color: #f87171; margin-bottom: 12px; }
-
-/* confirm modal */
-.st-confirm-body { text-align: center; padding: 12px 0 20px; }
-.st-confirm-icon { width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
-.st-confirm-icon--gold { background: #c9a84c18; color: #c9a84c; border: 1px solid #c9a84c30; }
-.st-confirm-icon--danger { background: #ef444418; color: #f87171; border: 1px solid #ef444430; }
-.st-confirm-text { font-size: 14px; color: #667788; line-height: 1.6; }
-
-/* restore modal */
-.st-restore-body { display: flex; flex-direction: column; align-items: center; padding: 16px 0 20px; gap: 12px; }
-.st-restore-icon { color: #c9a84c; }
-.st-restore-text { font-size: 14px; color: #667788; }
-.st-file-label {
-  padding: 12px 24px; border-radius: 12px;
-  background: #c9a84c18; border: 1.5px solid #c9a84c40;
-  color: #c9a84c; font-size: 14px; font-weight: 600; cursor: pointer;
+.st-row-btn {
+  cursor: pointer;
   transition: background 0.15s;
 }
-.st-file-label:active { background: #c9a84c25; }
-.st-restore-warn { font-size: 12px; color: #f87171; }
+.st-row-btn:active {
+  background: var(--surface, #0a1018);
+}
+.st-row--danger:active {
+  background: #1a0810;
+}
+.st-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.st-row-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary, #b8c8d8);
+}
+.st-row-sub {
+  font-size: 11px;
+  color: var(--text-muted, #556677);
+}
+.st-label--danger {
+  color: var(--danger, #f87171) !important;
+}
+.st-label--accent {
+  color: var(--accent, #4ade80) !important;
+}
+.st-row-arrow {
+  color: var(--text-muted, #556677);
+  flex-shrink: 0;
+}
 
-/* shared modal */
-.mo-backdrop { position: fixed; inset: 0; z-index: 300; background: rgba(4,7,12,0.85); backdrop-filter: blur(8px); display: flex; align-items: flex-end; justify-content: center; animation: stFade 0.2s ease-out; }
-.mo-sheet { width: 100%; max-width: 480px; background: linear-gradient(180deg, #0f1520 0%, #0a1018 100%); border: 1px solid #1a2535; border-bottom: none; border-radius: 24px 24px 0 0; padding: 8px 20px 48px; max-height: 90vh; overflow-y: auto; animation: moSlide 0.35s cubic-bezier(0.32,1.5,0.6,1); }
-.mo-notch { width: 36px; height: 4px; background: #1e2d40; border-radius: 999px; margin: 10px auto 18px; }
-.mo-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.mo-title { font-size: 18px; font-weight: 700; color: #dde8f4; }
-.mo-close { width: 32px; height: 32px; border-radius: 10px; background: #1a2535; border: 1px solid #243040; color: #556677; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.mo-inp { display: block; width: 100%; background: #0f1520; border: 1.5px solid #1a2535; border-radius: 12px; padding: 13px 15px; color: #c8d4e0; font-size: 14px; outline: none; margin-bottom: 10px; transition: border-color 0.2s; box-sizing: border-box; }
-.mo-inp:focus { border-color: #4ade8060; }
-.mo-submit { width: 100%; padding: 15px; border-radius: 14px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
-.mo-submit:active { transform: scale(0.97); }
-.mo-submit--neu { background: linear-gradient(135deg, #c9a84c, #e8c56a); color: #080c14; }
-.mo-submit--exp { background: linear-gradient(135deg, #c0392b, #e74c3c); color: white; }
-.mo-submit--cancel { background: #1a2535; color: #556677; }
+.st-divider {
+  height: 1px;
+  background: var(--border, #1a2535);
+  margin: 0 16px;
+}
 
-@keyframes stFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes moSlide { from { transform: translateY(80px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.st-theme-grid {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.st-theme-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border, #1a2535);
+  background: var(--bg-primary, #080c14);
+  color: var(--text-muted, #556677);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.st-theme-btn--on {
+  border-color: var(--accent-glow, #4ade8060);
+  background: var(--accent-glow, #0f2018);
+  color: var(--accent, #4ade80);
+}
+.st-theme-icon {
+  font-size: 20px;
+  display: flex;
+}
+.st-theme-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.st-theme-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent, #4ade80);
+  color: var(--bg-primary, #080c14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.st-toggle {
+  display: flex;
+  background: var(--bg-primary, #080c14);
+  border: 1px solid var(--border, #1a2535);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.st-toggle-opt {
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted, #556677);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.st-toggle-opt--on {
+  background: var(--accent-glow, #0f2018);
+  color: var(--accent, #4ade80);
+}
+
+.st-switch {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--border, #1a2535);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.st-switch--on {
+  background: var(--accent-glow, #4ade8080);
+}
+.st-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text-muted, #556677);
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), background 0.3s;
+}
+.st-switch--on .st-switch-thumb {
+  transform: translateX(18px);
+  background: var(--accent, #4ade80);
+}
+
+.st-about-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+.st-about-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0f2018, #1a3828);
+  border: 1px solid var(--accent-glow, #4ade8030);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent, #4ade80);
+  letter-spacing: -0.5px;
+}
+.st-about-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-secondary, #b8c8d8);
+}
+.st-about-ver {
+  font-size: 11px;
+  color: var(--text-muted, #556677);
+  margin-top: 2px;
+}
+.st-local-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-muted, #556677);
+  line-height: 1.5;
+}
+
+.st-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-secondary, #0f2018);
+  border: 1px solid var(--accent-glow, #4ade8040);
+  color: var(--accent, #4ade80);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 999px;
+  white-space: nowrap;
+  z-index: 1000;
+  animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes toastIn {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.st-pin-wrap { }
+.st-pin-hint {
+  font-size: 13px;
+  color: var(--text-muted, #556677);
+  margin-bottom: 14px;
+}
+.st-pin-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.st-pin-input-row .mo-inp {
+  margin-bottom: 0;
+  flex: 1;
+  letter-spacing: 4px;
+  font-size: 20px;
+}
+.st-eye {
+  width: 40px;
+  height: 46px;
+  background: var(--bg-secondary, #0f1520);
+  border: 1.5px solid var(--border, #1a2535);
+  border-radius: 12px;
+  color: var(--text-muted, #556677);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+.st-error {
+  font-size: 12px;
+  color: var(--danger, #f87171);
+  margin-bottom: 12px;
+}
+
+.st-confirm-body {
+  text-align: center;
+  padding: 12px 0 20px;
+}
+.st-confirm-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.st-confirm-icon--gold {
+  background: #c9a84c18;
+  color: #c9a84c;
+  border: 1px solid #c9a84c30;
+}
+.st-confirm-icon--danger {
+  background: var(--danger, #ef4444)18;
+  color: var(--danger, #f87171);
+  border: 1px solid var(--danger, #ef4444)30;
+}
+.st-confirm-text {
+  font-size: 14px;
+  color: var(--text-muted, #667788);
+  line-height: 1.6;
+}
+
+.st-restore-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0 20px;
+  gap: 12px;
+}
+.st-restore-icon {
+  color: #c9a84c;
+}
+.st-restore-text {
+  font-size: 14px;
+  color: var(--text-muted, #667788);
+}
+.st-file-label {
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: #c9a84c18;
+  border: 1.5px solid #c9a84c40;
+  color: #c9a84c;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.st-file-label:active {
+  background: #c9a84c25;
+}
+.st-restore-warn {
+  font-size: 12px;
+  color: var(--danger, #f87171);
+}
+
+.mo-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(4,7,12,0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: stFade 0.2s ease-out;
+}
+.mo-sheet {
+  width: min(100%, 480px);
+  background: linear-gradient(180deg, var(--bg-secondary, #0f1520) 0%, var(--surface, #0a1018) 100%);
+  border: 1px solid var(--border, #1a2535);
+  border-radius: 20px;
+  padding: 8px 20px 20px;
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  animation: moZoomIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.mo-notch {
+  width: 36px;
+  height: 4px;
+  background: var(--text-muted, #1e2d40);
+  border-radius: 999px;
+  margin: 10px auto 18px;
+}
+.mo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.mo-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary, #dde8f4);
+}
+.mo-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--border, #1a2535);
+  border: 1px solid var(--text-muted, #243040);
+  color: var(--text-secondary, #556677);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+.mo-inp {
+  display: block;
+  width: 100%;
+  background: var(--bg-secondary, #0f1520);
+  border: 1.5px solid var(--border, #1a2535);
+  border-radius: 12px;
+  padding: 13px 15px;
+  color: var(--text-secondary, #c8d4e0);
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.mo-inp:focus {
+  border-color: var(--accent-glow, #4ade8060);
+}
+.mo-submit {
+  width: 100%;
+  padding: 15px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s, filter 0.2s;
+}
+.mo-submit:active {
+  transform: scale(0.97);
+}
+.mo-submit--neu {
+  background: linear-gradient(135deg, #c9a84c, #e8c56a);
+  color: #080c14;
+}
+.mo-submit--exp {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: white;
+}
+.mo-submit--cancel {
+  background: var(--border, #1a2535);
+  color: var(--text-muted, #556677);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mo-close:hover {
+    background: color-mix(in srgb, var(--border, #1a2535) 75%, white 25%);
+    border-color: color-mix(in srgb, var(--border, #1a2535) 60%, var(--accent, #4ade80) 40%);
+    color: var(--text-primary, #e8eaf0);
+    transform: translateY(-1px);
+  }
+
+  .st-eye:hover {
+    background: color-mix(in srgb, var(--bg-secondary, #0f1520) 80%, white 20%);
+    border-color: color-mix(in srgb, var(--border, #1a2535) 60%, var(--accent, #4ade80) 40%);
+    color: var(--accent, #4ade80);
+  }
+
+  .st-file-label:hover {
+    background: #c9a84c24;
+    border-color: #c9a84c66;
+    box-shadow: 0 8px 20px rgba(201, 168, 76, 0.16);
+    transform: translateY(-1px);
+  }
+
+  .mo-submit:hover {
+    transform: translateY(-1px);
+    filter: saturate(1.05);
+  }
+
+  .mo-submit--neu:hover {
+    box-shadow: 0 10px 24px rgba(201, 168, 76, 0.28);
+  }
+
+  .mo-submit--exp:hover {
+    box-shadow: 0 10px 24px rgba(231, 76, 60, 0.28);
+  }
+
+  .mo-submit--cancel:hover {
+    background: color-mix(in srgb, var(--border, #1a2535) 72%, white 28%);
+    color: var(--text-primary, #e8eaf0);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  }
+}
+@keyframes stFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes moSlide {
+  from { transform: translateY(80px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes moZoomIn {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
 `
+
+export const dynamic = 'force-dynamic'

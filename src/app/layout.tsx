@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
+
 export const metadata: Metadata = {
   title: 'Amar Zone',
   description: 'Your personal life management app',
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
         {children}
+        
       </body>
     </html>
   )
