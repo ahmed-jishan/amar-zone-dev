@@ -1,52 +1,41 @@
 // app/(tabs)/namaz/components/LogsView/index.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import DayLogCard from './DayLogCard';
 import DatePicker from './DatePicker';
-
-interface PrayerLog {
-  Fajr: { status: 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat'; markedAt?: number };
-  Dhuhr: { status: 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat'; markedAt?: number };
-  Asr: { status: 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat'; markedAt?: number };
-  Maghrib: { status: 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat'; markedAt?: number };
-  Isha: { status: 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat'; markedAt?: number };
-}
+import { useLogs } from '@/app/(tabs)/namaz/hooks2/useLogs';
+import type { PrayerName, PrayerStatus } from '@/app/(tabs)/namaz/types2/prayer.types';
 
 export default function LogsView() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [logs, setLogs] = useState<Record<string, PrayerLog>>({});
-  const [summary, setSummary] = useState({ total: 0, completed: 0, onTime: 0, late: 0, missed: 0 });
+  const { logs, updatePrayer, getPrayerStatus } = useLogs();
+  
+  const dateKey = selectedDate.toISOString().split('T')[0];
+  const todayLog = logs[dateKey];
 
-  // Load logs from localStorage (or your store)
-  useEffect(() => {
-    const stored = localStorage.getItem('namazLogs');
-    if (stored) setLogs(JSON.parse(stored));
-  }, []);
-
-  // Update summary when logs or date changes
-  useEffect(() => {
-    const dateKey = selectedDate.toISOString().split('T')[0];
-    const todayLog = logs[dateKey];
-    if (todayLog) {
-      const prayers = Object.values(todayLog);
-      const completed = prayers.filter(p => p.status !== 'pending').length;
-      const onTime = prayers.filter(p => p.status === 'onTime').length;
-      const late = prayers.filter(p => p.status === 'late').length;
-      const missed = prayers.filter(p => p.status === 'missed').length;
-      setSummary({ total: 5, completed, onTime, late, missed });
-    } else {
-      setSummary({ total: 5, completed: 0, onTime: 0, late: 0, missed: 0 });
-    }
-  }, [logs, selectedDate]);
-
-  const handleUpdateLog = (date: Date, updatedLog: PrayerLog) => {
-    const dateKey = date.toISOString().split('T')[0];
-    const newLogs = { ...logs, [dateKey]: updatedLog };
-    setLogs(newLogs);
-    localStorage.setItem('namazLogs', JSON.stringify(newLogs));
+  // Summary calculation
+  const summary = {
+    total: 5,
+    completed: 0,
+    onTime: 0,
+    late: 0,
+    missed: 0,
   };
+
+  if (todayLog) {
+    const prayers = Object.values(todayLog);
+    summary.completed = prayers.filter(p => p.status !== 'pending').length;
+    summary.onTime = prayers.filter(p => p.status === 'onTime').length;
+    summary.late = prayers.filter(p => p.status === 'late').length;
+    summary.missed = prayers.filter(p => p.status === 'missed').length;
+  }
+
+  // Handle prayer status change from DayLogCard
+  const handlePrayerUpdate = useCallback((prayer: PrayerName, status: PrayerStatus) => {
+    updatePrayer(dateKey, prayer, status);
+  }, [dateKey, updatePrayer]);
 
   const changeDate = (days: number) => {
     const newDate = new Date(selectedDate);
@@ -56,7 +45,7 @@ export default function LogsView() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Date Navigation */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-emerald-100 rounded-xl">
@@ -67,7 +56,6 @@ export default function LogsView() {
             <p className="text-emerald-600 text-sm">প্রতিদিনের নামাজের অবস্থা দেখুন ও এডিট করুন</p>
           </div>
         </div>
-        
         <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
       </div>
 
@@ -115,11 +103,11 @@ export default function LogsView() {
         </div>
       </div>
 
-      {/* Day Log Card */}
+      {/* Day Log Card - passes getPrayerStatus and update handler */}
       <DayLogCard
         date={selectedDate}
-        initialLog={logs[selectedDate.toISOString().split('T')[0]]}
-        onUpdate={(updated) => handleUpdateLog(selectedDate, updated)}
+        getPrayerStatus={getPrayerStatus}
+        onPrayerUpdate={handlePrayerUpdate}
       />
     </div>
   );

@@ -1,74 +1,45 @@
-// app/(tabs)/namaz/components/LogsView/DayLogCard.tsx
+// DayLogCard.tsx
 'use client';
+
 
 import { useState, useEffect } from 'react';
 import PrayerStatusBadge from './PrayerStatusBadge';
-
-type PrayerStatus = 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
-
-interface PrayerEntry {
-  status: PrayerStatus;
-  markedAt?: number;
-}
-
-interface PrayerLog {
-  Fajr: PrayerEntry;
-  Dhuhr: PrayerEntry;
-  Asr: PrayerEntry;
-  Maghrib: PrayerEntry;
-  Isha: PrayerEntry;
-}
+import type { PrayerName, PrayerStatus } from '@/app/(tabs)/namaz/types2/prayer.types';
 
 interface Props {
   date: Date;
-  initialLog?: PrayerLog;
-  onUpdate: (log: PrayerLog) => void;
+  getPrayerStatus: (date: string, prayer: PrayerName) => PrayerStatus;
+  onPrayerUpdate: (prayer: PrayerName, status: PrayerStatus) => void;
 }
 
-type PrayerName = keyof PrayerLog;
-
 const prayerOrder: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-const prayerNamesBn: Record<string, string> = {
+const prayerNamesBn: Record<PrayerName, string> = {
   Fajr: 'ফজর', Dhuhr: 'যোহর', Asr: 'আসর', Maghrib: 'মাগরিব', Isha: 'এশা'
 };
 
-export default function DayLogCard({ date, initialLog, onUpdate }: Props) {
-  const [log, setLog] = useState<PrayerLog>(() => {
-    if (initialLog) return initialLog;
-    // Default empty log
-    return {
-      Fajr: { status: 'pending' },
-      Dhuhr: { status: 'pending' },
-      Asr: { status: 'pending' },
-      Maghrib: { status: 'pending' },
-      Isha: { status: 'pending' }
-    };
-  });
+export default function DayLogCard({ date, getPrayerStatus, onPrayerUpdate }: Props) {
+  const dateKey = date.toISOString().split('T')[0];
+  const [localStatuses, setLocalStatuses] = useState<Record<PrayerName, PrayerStatus>>({} as any);
+  // State to track which dropdown is open
+  const [openDropdown, setOpenDropdown] = useState<PrayerName | null>(null);
 
   useEffect(() => {
-    if (initialLog) setLog(initialLog);
-    else setLog({
-      Fajr: { status: 'pending' },
-      Dhuhr: { status: 'pending' },
-      Asr: { status: 'pending' },
-      Maghrib: { status: 'pending' },
-      Isha: { status: 'pending' }
+    const initial: any = {};
+    prayerOrder.forEach(p => {
+      initial[p] = getPrayerStatus(dateKey, p);
     });
-  }, [initialLog, date]);
+    setLocalStatuses(initial);
+  }, [dateKey, getPrayerStatus]);
 
   const handleStatusChange = (prayer: PrayerName, newStatus: PrayerStatus) => {
-    const updated = {
-      ...log,
-      [prayer]: { status: newStatus, markedAt: Date.now() }
-    };
-    setLog(updated);
-    onUpdate(updated);
+    setLocalStatuses(prev => ({ ...prev, [prayer]: newStatus }));
+    onPrayerUpdate(prayer, newStatus);
   };
 
   const isToday = date.toDateString() === new Date().toDateString();
 
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-emerald-100 overflow-hidden">
+    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-emerald-100">
       <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-3 border-b border-emerald-100">
         <h3 className="font-semibold text-emerald-900 flex items-center gap-2">
           <span>{isToday ? '🌟 আজকের' : ''} দিনের নামাজের বিস্তারিত</span>
@@ -80,12 +51,14 @@ export default function DayLogCard({ date, initialLog, onUpdate }: Props) {
             <div>
               <p className="font-medium text-emerald-900">{prayerNamesBn[prayer]}</p>
               <p className="text-xs text-emerald-500">
-                {log[prayer].markedAt ? new Date(log[prayer].markedAt).toLocaleTimeString() : 'মার্ক করা হয়নি'}
+                {localStatuses[prayer] !== 'pending' ? 'মার্ক করা হয়েছে' : 'মার্ক করা হয়নি'}
               </p>
             </div>
             <PrayerStatusBadge
-              status={log[prayer].status}
+              status={localStatuses[prayer]}
               onStatusChange={(newStatus) => handleStatusChange(prayer, newStatus)}
+              isOpen={openDropdown === prayer}
+              onOpenChange={(open) => setOpenDropdown(open ? prayer : null)}
             />
           </div>
         ))}

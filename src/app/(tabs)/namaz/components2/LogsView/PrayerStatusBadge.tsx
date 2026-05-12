@@ -1,4 +1,4 @@
-// app/(tabs)/namaz/components/LogsView/PrayerStatusBadge.tsx
+// app/(tabs)/namaz/components2/LogsView/PrayerStatusBadge.tsx
 'use client';
 
 import { useState } from 'react';
@@ -9,9 +9,11 @@ type PrayerStatus = 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
 interface Props {
   status: PrayerStatus;
   onStatusChange: (newStatus: PrayerStatus) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const statusConfig = {
+const statusConfig: Record<PrayerStatus, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
   pending: { label: 'পেন্ডিং', icon: <Circle size={18} />, color: 'text-gray-400', bg: 'hover:bg-gray-50' },
   onTime: { label: 'সময়মত', icon: <CheckCircle size={18} />, color: 'text-emerald-600', bg: 'hover:bg-emerald-50' },
   late: { label: 'দেরি', icon: <Clock size={18} />, color: 'text-amber-600', bg: 'hover:bg-amber-50' },
@@ -19,15 +21,30 @@ const statusConfig = {
   jamaat: { label: 'জামাত', icon: <Users size={18} />, color: 'text-blue-600', bg: 'hover:bg-blue-50' }
 };
 
-export default function PrayerStatusBadge({ status, onStatusChange }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
-
+export default function PrayerStatusBadge({ status, onStatusChange, isOpen, onOpenChange }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = typeof isOpen === 'boolean' ? isOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const current = statusConfig[status];
+
+  // Fallback if status is invalid (should not happen, but safe)
+  if (!current) {
+    return (
+      <div className="relative">
+        <button className="px-3 py-1.5 rounded-full border text-sm bg-gray-100 text-gray-600">
+          অজানা
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${current.bg} ${current.color} border-current/20`}
       >
         {current.icon}
@@ -37,14 +54,14 @@ export default function PrayerStatusBadge({ status, onStatusChange }: Props) {
         </svg>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-40 overflow-hidden">
+      {open && (
+        <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-40 overflow-hidden">
           {Object.entries(statusConfig).map(([key, config]) => (
             <button
               key={key}
               onClick={() => {
                 onStatusChange(key as PrayerStatus);
-                setIsOpen(false);
+                setOpen(false);
               }}
               className={`flex items-center gap-3 w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${config.color}`}
             >

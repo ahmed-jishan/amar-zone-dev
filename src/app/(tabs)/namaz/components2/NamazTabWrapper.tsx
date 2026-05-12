@@ -8,8 +8,8 @@ import DashboardView from './DashboardView';
 import LogsView from './LogsView';
 import CalendarView from './CalendarView';
 import QiblaView from './QiblaView';
-// import TasbihView from './TasbihView';
-// import DuaView from './DuaView';
+import TasbihView from './TasbihView';
+import DuaView from './DuaView';
 // import InsightsView from './InsightsView';
 // import PreferencesView from './PreferencesView';
 
@@ -52,8 +52,8 @@ export function NamazTabWrapper() {
           {activeTab === 'logs' && <LogsView />}
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'qibla' && <QiblaView />}
-          {activeTab === 'tasbih' && <PlaceholderView name="Digital Tasbih" />}
-          {activeTab === 'dua' && <PlaceholderView name="Duas & Remembrance" />}
+          {activeTab === 'tasbih' && <TasbihView />}
+          {activeTab === 'dua' && <DuaView />}
           {activeTab === 'insights' && <PlaceholderView name="Prayer Insights" />}
           {activeTab === 'preferences' && <PlaceholderView name="Namaz Preferences" />}
         </div>
