@@ -6,3 +6,11 @@ export const STORAGE_KEYS = {
   DUA_READ_STATUS: 'namaz_dua_read_status',
   LAST_LOCATION: 'namaz_last_location',
 } as const;
+export const NAMAZ_STORAGE_KEYS = {
+  prayerLogs: 'namaz-prayer-logs',
+  settings: 'namaz-settings',
+  tasbih: 'namaz-tasbih',
+  dua: 'namaz-dua-state',
+  prayerTimesCache: 'namaz-prayer-times-cache',
+  notifications: 'namaz-notifications',
+} as const;

@@ -1,9 +1,9 @@
 // Wrapper around adhan library for prayer time calculations
-import { Coordinates, CalculationMethod, PrayerTimes } from 'adhan'
+import { Coordinates, CalculationMethod, PrayerTimes, type CalculationParameters } from 'adhan'
 
 export type MethodKey = 'Karachi' | 'MWL' | 'ISNA' | 'Egypt' | 'Dubai'
 
-const METHOD_MAP: Record<MethodKey, () => object> = {
+const METHOD_MAP: Record<MethodKey, () => CalculationParameters> = {
   Karachi: CalculationMethod.Karachi,
   MWL:     CalculationMethod.MuslimWorldLeague,
   ISNA:    CalculationMethod.NorthAmerica,

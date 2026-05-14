@@ -1,44 +1,47 @@
 // app/(tabs)/namaz/components/DashboardView/index.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import CurrentPrayerCard from './CurrentPrayerCard';
 import PrayerTimeCard from './PrayerTimeCardList';
 import DailyStreakWidget from './StreakWidget';
 import QuickActions from './QuickActions';
+import { useLogsStore, TRACKED_PRAYERS } from '../../store2/logsStore';
+import { calculateStreak } from '../../lib2/streakCalculator';
+import { formatLocalDateKey } from '../../lib2/dateHelpers';
 
 // Prayer status type
 export type PrayerStatus = 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
 
-// Mock data - later replace with real API + store
-const mockPrayerTimes = {
-  Fajr: { adhan: "05:12", jamaat: "05:45", status: 'pending' as PrayerStatus },
-  Dhuhr: { adhan: "12:38", jamaat: "13:00", status: 'pending' as PrayerStatus },
-  Asr: { adhan: "16:15", jamaat: "16:45", status: 'pending' as PrayerStatus },
-  Maghrib: { adhan: "18:52", jamaat: "18:52", status: 'pending' as PrayerStatus },
-  Isha: { adhan: "20:15", jamaat: "20:30", status: 'pending' as PrayerStatus }
+const basePrayerTimes = {
+  Fajr: { adhan: "05:12", jamaat: "05:45" },
+  Dhuhr: { adhan: "12:38", jamaat: "13:00" },
+  Asr: { adhan: "16:15", jamaat: "16:45" },
+  Maghrib: { adhan: "18:52", jamaat: "18:52" },
+  Isha: { adhan: "20:15", jamaat: "20:30" }
 };
 
 export default function DashboardView() {
-  const [prayerData, setPrayerData] = useState(mockPrayerTimes);
-  const [streak, setStreak] = useState({ current: 7, best: 24 });
-  const [totalPrayedToday, setTotalPrayedToday] = useState(0);
+  const logs = useLogsStore((state) => state.logs);
+  const updatePrayer = useLogsStore((state) => state.updatePrayer);
+  const today = formatLocalDateKey(new Date());
 
-  // Update total prayed count whenever status changes
-  useEffect(() => {
-    const prayedCount = Object.values(prayerData).filter(p => 
-      p.status === 'onTime' || p.status === 'late' || p.status === 'jamaat'
-    ).length;
-    setTotalPrayedToday(prayedCount);
-  }, [prayerData]);
+  const prayerData = useMemo(() => ({
+    Fajr: { ...basePrayerTimes.Fajr, status: logs[today]?.Fajr?.status || 'pending' as PrayerStatus },
+    Dhuhr: { ...basePrayerTimes.Dhuhr, status: logs[today]?.Dhuhr?.status || 'pending' as PrayerStatus },
+    Asr: { ...basePrayerTimes.Asr, status: logs[today]?.Asr?.status || 'pending' as PrayerStatus },
+    Maghrib: { ...basePrayerTimes.Maghrib, status: logs[today]?.Maghrib?.status || 'pending' as PrayerStatus },
+    Isha: { ...basePrayerTimes.Isha, status: logs[today]?.Isha?.status || 'pending' as PrayerStatus },
+  }), [logs, today]);
 
-  // Handle marking a prayer
+  const streak = useMemo(() => calculateStreak(logs), [logs]);
+  const totalPrayedToday = TRACKED_PRAYERS.filter((prayer) => {
+    const status = logs[today]?.[prayer]?.status;
+    return status === 'onTime' || status === 'late' || status === 'jamaat';
+  }).length;
+
   const handleMarkPrayer = (prayerName: string, status: PrayerStatus) => {
-    setPrayerData(prev => ({
-      ...prev,
-      [prayerName]: { ...prev[prayerName as keyof typeof prev], status }
-    }));
-    // Here you would also save to localStorage/your store
+    updatePrayer(today, prayerName as keyof typeof basePrayerTimes, status);
   };
 
   return (

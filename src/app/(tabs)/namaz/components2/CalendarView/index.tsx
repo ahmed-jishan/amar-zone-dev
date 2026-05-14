@@ -1,45 +1,17 @@
 // app/(tabs)/namaz/components/CalendarView/index.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import MonthCalendar from './MonthCalendar';
 import DayDetailModal from './DayDetailModal';
-
-interface PrayerLogEntry {
-  status: 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
-  markedAt?: number;
-}
-
-interface DailyLog {
-  Fajr?: PrayerLogEntry;
-  Dhuhr?: PrayerLogEntry;
-  Asr?: PrayerLogEntry;
-  Maghrib?: PrayerLogEntry;
-  Isha?: PrayerLogEntry;
-}
+import { useLogsStore } from '../../store2/logsStore';
 
 export default function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Load logs from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('namazLogs');
-    if (stored) {
-      setLogs(JSON.parse(stored));
-    }
-  }, []);
-
-  // Function to update logs (passed to modal for editing)
-  const updateLogForDate = (date: Date, updatedPrayers: DailyLog) => {
-    const dateKey = date.toISOString().split('T')[0];
-    const newLogs = { ...logs, [dateKey]: updatedPrayers };
-    setLogs(newLogs);
-    localStorage.setItem('namazLogs', JSON.stringify(newLogs));
-  };
+  const logs = useLogsStore((state) => state.logs);
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -109,9 +81,7 @@ export default function CalendarView() {
       {isModalOpen && selectedDate && (
         <DayDetailModal
           date={selectedDate}
-          logs={logs}
           onClose={closeModal}
-          onUpdate={updateLogForDate}
         />
       )}
     </div>

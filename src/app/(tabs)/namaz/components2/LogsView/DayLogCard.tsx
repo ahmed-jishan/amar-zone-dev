@@ -2,8 +2,9 @@
 'use client';
 
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PrayerStatusBadge from './PrayerStatusBadge';
+import { formatLocalDateKey } from '../../lib2/dateHelpers';
 import type { PrayerName, PrayerStatus } from '@/app/(tabs)/namaz/types2/prayer.types';
 
 interface Props {
@@ -13,26 +14,24 @@ interface Props {
 }
 
 const prayerOrder: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-const prayerNamesBn: Record<PrayerName, string> = {
-  Fajr: 'ফজর', Dhuhr: 'যোহর', Asr: 'আসর', Maghrib: 'মাগরিব', Isha: 'এশা'
+const prayerNamesBn: Record<string, string> = {
+  Fajr: 'ফজর',
+  Dhuhr: 'যোহর',
+  Asr: 'আসর',
+  Maghrib: 'মাগরিব',
+  Isha: 'এশা',
+  fajr: 'ফজর',
+  dhuhr: 'যোহর',
+  asr: 'আসর',
+  maghrib: 'মাগরিব',
+  isha: 'এশা',
 };
 
 export default function DayLogCard({ date, getPrayerStatus, onPrayerUpdate }: Props) {
-  const dateKey = date.toISOString().split('T')[0];
-  const [localStatuses, setLocalStatuses] = useState<Record<PrayerName, PrayerStatus>>({} as any);
-  // State to track which dropdown is open
+  const dateKey = formatLocalDateKey(date);
   const [openDropdown, setOpenDropdown] = useState<PrayerName | null>(null);
 
-  useEffect(() => {
-    const initial: any = {};
-    prayerOrder.forEach(p => {
-      initial[p] = getPrayerStatus(dateKey, p);
-    });
-    setLocalStatuses(initial);
-  }, [dateKey, getPrayerStatus]);
-
   const handleStatusChange = (prayer: PrayerName, newStatus: PrayerStatus) => {
-    setLocalStatuses(prev => ({ ...prev, [prayer]: newStatus }));
     onPrayerUpdate(prayer, newStatus);
   };
 
@@ -51,11 +50,11 @@ export default function DayLogCard({ date, getPrayerStatus, onPrayerUpdate }: Pr
             <div>
               <p className="font-medium text-emerald-900">{prayerNamesBn[prayer]}</p>
               <p className="text-xs text-emerald-500">
-                {localStatuses[prayer] !== 'pending' ? 'মার্ক করা হয়েছে' : 'মার্ক করা হয়নি'}
+                {getPrayerStatus(dateKey, prayer) !== 'pending' ? 'মার্ক করা হয়েছে' : 'মার্ক করা হয়নি'}
               </p>
             </div>
             <PrayerStatusBadge
-              status={localStatuses[prayer]}
+              status={getPrayerStatus(dateKey, prayer)}
               onStatusChange={(newStatus) => handleStatusChange(prayer, newStatus)}
               isOpen={openDropdown === prayer}
               onOpenChange={(open) => setOpenDropdown(open ? prayer : null)}

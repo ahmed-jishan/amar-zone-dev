@@ -10,8 +10,8 @@ import CalendarView from './CalendarView';
 import QiblaView from './QiblaView';
 import TasbihView from './TasbihView';
 import DuaView from './DuaView';
-// import InsightsView from './InsightsView';
-// import PreferencesView from './PreferencesView';
+import InsightsView from '../InsightsView';
+import PreferencesView from '../PreferencesView';
 
 type ActiveTab = 
   | 'dashboard' 
@@ -25,13 +25,6 @@ type ActiveTab =
 
 export function NamazTabWrapper() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-
-  // Temporary placeholder for views not yet implemented
-  const PlaceholderView = ({ name }: { name: string }) => (
-    <div className="flex items-center justify-center h-64 bg-white/50 rounded-2xl backdrop-blur-sm">
-      <p className="text-emerald-700 font-amiri text-xl">{name} view – coming soon</p>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-amber-50">
@@ -54,8 +47,8 @@ export function NamazTabWrapper() {
           {activeTab === 'qibla' && <QiblaView />}
           {activeTab === 'tasbih' && <TasbihView />}
           {activeTab === 'dua' && <DuaView />}
-          {activeTab === 'insights' && <PlaceholderView name="Prayer Insights" />}
-          {activeTab === 'preferences' && <PlaceholderView name="Namaz Preferences" />}
+          {activeTab === 'insights' && <InsightsView />}
+          {activeTab === 'preferences' && <PreferencesView />}
         </div>
       </div>
     </div>

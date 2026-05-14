@@ -1,0 +1,34 @@
+[
+  {
+    "id": "subhanallah",
+    "arabic": "سُبْحَانَ اللَّهِ",
+    "transliteration": "Subhanallah",
+    "meaning": "Glory be to Allah",
+    "target": 33,
+    "category": "after-prayer"
+  },
+  {
+    "id": "alhamdulillah",
+    "arabic": "الْحَمْدُ لِلَّهِ",
+    "transliteration": "Alhamdulillah",
+    "meaning": "All praise is for Allah",
+    "target": 33,
+    "category": "after-prayer"
+  },
+  {
+    "id": "allahu-akbar",
+    "arabic": "اللَّهُ أَكْبَرُ",
+    "transliteration": "Allahu Akbar",
+    "meaning": "Allah is the Greatest",
+    "target": 34,
+    "category": "after-prayer"
+  },
+  {
+    "id": "la-ilaha-illallah",
+    "arabic": "لَا إِلَٰهَ إِلَّا اللَّهُ",
+    "transliteration": "La ilaha illallah",
+    "meaning": "There is no deity except Allah",
+    "target": 100,
+    "category": "general"
+  }
+]

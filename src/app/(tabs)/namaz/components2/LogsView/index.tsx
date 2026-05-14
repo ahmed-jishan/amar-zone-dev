@@ -6,13 +6,14 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import DayLogCard from './DayLogCard';
 import DatePicker from './DatePicker';
 import { useLogs } from '@/app/(tabs)/namaz/hooks2/useLogs';
+import { formatLocalDateKey } from '@/app/(tabs)/namaz/lib2/dateHelpers';
 import type { PrayerName, PrayerStatus } from '@/app/(tabs)/namaz/types2/prayer.types';
 
 export default function LogsView() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { logs, updatePrayer, getPrayerStatus } = useLogs();
   
-  const dateKey = selectedDate.toISOString().split('T')[0];
+  const dateKey = formatLocalDateKey(selectedDate);
   const todayLog = logs[dateKey];
 
   // Summary calculation
@@ -26,10 +27,10 @@ export default function LogsView() {
 
   if (todayLog) {
     const prayers = Object.values(todayLog);
-    summary.completed = prayers.filter(p => p.status !== 'pending').length;
-    summary.onTime = prayers.filter(p => p.status === 'onTime').length;
-    summary.late = prayers.filter(p => p.status === 'late').length;
-    summary.missed = prayers.filter(p => p.status === 'missed').length;
+    summary.completed = prayers.filter(p => p && p.status !== 'pending').length;
+    summary.onTime = prayers.filter(p => p?.status === 'onTime').length;
+    summary.late = prayers.filter(p => p?.status === 'late').length;
+    summary.missed = prayers.filter(p => p?.status === 'missed').length;
   }
 
   // Handle prayer status change from DayLogCard

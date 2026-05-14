@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Muslim World League",
+    "shortName": "MWL",
+    "description": "Widely used global calculation method."
+  },
+  {
+    "id": 2,
+    "name": "Islamic Society of North America",
+    "shortName": "ISNA",
+    "description": "Commonly used across North America."
+  },
+  {
+    "id": 3,
+    "name": "Egyptian General Authority of Survey",
+    "shortName": "Egypt",
+    "description": "Common method in Egypt and parts of Africa."
+  },
+  {
+    "id": 4,
+    "name": "Umm Al-Qura University, Makkah",
+    "shortName": "Umm Al-Qura",
+    "description": "Official method used in Saudi Arabia."
+  },
+  {
+    "id": 5,
+    "name": "University of Islamic Sciences, Karachi",
+    "shortName": "Karachi",
+    "description": "Popular in Bangladesh, Pakistan, and India."
+  }
+]

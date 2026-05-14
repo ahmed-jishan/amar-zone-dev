@@ -42,7 +42,7 @@ export const useTaskStore = create<TaskState>()(
             if (t.id !== id) return t
             const completed = !t.completed
             const completedDates = completed
-              ? [...new Set([...t.completedDates, today])]
+              ? Array.from(new Set([...t.completedDates, today]))
               : t.completedDates.filter((d) => d !== today)
             return { ...t, completed, completedDates }
           }),

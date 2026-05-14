@@ -1,59 +1,50 @@
 // app/(tabs)/namaz/components/CalendarView/MonthCalendar.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-
-interface DailyLog {
-  Fajr?: { status: string };
-  Dhuhr?: { status: string };
-  Asr?: { status: string };
-  Maghrib?: { status: string };
-  Isha?: { status: string };
-}
+import { useMemo } from 'react';
+import { formatLocalDateKey } from '../../lib2/dateHelpers';
+import type { DailyPrayerLog, PrayerName, PrayerStatus } from '../../types2/prayer.types';
 
 interface MonthCalendarProps {
   currentDate: Date;
-  logs: Record<string, DailyLog>;
+  logs: Record<string, DailyPrayerLog>;
   onDayClick: (date: Date) => void;
 }
 
-// Helper to get day status: 'full' (green), 'partial' (yellow), 'none' (red)
-const getDayStatus = (date: Date, logs: Record<string, DailyLog>): 'full' | 'partial' | 'none' => {
-  const dateKey = date.toISOString().split('T')[0];
+type DayStatus = 'full' | 'partial' | 'mostlyMissed' | 'none';
+
+const prayerOrder: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+const doneStatuses: PrayerStatus[] = ['onTime', 'late', 'jamaat'];
+
+const getDayStatus = (date: Date, logs: Record<string, DailyPrayerLog>): DayStatus => {
+  const dateKey = formatLocalDateKey(date);
   const dayLog = logs[dateKey];
   if (!dayLog) return 'none';
-  
-  const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-  let completedCount = 0;
-  for (const prayer of prayers) {
-    const entry = dayLog[prayer as keyof DailyLog];
-    if (entry && entry.status !== 'pending') {
-      completedCount++;
-    }
-  }
-  if (completedCount === 5) return 'full';
+
+  const completedCount = prayerOrder.filter((prayer) => doneStatuses.includes(dayLog[prayer]?.status || 'pending')).length;
+  const missedCount = prayerOrder.filter((prayer) => dayLog[prayer]?.status === 'missed').length;
+
+  if (completedCount === prayerOrder.length) return 'full';
+  if (missedCount >= 3) return 'mostlyMissed';
   if (completedCount > 0) return 'partial';
   return 'none';
 };
 
-// Status colors and dot colors
 const statusConfig = {
   full: { dot: 'bg-emerald-500', ring: 'ring-emerald-200', text: 'text-emerald-700' },
   partial: { dot: 'bg-amber-400', ring: 'ring-amber-200', text: 'text-amber-700' },
-  none: { dot: 'bg-rose-400', ring: 'ring-rose-200', text: 'text-rose-700' }
+  mostlyMissed: { dot: 'bg-rose-500', ring: 'ring-rose-200', text: 'text-rose-700' },
+  none: { dot: 'bg-slate-300', ring: 'ring-slate-200', text: 'text-slate-500' }
 };
 
 export default function MonthCalendar({ currentDate, logs, onDayClick }: MonthCalendarProps) {
-  const [calendarDays, setCalendarDays] = useState<Array<{ date: Date | null; status: 'full' | 'partial' | 'none' }>>([]);
-
-  useEffect(() => {
+  const calendarDays = useMemo<Array<{ date: Date | null; status: DayStatus }>>(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
-    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday (adjust)
-    // Adjust for Monday first? We'll use Sunday as first for simplicity, but can modify.
-    const daysArray: Array<{ date: Date | null; status: 'full' | 'partial' | 'none' }> = [];
+    const startDayOfWeek = firstDayOfMonth.getDay();
+    const daysArray: Array<{ date: Date | null; status: DayStatus }> = [];
     
     // Previous month padding (startDayOfWeek)
     for (let i = 0; i < startDayOfWeek; i++) {
@@ -74,7 +65,7 @@ export default function MonthCalendar({ currentDate, logs, onDayClick }: MonthCa
       daysArray.push({ date: null, status: 'none' });
     }
     
-    setCalendarDays(daysArray);
+    return daysArray;
   }, [currentDate, logs]);
 
   const weekdays = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি'];
@@ -126,7 +117,8 @@ export default function MonthCalendar({ currentDate, logs, onDayClick }: MonthCa
       <div className="flex justify-center gap-4 mt-4 pt-2 border-t border-emerald-100 text-xs">
         <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div><span className="text-emerald-700">সম্পূর্ণ</span></div>
         <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div><span className="text-amber-700">আংশিক</span></div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-rose-400"></div><span className="text-rose-700">কোনো নামাজ হয়নি</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div><span className="text-rose-700">বেশিরভাগ কাজা</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div><span className="text-slate-600">ডেটা নেই</span></div>
       </div>
     </div>
   );
