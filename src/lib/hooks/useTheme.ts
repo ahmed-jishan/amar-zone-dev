@@ -1,6 +1,6 @@
 // lib/hooks/useTheme.ts
 import { useEffect } from 'react'
-import { useSettingsStore } from '@/lib/store/settingsStore'
+import { useSettingsStore } from '@/features/settings/store/settingsStore'
 
 export function useTheme() {
   const { theme, _hydrated } = useSettingsStore()

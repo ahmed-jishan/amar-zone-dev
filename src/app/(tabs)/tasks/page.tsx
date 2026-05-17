@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 import TaskHeader from './components/TaskList/TaskHeader';
@@ -48,3 +49,10 @@ export default function TasksPage() {
     </div>
   );
 }
+=======
+import { TasksPage } from '@/features/tasks';
+
+export default function Page() {
+  return <TasksPage />;
+}
+>>>>>>> 7438bacf3bc40001e83f479e5d548e75e1245574
