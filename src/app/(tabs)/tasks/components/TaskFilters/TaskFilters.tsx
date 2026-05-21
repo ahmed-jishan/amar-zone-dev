@@ -1,36 +1,222 @@
 'use client';
-import { TASK_FILTERS } from '../../constants/filters';
-import type { FilterKey } from '../../hooks/useTaskFilters';
 
-const LABELS: Record<FilterKey, string> = { all:'All', today:'Today', high:'Priority', completed:'Done', overdue:'Overdue' };
-const ICONS:  Record<FilterKey, string> = { all:'◈', today:'◉', high:'▲', completed:'✓', overdue:'!' };
+import { useState } from 'react';
+import { FilterKey, SortMode, ViewMode } from '../../types';
+import { useTaskStore } from '@/lib/store/taskStore';
 
-interface Props { activeFilter: FilterKey; onFilterChange: (f: FilterKey) => void; }
+const FILTER_CONFIG: { key: FilterKey; label: string; icon: React.ReactNode }[] = [
+  { key: 'all', label: 'All', icon: <AllIcon /> },
+  { key: 'today', label: 'Today', icon: <TodayIcon /> },
+  { key: 'high', label: 'Priority', icon: <PriorityIcon /> },
+  { key: 'in-progress', label: 'Active', icon: <ActiveIcon /> },
+  { key: 'inbox', label: 'Inbox', icon: <InboxIcon /> },
+  { key: 'completed', label: 'Done', icon: <DoneIcon /> },
+  { key: 'overdue', label: 'Overdue', icon: <OverdueIcon /> },
+];
+
+interface Props {
+  activeFilter: FilterKey;
+  onFilterChange: (f: FilterKey) => void;
+}
 
 export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
+  const [showSort, setShowSort] = useState(false);
+  const sortMode = useTaskStore((s) => s.sortMode);
+  const setSortMode = useTaskStore((s) => s.setSortMode);
+  const viewMode = useTaskStore((s) => s.viewMode);
+  const setViewMode = useTaskStore((s) => s.setViewMode);
+  const searchQuery = useTaskStore((s) => s.searchQuery);
+  const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
+  const setSelectionMode = useTaskStore((s) => s.setSelectionMode);
+
   return (
-    <>
-      <div className="az-filters">
-        {TASK_FILTERS.map((f) => (
+    <div className="mb-4 space-y-3 animate-[az-slide-up_300ms_ease-out]">
+      {/* Search + View controls */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--az-text-3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks..."
+            className="w-full pl-9 pr-4 py-2 rounded-[var(--az-radius-xl)] bg-[var(--az-surface-1)] border border-[var(--az-border)] text-[14px] text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none focus:border-[var(--az-accent)] transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--az-text-3)] hover:text-[var(--az-text-1)]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* View mode toggle */}
+        <div className="flex items-center p-1 rounded-[var(--az-radius-lg)] bg-[var(--az-surface-2)] border border-[var(--az-border)]">
+          {(['list', 'board', 'timeline'] as ViewMode[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => setViewMode(v)}
+              className={`
+                p-1.5 rounded-md transition-all
+                ${viewMode === v ? 'bg-[var(--az-surface-1)] text-[var(--az-accent)] shadow-sm' : 'text-[var(--az-text-3)] hover:text-[var(--az-text-2)]'}
+              `}
+              title={`${v} view`}
+            >
+              {v === 'list' ? <ListViewIcon /> : v === 'board' ? <BoardViewIcon /> : <TimelineViewIcon />}
+            </button>
+          ))}
+        </div>
+
+        {/* Multi-select toggle */}
+        <button
+          onClick={() => setSelectionMode(true)}
+          className="p-2 rounded-[var(--az-radius-lg)] bg-[var(--az-surface-2)] border border-[var(--az-border)] text-[var(--az-text-3)] hover:text-[var(--az-accent)] transition-colors"
+          title="Multi-select mode"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Filter pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 az-scrollbar">
+        {FILTER_CONFIG.map((f) => (
           <button
-            key={f}
-            onClick={() => onFilterChange(f)}
-            aria-pressed={activeFilter === f}
-            className={`az-fbtn${activeFilter===f?' az-fbtn--on':''}${f==='overdue'?' az-fbtn--danger':''}`}
+            key={f.key}
+            onClick={() => onFilterChange(f.key)}
+            className={`
+              flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all duration-200
+              ${activeFilter === f.key
+                ? 'bg-[var(--az-accent)] text-white shadow-[0_0_12px_var(--az-accent-glow)]'
+                : 'bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] hover:text-[var(--az-text-1)]'
+              }
+            `}
           >
-            <span style={{ fontSize:10 }}>{ICONS[f]}</span>
-            {LABELS[f]}
+            <span className={activeFilter === f.key ? 'text-white' : ''}>{f.icon}</span>
+            {f.label}
           </button>
         ))}
+
+        <div className="w-px h-5 bg-[var(--az-border)] mx-1" />
+
+        {/* Sort dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowSort((s) => !s)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] transition-all"
+          >
+            <SortIcon />
+            <span className="capitalize">{sortMode}</span>
+          </button>
+          {showSort && (
+            <div className="absolute top-full left-0 mt-1 z-20 w-[160px] az-glass-strong rounded-[var(--az-radius-lg)] shadow-[var(--az-shadow-lg)] border border-[var(--az-glass-border)] overflow-hidden py-1 animate-[az-scale-in_150ms_ease-out]">
+              {(['manual', 'priority', 'dueDate', 'created', 'energy', 'title'] as SortMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => { setSortMode(m); setShowSort(false); }}
+                  className={`
+                    w-full text-left px-3 py-2 text-[12px] font-medium capitalize transition-colors
+                    ${sortMode === m ? 'bg-[var(--az-accent-bg)] text-[var(--az-accent)]' : 'text-[var(--az-text-1)] hover:bg-[var(--az-surface-hover)]'}
+                  `}
+                >
+                  {m === 'dueDate' ? 'Due Date' : m}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <style>{`
-        .az-filters { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:16px; scrollbar-width:none; }
-        .az-filters::-webkit-scrollbar { display:none; }
-        .az-fbtn { display:flex; align-items:center; gap:5px; white-space:nowrap; padding:7px 14px; border-radius:99px; border:1px solid var(--az-border); background:var(--az-surface-1); font-size:12px; font-weight:500; color:var(--az-text-2); cursor:pointer; transition:all .15s; flex-shrink:0; }
-        .az-fbtn:hover:not(.az-fbtn--on) { background:var(--az-surface-2); color:var(--az-text-1); }
-        .az-fbtn--on { background:var(--az-accent); border-color:var(--az-accent); color:#fff; font-weight:600; }
-        .az-fbtn--danger.az-fbtn--on { background:var(--az-danger); border-color:var(--az-danger); }
-      `}</style>
-    </>
+    </div>
+  );
+}
+
+/* ── Icons ── */
+function AllIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+function TodayIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+function PriorityIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  );
+}
+function ActiveIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+      <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function InboxIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+    </svg>
+  );
+}
+function DoneIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+function OverdueIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function ListViewIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+function BoardViewIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+function TimelineViewIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+function SortIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M3 4h13M3 8h9M3 12h5" />
+    </svg>
   );
 }

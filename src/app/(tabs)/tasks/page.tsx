@@ -1,37 +1,179 @@
 'use client';
 
+import { useState, useCallback, useMemo } from 'react';
 import TaskHeader from './components/TaskList/TaskHeader';
 import QuickAdd from './components/QuickAdd/QuickAdd';
 import TaskFilters from './components/TaskFilters/TaskFilters';
 import FocusCard from './components/FocusCard/FocusCard';
 import TaskList from './components/TaskList/TaskList';
+import TaskDetailsModal from './components/TaskDetailsModal/TaskDetailsModal';
+import CommandPalette from './components/CommandPalette/CommandPalette';
+import ContextMenu from './components/ContextMenu/ContextMenu';
+import Dashboard from './components/Dashboard/Dashboard';
+import ProductivityHeatmap from './components/ProductivityHeatmap/ProductivityHeatmap';
+import Timeline from './components/Timeline/Timeline';
 import { useTaskFocus } from './hooks/useTaskFocus';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { useTaskAnalytics } from './hooks/useTaskAnalytics';
-import TaskHistory from './components/TaskHistory/TaskHistory';
-import { Task } from './types';
+import { Task, ViewMode, SortMode } from './types';
 import { useTaskStore } from '@/lib/store/taskStore';
+import './tasks.css';
 
 export default function TasksPage() {
-  const tasks      = useTaskStore(s => s.tasks);
-  const toggleTask = useTaskStore(s => s.toggleTask);
+  const tasks = useTaskStore((s) => s.tasks);
+  const toggleTask = useTaskStore((s) => s.toggleTask);
+  const reorderTasks = useTaskStore((s) => s.reorderTasks);
+  const searchQuery = useTaskStore((s) => s.searchQuery);
+  const sortMode = useTaskStore((s) => s.sortMode);
+  const viewMode = useTaskStore((s) => s.viewMode);
+
+  const [detailsTask, setDetailsTask] = useState<Task | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ task: Task | null; x: number; y: number } | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const { activeTask, isRunning, seconds, startFocus, pauseFocus, resumeFocus, stopFocus } = useTaskFocus();
   const { filter, setFilter, filteredTasks } = useTaskFilters(tasks);
   const stats = useTaskAnalytics(tasks);
 
+  // Apply search + sort
+  const displayTasks = useMemo(() => {
+    let result = [...filteredTasks];
+
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q) ||
+          t.tags?.some((tag) => tag.toLowerCase().includes(q))
+      );
+    }
+
+    // Sort
+    switch (sortMode) {
+      case 'priority':
+        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+        break;
+      case 'dueDate':
+        result.sort((a, b) => {
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+        break;
+      case 'created':
+        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      case 'energy':
+        const energyOrder = { high: 0, medium: 1, low: 2 };
+        result.sort((a, b) => (energyOrder[a.energyLevel || 'low'] - energyOrder[b.energyLevel || 'low']));
+        break;
+      case 'title':
+        result.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'manual':
+      default:
+        result.sort((a, b) => (a.position || 0) - (b.position || 0));
+        break;
+    }
+
+    return result;
+  }, [filteredTasks, searchQuery, sortMode]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, task: Task) => {
+    e.preventDefault();
+    setContextMenu({ task, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleReorder = useCallback(
+    (orderedIds: string[]) => {
+      reorderTasks(orderedIds);
+    },
+    [reorderTasks]
+  );
+
   return (
-    <div style={{ minHeight:'100vh', background:'var(--az-bg)' }}>
-      <div style={{ maxWidth:480, margin:'0 auto', padding:'0 16px 120px' }}>
-        <TaskHeader stats={stats} />
+    <div className="min-h-[100dvh] bg-[var(--az-bg)]">
+      <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32 pt-4">
+        {/* Header */}
+        <TaskHeader stats={stats} onToggleDashboard={() => setShowDashboard((s) => !s)} showDashboard={showDashboard} />
+
+        {/* Focus Card */}
         <FocusCard
-          activeTask={activeTask} isRunning={isRunning} seconds={seconds}
-          onPause={pauseFocus} onResume={resumeFocus} onStop={stopFocus}
+          activeTask={activeTask}
+          isRunning={isRunning}
+          seconds={seconds}
+          onPause={pauseFocus}
+          onResume={resumeFocus}
+          onStop={stopFocus}
         />
+
+        {/* Quick Add */}
         <QuickAdd />
+
+        {/* Filters */}
         <TaskFilters activeFilter={filter} onFilterChange={setFilter} />
-        <TaskList tasks={filteredTasks} onToggle={id => toggleTask(id)} onFocus={(task: Task) => startFocus(task)} />
-        <TaskHistory tasks={tasks} />
+
+        {/* Dashboard (toggleable) */}
+        {showDashboard && (
+          <div className="mb-4 animate-[az-slide-up_400ms_ease-out]">
+            <Dashboard tasks={tasks} />
+            <div className="mt-4">
+              <ProductivityHeatmap tasks={tasks} />
+            </div>
+          </div>
+        )}
+
+        {/* Task Views */}
+        {viewMode === 'timeline' ? (
+          <Timeline
+            tasks={displayTasks}
+            onToggle={toggleTask}
+            onOpenDetails={setDetailsTask}
+          />
+        ) : (
+          <TaskList
+            tasks={displayTasks}
+            onToggle={toggleTask}
+            onFocus={startFocus}
+            onOpenDetails={setDetailsTask}
+            onReorder={handleReorder}
+          />
+        )}
+      </div>
+
+      {/* Modals & Overlays */}
+      {detailsTask && (
+        <TaskDetailsModal
+          task={detailsTask}
+          onClose={() => setDetailsTask(null)}
+        />
+      )}
+
+      <ContextMenu
+        task={contextMenu?.task ?? null}
+        position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
+        onClose={() => setContextMenu(null)}
+        onOpenDetails={setDetailsTask}
+        onFocus={startFocus}
+      />
+
+      <CommandPalette />
+
+      {/* Keyboard shortcut hint */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center gap-3 px-4 py-2 rounded-full az-glass border border-[var(--az-glass-border)] shadow-[var(--az-shadow-md)]">
+        <span className="text-[11px] text-[var(--az-text-3)] flex items-center gap-1">
+          <kbd className="px-1 rounded border border-[var(--az-border)] text-[10px]">⌘K</kbd> Command
+        </span>
+        <span className="text-[11px] text-[var(--az-text-3)] flex items-center gap-1">
+          <kbd className="px-1 rounded border border-[var(--az-border)] text-[10px]">⌘N</kbd> New Task
+        </span>
+        <span className="text-[11px] text-[var(--az-text-3)] flex items-center gap-1">
+          <kbd className="px-1 rounded border border-[var(--az-border)] text-[10px]">⌘Z</kbd> Undo
+        </span>
       </div>
     </div>
   );

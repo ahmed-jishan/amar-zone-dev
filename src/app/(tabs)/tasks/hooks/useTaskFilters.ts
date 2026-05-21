@@ -1,8 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Task } from '../types';
-import { TASK_FILTERS } from '../constants/filters';
-
-export type FilterKey = (typeof TASK_FILTERS)[number];
+import { Task, FilterKey } from '../types';
 
 export const useTaskFilters = (tasks: Task[]) => {
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -10,15 +7,19 @@ export const useTaskFilters = (tasks: Task[]) => {
   const filteredTasks = useMemo(() => {
     switch (filter) {
       case 'today':
-        return tasks.filter((t) => t.status === 'today');
+        return tasks.filter((t) => t.status === 'today' || (t.dueDate && t.dueDate <= new Date().toISOString().split('T')[0] && !t.completed));
       case 'high':
         return tasks.filter((t) => t.priority === 'high' || t.priority === 'critical');
       case 'completed':
         return tasks.filter((t) => t.completed);
       case 'overdue':
-        return tasks.filter((t) => t.status === 'overdue');
+        return tasks.filter((t) => t.status === 'overdue' || (t.dueDate && new Date(t.dueDate) < new Date(new Date().setHours(0,0,0,0)) && !t.completed));
+      case 'inbox':
+        return tasks.filter((t) => t.status === 'inbox');
+      case 'in-progress':
+        return tasks.filter((t) => t.status === 'in-progress');
       default:
-        return tasks;
+        return tasks.filter((t) => t.status !== 'archived');
     }
   }, [tasks, filter]);
 

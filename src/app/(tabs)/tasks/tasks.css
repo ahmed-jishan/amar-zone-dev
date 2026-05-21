@@ -1,71 +1,213 @@
 /*
-  ╔══════════════════════════════════════════════════════════╗
-  ║  AZ Tasks — Design Token Layer                          ║
-  ║  Import once in your global CSS or layout:              ║
-  ║    @import './(tabs)/tasks/tasks.css';                  ║
-  ╚══════════════════════════════════════════════════════════╝
+ ╔══════════════════════════════════════════════════════════╗
+ ║ AZ Tasks — Premium Design Token Layer                    ║
+ ║ Cinematic · Futuristic · Calm · Intelligent              ║
+ ╚══════════════════════════════════════════════════════════╝
 */
 
 /* ── Dark mode (default) ── */
 :root {
-  --az-bg:              #0b0c0e;
-  --az-surface-1:       #111214;
-  --az-surface-2:       #1a1c1f;
-  --az-surface-hover:   #15171a;
+  --az-bg: #0b0c0e;
+  --az-bg-elevated: #0f1114;
+  --az-surface-1: #111214;
+  --az-surface-2: #1a1c1f;
+  --az-surface-3: #222429;
+  --az-surface-hover: #15171a;
+  --az-surface-active: #1c1e22;
 
-  --az-border:          rgba(255,255,255,0.08);
-  --az-border-hover:    rgba(255,255,255,0.18);
+  --az-border: rgba(255,255,255,0.06);
+  --az-border-hover: rgba(255,255,255,0.14);
+  --az-border-strong: rgba(255,255,255,0.10);
 
-  --az-text-1:          #f0f0f2;
-  --az-text-2:          #9a9ba6;
-  --az-text-3:          #5c5e6b;
+  --az-text-1: #f0f0f2;
+  --az-text-2: #9a9ba6;
+  --az-text-3: #5c5e6b;
+  --az-text-4: #3a3c47;
 
-  --az-accent:          #6366f1;
-  --az-accent-bg:       rgba(99,102,241,0.12);
-  --az-accent-border:   rgba(99,102,241,0.30);
+  --az-accent: #6366f1;
+  --az-accent-2: #818cf8;
+  --az-accent-bg: rgba(99,102,241,0.12);
+  --az-accent-bg-hover: rgba(99,102,241,0.18);
+  --az-accent-border: rgba(99,102,241,0.30);
+  --az-accent-glow: rgba(99,102,241,0.40);
 
-  --az-success:         #22c55e;
-  --az-success-bg:      rgba(34,197,94,0.10);
-  --az-success-border:  rgba(34,197,94,0.25);
+  --az-success: #22c55e;
+  --az-success-bg: rgba(34,197,94,0.10);
+  --az-success-border: rgba(34,197,94,0.25);
+  --az-success-glow: rgba(34,197,94,0.30);
 
-  --az-warn:            #f59e0b;
-  --az-warn-bg:         rgba(245,158,11,0.10);
-  --az-warn-border:     rgba(245,158,11,0.25);
+  --az-warn: #f59e0b;
+  --az-warn-bg: rgba(245,158,11,0.10);
+  --az-warn-border: rgba(245,158,11,0.25);
 
-  --az-danger:               #ef4444;
-  --az-danger-bg:            rgba(239,68,68,0.10);
-  --az-danger-bg-subtle:     rgba(239,68,68,0.04);
-  --az-danger-border:        rgba(239,68,68,0.25);
+  --az-danger: #ef4444;
+  --az-danger-bg: rgba(239,68,68,0.10);
+  --az-danger-bg-subtle: rgba(239,68,68,0.04);
+  --az-danger-border: rgba(239,68,68,0.25);
+  --az-danger-glow: rgba(239,68,68,0.30);
+
+  /* Premium additions */
+  --az-glass-bg: rgba(17,18,20,0.72);
+  --az-glass-border: rgba(255,255,255,0.08);
+  --az-glass-highlight: rgba(255,255,255,0.04);
+
+  --az-shadow-sm: 0 1px 2px rgba(0,0,0,0.40), 0 0 0 1px var(--az-border);
+  --az-shadow-md: 0 4px 12px rgba(0,0,0,0.50), 0 0 0 1px var(--az-border);
+  --az-shadow-lg: 0 8px 32px rgba(0,0,0,0.60), 0 0 0 1px var(--az-border);
+  --az-shadow-glow: 0 0 20px var(--az-accent-glow);
+  --az-shadow-success-glow: 0 0 20px var(--az-success-glow);
+  --az-shadow-danger-glow: 0 0 20px var(--az-danger-glow);
+
+  --az-radius-sm: 8px;
+  --az-radius-md: 12px;
+  --az-radius-lg: 16px;
+  --az-radius-xl: 20px;
+  --az-radius-2xl: 24px;
+
+  --az-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --az-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --az-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --az-transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ── Light mode overrides ── */
 html:not(.dark) {
-  --az-bg:              #f8f9fb;
-  --az-surface-1:       #ffffff;
-  --az-surface-2:       #f1f2f5;
-  --az-surface-hover:   #f5f6f9;
+  --az-bg: #f8f9fb;
+  --az-bg-elevated: #ffffff;
+  --az-surface-1: #ffffff;
+  --az-surface-2: #f1f2f5;
+  --az-surface-3: #e8e9ed;
+  --az-surface-hover: #f5f6f9;
+  --az-surface-active: #eef0f4;
 
-  --az-border:          rgba(0,0,0,0.08);
-  --az-border-hover:    rgba(0,0,0,0.18);
+  --az-border: rgba(0,0,0,0.06);
+  --az-border-hover: rgba(0,0,0,0.12);
+  --az-border-strong: rgba(0,0,0,0.08);
 
-  --az-text-1:          #0f1014;
-  --az-text-2:          #5a5c6b;
-  --az-text-3:          #9ea0b0;
+  --az-text-1: #0f1014;
+  --az-text-2: #5a5c6b;
+  --az-text-3: #9ea0b0;
+  --az-text-4: #c5c7d2;
 
-  --az-accent:          #4f46e5;
-  --az-accent-bg:       rgba(79,70,229,0.08);
-  --az-accent-border:   rgba(79,70,229,0.20);
+  --az-accent: #4f46e5;
+  --az-accent-2: #6366f1;
+  --az-accent-bg: rgba(79,70,229,0.08);
+  --az-accent-bg-hover: rgba(79,70,229,0.14);
+  --az-accent-border: rgba(79,70,229,0.20);
+  --az-accent-glow: rgba(79,70,229,0.25);
 
-  --az-success:         #16a34a;
-  --az-success-bg:      rgba(22,163,74,0.08);
-  --az-success-border:  rgba(22,163,74,0.20);
+  --az-success: #16a34a;
+  --az-success-bg: rgba(22,163,74,0.08);
+  --az-success-border: rgba(22,163,74,0.20);
+  --az-success-glow: rgba(22,163,74,0.20);
 
-  --az-warn:            #d97706;
-  --az-warn-bg:         rgba(217,119,6,0.08);
-  --az-warn-border:     rgba(217,119,6,0.20);
+  --az-warn: #d97706;
+  --az-warn-bg: rgba(217,119,6,0.08);
+  --az-warn-border: rgba(217,119,6,0.20);
 
-  --az-danger:               #dc2626;
-  --az-danger-bg:            rgba(220,38,38,0.08);
-  --az-danger-bg-subtle:     rgba(220,38,38,0.03);
-  --az-danger-border:        rgba(220,38,38,0.20);
+  --az-danger: #dc2626;
+  --az-danger-bg: rgba(220,38,38,0.08);
+  --az-danger-bg-subtle: rgba(220,38,38,0.03);
+  --az-danger-border: rgba(220,38,38,0.20);
+  --az-danger-glow: rgba(220,38,38,0.20);
+
+  --az-glass-bg: rgba(255,255,255,0.72);
+  --az-glass-border: rgba(0,0,0,0.08);
+  --az-glass-highlight: rgba(0,0,0,0.02);
+
+  --az-shadow-sm: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px var(--az-border);
+  --az-shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px var(--az-border);
+  --az-shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 0 0 1px var(--az-border);
+  --az-shadow-glow: 0 0 20px var(--az-accent-glow);
+  --az-shadow-success-glow: 0 0 20px var(--az-success-glow);
+  --az-shadow-danger-glow: 0 0 20px var(--az-danger-glow);
+}
+
+/* ── Premium Animations ── */
+@keyframes az-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes az-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes az-slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes az-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes az-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--az-accent-glow); }
+  50% { box-shadow: 0 0 20px 4px var(--az-accent-glow); }
+}
+
+@keyframes az-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes az-check-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes az-progress-fill {
+  from { width: 0%; }
+}
+
+@keyframes az-ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+@keyframes az-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ── Utility Classes ── */
+.az-animate-fade { animation: az-fade-in var(--az-transition-base) ease-out; }
+.az-animate-slide-up { animation: az-slide-up var(--az-transition-slow) cubic-bezier(0.16, 1, 0.3, 1); }
+.az-animate-scale-in { animation: az-scale-in var(--az-transition-spring); }
+.az-animate-glow { animation: az-glow-pulse 2s ease-in-out infinite; }
+
+.az-glass {
+  background: var(--az-glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--az-glass-border);
+}
+
+.az-glass-strong {
+  background: var(--az-glass-bg);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--az-glass-border);
+}
+
+.az-skeleton {
+  background: linear-gradient(90deg, var(--az-surface-2) 25%, var(--az-surface-3) 50%, var(--az-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: az-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--az-radius-sm);
+}
+
+/* ── Scrollbar ── */
+.az-scrollbar::-webkit-scrollbar { width: 6px; }
+.az-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.az-scrollbar::-webkit-scrollbar-thumb { background: var(--az-text-4); border-radius: 3px; }
+.az-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--az-text-3); }
+
+/* ── Selection ── */
+::selection {
+  background: var(--az-accent-bg);
+  color: var(--az-accent-2);
 }

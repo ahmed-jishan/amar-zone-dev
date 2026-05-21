@@ -19,7 +19,9 @@ export const useTaskAnalytics = (tasks: Task[]) => {
     const completionRate = total === 0 ? 0 : Math.round((completed / total) * 100);
     const overdue = activeTasks.filter(isOverdue).length;
     const today = activeTasks.filter((t) => t.status === 'today').length;
+    const inProgress = activeTasks.filter((t) => t.status === 'in-progress').length;
+    const totalTime = activeTasks.reduce((acc, t) => acc + (t.actualTime || 0), 0);
 
-    return { total, completed, pending, completionRate, overdue, today };
+    return { total, completed, pending, completionRate, overdue, today, inProgress, totalTime };
   }, [tasks]);
 };
