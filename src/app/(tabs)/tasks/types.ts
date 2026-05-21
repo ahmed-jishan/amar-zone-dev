@@ -1,21 +1,11 @@
 export type TaskPriority = "critical" | "high" | "medium" | "low";
 
 export type TaskStatus =
-  | "inbox"
-  | "today"
-  | "in-progress"
-  | "upcoming"
-  | "completed"
-  | "overdue"
-  | "archived";
+  | "inbox" | "today" | "in-progress" | "upcoming"
+  | "completed" | "overdue" | "archived";
 
 export type TaskCategory =
-  | "work"
-  | "study"
-  | "health"
-  | "personal"
-  | "finance"
-  | "prayer";
+  | "work" | "study" | "health" | "personal" | "finance" | "prayer";
 
 export type EnergyLevel = "low" | "medium" | "high";
 
@@ -44,6 +34,4 @@ export type Task = {
   recurring: "none" | "daily" | "weekly" | "monthly";
 };
 
-// FIX: Added missing CreateTaskInput type used by addTask() in store
-// Previously addTask() called with partial object had no type safety — silent runtime field gaps
 export type CreateTaskInput = Omit<Task, "id" | "createdAt" | "updatedAt">;

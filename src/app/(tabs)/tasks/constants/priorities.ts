@@ -1,27 +1,31 @@
-// FIX 24: priorities.ts
-// BUG FIXED:
-//   - text-black on bg-green-500 (low priority) fails WCAG AA contrast (ratio ~3.5:1).
-//   - TaskCardMeta applied text-black to all priority badges — black on yellow/green
-//     is borderline; black on a dark red (critical) is actually fine but looks heavy.
-//   - Switched to ring/muted style for better dark theme integration.
-//   - Added `textColor` for badges that need white text.
-
 export const PRIORITIES = {
   critical: {
     label: 'Critical',
-    color: 'bg-red-500/20 text-red-300 border border-red-500/30',
+    accentColor: '#ef4444',
+    textColor: '#ef4444',
+    bgColor: 'rgba(239,68,68,0.10)',
+    borderColor: 'rgba(239,68,68,0.25)',
   },
   high: {
     label: 'High',
-    color: 'bg-orange-500/20 text-orange-300 border border-orange-500/30',
+    accentColor: '#f97316',
+    textColor: '#f97316',
+    bgColor: 'rgba(249,115,22,0.10)',
+    borderColor: 'rgba(249,115,22,0.25)',
   },
   medium: {
     label: 'Medium',
-    color: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+    accentColor: '#eab308',
+    textColor: '#ca8a04',
+    bgColor: 'rgba(234,179,8,0.10)',
+    borderColor: 'rgba(234,179,8,0.25)',
   },
   low: {
     label: 'Low',
-    color: 'bg-green-500/20 text-green-300 border border-green-500/30',
+    accentColor: '#22c55e',
+    textColor: '#16a34a',
+    bgColor: 'rgba(34,197,94,0.10)',
+    borderColor: 'rgba(34,197,94,0.25)',
   },
 } as const;
 
