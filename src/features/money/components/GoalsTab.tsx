@@ -1,9 +1,31 @@
 'use client'
 
-import { getDaysLeft, formatCurrency } from '../utils'
-import type { SavingsGoal } from '@/lib/types'
+
+import { useState } from 'react';
+import { getDaysLeft, formatCurrency } from '../utils';
+import type { SavingsGoal } from '@/lib/types';
+import ContributeModal from './ContributeModal';
 
 export default function GoalsTab({ goals, currency_symbol, language, t, onAdd, onContribute, onDelete }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
+
+  const handleOpenModal = (goal: SavingsGoal) => {
+    setSelectedGoal(goal);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedGoal(null);
+  };
+
+  const handleContribute = (amount: number) => {
+    if (selectedGoal) {
+      onContribute(selectedGoal.id, amount);
+    }
+  };
+
   return (
     <div className="space-y-4 animate-[mon-slide-up_400ms_ease-out]">
       <div className="flex items-center justify-between">
@@ -56,10 +78,8 @@ export default function GoalsTab({ goals, currency_symbol, language, t, onAdd, o
 
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold" style={{ color: 'var(--mon-text-2)' }}>{Math.round(pct)}% {t.goalProgress}</span>
-                  <button onClick={() => {
-                    const amount = parseFloat(prompt('Amount to contribute:') || '0')
-                    if (amount > 0) onContribute(goal.id, amount)
-                  }}
+                  <button
+                    onClick={() => handleOpenModal(goal)}
                     className="px-3 py-1.5 rounded-[var(--mon-radius-md)] text-[12px] font-semibold transition-all active:scale-[0.97]"
                     style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)', border: '1px solid var(--mon-gold-glow)' }}
                   >
@@ -71,6 +91,12 @@ export default function GoalsTab({ goals, currency_symbol, language, t, onAdd, o
           })}
         </div>
       )}
-    </div>
+    <ContributeModal
+      open={modalOpen}
+      onClose={handleCloseModal}
+      onSubmit={handleContribute}
+      goalName={selectedGoal?.title}
+    />
+  </div>
   )
 }

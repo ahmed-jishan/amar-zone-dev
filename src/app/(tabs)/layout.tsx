@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { CheckSquare, Moon, Wallet, Settings, Calculator } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
-import { CalculatorModal } from '@/components/ui/CalculatorModal'
+import CalculatorModal from '@/components/ui/CalculatorModal'
 
 const TABS = [
   { href: '/tasks',     icon: CheckSquare, label: 'Tasks'     },

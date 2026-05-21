@@ -396,7 +396,7 @@ export const useTaskStore = create<TaskState>()(
       canComplete: (taskId) => {
         const task = get().tasks.find((t) => t.id === taskId);
         if (!task) return true;
-        const required = task.dependencies.filter((d) => d.type === 'requires');
+        const required = Array.isArray(task.dependencies) ? task.dependencies.filter((d) => d.type === 'requires') : [];
         return required.every((d) => {
           const dep = get().tasks.find((t) => t.id === d.taskId);
           return dep?.completed ?? true;
