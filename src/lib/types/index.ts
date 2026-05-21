@@ -13,10 +13,10 @@ export interface Task {
   createdAt: string
   dueDate?: string
   recurring: RecurringType
-  timerMinutes: number        // Pomodoro default: 25
-  timerSeconds?: number       // remaining when paused
+  timerMinutes: number
+  timerSeconds?: number
   streak: number
-  completedDates: string[]    // ISO date strings
+  completedDates: string[]
 }
 
 // ─── Namaz Types ──────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ export type PrayerName = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha'
 export type PrayerStatus = 'pending' | 'prayed' | 'missed' | 'qaza'
 
 export interface PrayerRecord {
-  date: string                // YYYY-MM-DD
+  date: string
   prayers: Record<PrayerName, PrayerStatus>
 }
 
@@ -37,46 +37,7 @@ export interface NamazSettings {
 }
 
 // ─── Money Types ──────────────────────────────────────────────────────────────
-export type TransactionType = 'income' | 'expense'
-export type ExpenseCategory =
-  | 'food' | 'transport' | 'utilities' | 'health'
-  | 'education' | 'entertainment' | 'shopping' | 'rent' | 'other'
-
-export interface Transaction {
-  id: string
-  type: TransactionType
-  amount: number
-  category: ExpenseCategory | 'salary' | 'freelance' | 'other-income'
-  note?: string
-  date: string                // YYYY-MM-DD
-  isRecurring: boolean
-}
-
-export interface Loan {
-  id: string
-  personName: string
-  amount: number
-  direction: 'given' | 'taken'
-  date: string
-  dueDate?: string
-  note?: string
-  settled: boolean
-}
-
-export interface MonthlyBudget {
-  month: string               // YYYY-MM
-  salary: number
-  budgets: Record<ExpenseCategory, number>
-}
-
-export interface SavingsGoal {
-  id: string
-  title: string
-  targetAmount: number
-  currentAmount: number
-  deadline?: string
-  createdAt: string
-}
+export * from './money'
 
 // ─── Settings Types ───────────────────────────────────────────────────────────
 export type Theme = 'light' | 'dark' | 'system'

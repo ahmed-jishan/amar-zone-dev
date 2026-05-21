@@ -1,5 +1,5 @@
-import { MoneyPage } from '@/features/money';
+import { MoneyPage } from '@/features/money'
 
 export default function Page() {
-  return <MoneyPage />;
+  return <MoneyPage />
 }

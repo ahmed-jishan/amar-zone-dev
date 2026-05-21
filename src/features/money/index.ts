@@ -1,2 +1,1 @@
-export { default as MoneyPage } from './components/MoneyPage';
-
+export { default as MoneyPage } from './components/MoneyPage'

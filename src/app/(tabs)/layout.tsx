@@ -2,7 +2,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CheckSquare, Moon, Wallet, BarChart2, Settings, Calculator } from 'lucide-react'
+import { CheckSquare, Moon, Wallet, Settings, Calculator } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
 import { CalculatorModal } from '@/components/ui/CalculatorModal'
@@ -11,7 +11,6 @@ const TABS = [
   { href: '/tasks',     icon: CheckSquare, label: 'Tasks'     },
   { href: '/namaz',     icon: Moon,        label: 'Namaz'     },
   { href: '/money',     icon: Wallet,      label: 'Money'     },
-  { href: '/analytics', icon: BarChart2,   label: 'Analytics' },
   { href: '/settings',  icon: Settings,    label: 'Settings'  },
 ]
 
@@ -37,11 +36,12 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
         <nav className="bottom-nav">
           <div className="bottom-nav-container">
             {TABS.map(({ href, icon: Icon, label }) => {
-              const active = pathname === href || pathname + '/' === href || pathname === href + '/'
+              const active = pathname === href || pathname === `${href}/`
               return (
                 <Link
                   key={href}
                   href={href}
+                  aria-current={active ? 'page' : undefined}
                   className={`bottom-nav-item ${active ? 'active' : ''}`}
                   data-active={active}
                   style={{
@@ -85,7 +85,10 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
 
             {/* Calc tab – same styling, opens modal */}
             <button
+              type="button"
               onClick={() => setCalcOpen(!calcOpen)}
+              aria-pressed={calcOpen}
+              aria-label="Open calculator"
               className={`bottom-nav-item ${calcOpen ? 'active' : ''}`}
               style={{
                 backgroundColor: calcOpen ? 'rgba(99, 102, 241, 0.2)' : 'transparent',

@@ -1,0 +1,152 @@
+/*
+ ╔══════════════════════════════════════════════════════════╗
+ ║ AZ Money — Premium Fintech Design System                 ║
+ ║ Apple Wallet × Revolut × Linear fusion                   ║
+ ╚══════════════════════════════════════════════════════════╝
+*/
+
+:root {
+  --mon-bg: #0b0c0e;
+  --mon-surface-1: #111214;
+  --mon-surface-2: #1a1c1f;
+  --mon-surface-3: #222429;
+  --mon-surface-hover: #15171a;
+  --mon-border: rgba(255,255,255,0.06);
+  --mon-border-hover: rgba(255,255,255,0.14);
+  --mon-text-1: #f0f0f2;
+  --mon-text-2: #9a9ba6;
+  --mon-text-3: #5c5e6b;
+  --mon-text-4: #3a3c47;
+
+  --mon-gold: #c9a84c;
+  --mon-gold-2: #e8c56a;
+  --mon-gold-glow: rgba(201,168,76,0.25);
+  --mon-gold-bg: rgba(201,168,76,0.10);
+
+  --mon-income: #22c55e;
+  --mon-income-glow: rgba(34,197,94,0.25);
+  --mon-income-bg: rgba(34,197,94,0.10);
+  --mon-expense: #ef4444;
+  --mon-expense-glow: rgba(239,68,68,0.25);
+  --mon-expense-bg: rgba(239,68,68,0.10);
+
+  --mon-accent: #6366f1;
+  --mon-accent-glow: rgba(99,102,241,0.30);
+
+  --mon-glass: rgba(17,18,20,0.72);
+  --mon-glass-border: rgba(255,255,255,0.08);
+
+  --mon-shadow-sm: 0 1px 2px rgba(0,0,0,0.40), 0 0 0 1px var(--mon-border);
+  --mon-shadow-md: 0 4px 12px rgba(0,0,0,0.50), 0 0 0 1px var(--mon-border);
+  --mon-shadow-lg: 0 8px 32px rgba(0,0,0,0.60), 0 0 0 1px var(--mon-border);
+  --mon-shadow-gold: 0 0 20px var(--mon-gold-glow);
+
+  --mon-radius-sm: 8px;
+  --mon-radius-md: 12px;
+  --mon-radius-lg: 16px;
+  --mon-radius-xl: 20px;
+  --mon-radius-2xl: 24px;
+
+  --mon-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mon-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mon-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mon-transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html:not(.dark) {
+  --mon-bg: #f8f9fb;
+  --mon-surface-1: #ffffff;
+  --mon-surface-2: #f1f2f5;
+  --mon-surface-3: #e8e9ed;
+  --mon-surface-hover: #f5f6f9;
+  --mon-border: rgba(0,0,0,0.06);
+  --mon-border-hover: rgba(0,0,0,0.12);
+  --mon-text-1: #0f1014;
+  --mon-text-2: #5a5c6b;
+  --mon-text-3: #9ea0b0;
+  --mon-text-4: #c5c7d2;
+  --mon-gold: #b88a28;
+  --mon-gold-2: #d6ab4e;
+  --mon-gold-glow: rgba(184,138,40,0.20);
+  --mon-gold-bg: rgba(184,138,40,0.08);
+  --mon-income: #16a34a;
+  --mon-income-glow: rgba(22,163,74,0.20);
+  --mon-income-bg: rgba(22,163,74,0.08);
+  --mon-expense: #dc2626;
+  --mon-expense-glow: rgba(220,38,38,0.20);
+  --mon-expense-bg: rgba(220,38,38,0.08);
+  --mon-accent: #4f46e5;
+  --mon-accent-glow: rgba(79,70,229,0.20);
+  --mon-glass: rgba(255,255,255,0.72);
+  --mon-glass-border: rgba(0,0,0,0.08);
+  --mon-shadow-sm: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px var(--mon-border);
+  --mon-shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px var(--mon-border);
+  --mon-shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 0 0 1px var(--mon-border);
+  --mon-shadow-gold: 0 0 20px var(--mon-gold-glow);
+}
+
+/* ── Animations ── */
+@keyframes mon-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mon-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mon-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes mon-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes mon-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--mon-gold-glow); }
+  50% { box-shadow: 0 0 20px 4px var(--mon-gold-glow); }
+}
+
+@keyframes mon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes mon-chart-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes mon-orb-float {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(10px, -15px); }
+  50% { transform: translate(-5px, 10px); }
+  75% { transform: translate(15px, 5px); }
+}
+
+/* ── Utilities ── */
+.mon-animate-fade { animation: mon-fade-in var(--mon-transition-base) ease-out; }
+.mon-animate-slide-up { animation: mon-slide-up var(--mon-transition-slow) cubic-bezier(0.16, 1, 0.3, 1); }
+.mon-animate-scale-in { animation: mon-scale-in var(--mon-transition-spring); }
+
+.mon-glass {
+  background: var(--mon-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--mon-glass-border);
+}
+
+.mon-skeleton {
+  background: linear-gradient(90deg, var(--mon-surface-2) 25%, var(--mon-surface-3) 50%, var(--mon-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: mon-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--mon-radius-sm);
+}
+
+.mon-scrollbar::-webkit-scrollbar { width: 5px; }
+.mon-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.mon-scrollbar::-webkit-scrollbar-thumb { background: var(--mon-text-4); border-radius: 3px; }
