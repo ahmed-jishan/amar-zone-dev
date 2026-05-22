@@ -20,6 +20,8 @@ import {
   FunctionSquare,
   Trash,
   GripHorizontal,
+  Delete,
+  Binary,
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -63,6 +65,7 @@ interface CalculatorStore {
   isOpen: boolean;
   isMinimized: boolean;
   isScientific: boolean;
+  isBinary: boolean;
   position: CalculatorPosition;
   history: HistoryItem[];
   memory: number;
@@ -72,6 +75,7 @@ interface CalculatorStore {
   minimize: () => void;
   maximize: () => void;
   toggleScientific: () => void;
+  toggleBinary: () => void;
   setPosition: (pos: CalculatorPosition) => void;
   addHistory: (item: Omit<HistoryItem, "id" | "timestamp">) => void;
   removeHistory: (id: string) => void;
@@ -90,6 +94,7 @@ const useCalculatorStore = create<CalculatorStore>()(
       isOpen: false,
       isMinimized: false,
       isScientific: false,
+      isBinary: false,
       position: { x: 0, y: 0 },
       history: [],
       memory: 0,
@@ -98,7 +103,9 @@ const useCalculatorStore = create<CalculatorStore>()(
       toggle: () => set((s) => ({ isOpen: !s.isOpen, isMinimized: false })),
       minimize: () => set({ isMinimized: true }),
       maximize: () => set({ isMinimized: false }),
-      toggleScientific: () => set((s) => ({ isScientific: !s.isScientific })),
+      toggleScientific: () =>
+        set((s) => ({ isScientific: !s.isScientific, isBinary: false })),
+      toggleBinary: () => set((s) => ({ isBinary: !s.isBinary, isScientific: false })),
       setPosition: (pos) => set({ position: pos }),
       addHistory: (item) =>
         set((s) => ({
@@ -133,6 +140,7 @@ const useCalculatorStore = create<CalculatorStore>()(
         history: state.history,
         memory: state.memory,
         isScientific: state.isScientific,
+        isBinary: state.isBinary,
       }),
     }
   )
@@ -174,7 +182,7 @@ class MathEngine {
         .replace(/floor\(/g, "Math.floor(")
         .replace(/ceil\(/g, "Math.ceil(")
         .replace(/round\(/g, "Math.round(")
-        .replace(/fact\(/g, "this.factorial(")
+        .replace(/fact\(/g, "ctx.factorial(")
         .replace(/%/g, "/100");
 
       // Handle factorial
@@ -187,7 +195,7 @@ class MathEngine {
       };
 
       // Safe evaluation with Function constructor
-      const func = new Function("Math", "this", `return (${sanitized})`);
+      const func = new Function("Math", "ctx", `return (${sanitized})`);
       const result = func(Math, { factorial });
 
       if (!isFinite(result) || isNaN(result)) {
@@ -266,12 +274,451 @@ const SCIENTIFIC_BUTTONS: CalcButton[][] = [
   ],
 ];
 
+
 const MEMORY_BUTTONS: CalcButton[] = [
   { label: "MC", value: "mc", type: "action" },
   { label: "MR", value: "mr", type: "action" },
   { label: "M+", value: "m+", type: "action" },
   { label: "M−", value: "m-", type: "action" },
 ];
+
+const HEX_BUTTONS: CalcButton[] = [
+  { label: "A", value: "A", type: "number" },
+  { label: "B", value: "B", type: "number" },
+  { label: "C", value: "C", type: "number" },
+  { label: "D", value: "D", type: "number" },
+  { label: "E", value: "E", type: "number" },
+  { label: "F", value: "F", type: "number" },
+];
+
+// ─── Binary Mode Helpers ────────────────────────────────────────────────────
+type BinaryBase = "BIN" | "DEC" | "OCT" | "HEX";
+
+const BINARY_BASES: BinaryBase[] = ["BIN", "DEC", "OCT", "HEX"];
+
+const baseToRadix: Record<BinaryBase, number> = {
+  BIN: 2,
+  DEC: 10,
+  OCT: 8,
+  HEX: 16,
+};
+
+const isValidDigitForBase = (char: string, base: BinaryBase) => {
+  if (!char) return false;
+  const upper = char.toUpperCase();
+  switch (base) {
+    case "BIN":
+      return upper === "0" || upper === "1";
+    case "DEC":
+      return /[0-9]/.test(upper);
+    case "OCT":
+      return /[0-7]/.test(upper);
+    case "HEX":
+      return /[0-9A-F]/.test(upper);
+    default:
+      return false;
+  }
+};
+
+const parseBaseValue = (value: string, base: BinaryBase): bigint | number | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const negative = trimmed.startsWith("-");
+  const raw = negative ? trimmed.slice(1) : trimmed;
+  if (!raw) return null;
+  const sanitized = raw.replace(/\s+/g, "").toUpperCase();
+  if (base === "DEC") {
+    if (!/^\d*(\.\d*)?$/.test(sanitized)) return null;
+    if (sanitized === "" || sanitized === ".") return null;
+    const parsed = Number.parseFloat(sanitized);
+    if (Number.isNaN(parsed)) return null;
+    return negative ? -parsed : parsed;
+  }
+
+  for (const ch of sanitized) {
+    if (!isValidDigitForBase(ch, base)) return null;
+  }
+  const prefix = base === "BIN" ? "0b" : base === "OCT" ? "0o" : base === "HEX" ? "0x" : "";
+  try {
+    const parsed = BigInt(prefix + sanitized);
+    return negative ? -parsed : parsed;
+  } catch {
+    return null;
+  }
+};
+
+const formatDecimalNumber = (value: number) => {
+  const normalized = Object.is(value, -0) ? 0 : value;
+  let text = normalized.toString();
+  if (text.includes("e")) {
+    text = normalized.toFixed(8);
+  }
+  if (text.includes(".")) {
+    text = text.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+  }
+  return text;
+};
+
+const convertDecimalToBase = (value: number, base: BinaryBase, precision = 8) => {
+  if (Number.isNaN(value) || !Number.isFinite(value)) return "Error";
+  const negative = value < 0;
+  const absValue = Math.abs(value);
+  const radix = baseToRadix[base];
+  const intPart = Math.floor(absValue);
+  let frac = absValue - intPart;
+  const intText = intPart.toString(radix).toUpperCase();
+  if (frac === 0) return negative ? `-${intText}` : intText;
+  let fracText = "";
+  let count = 0;
+  while (frac > 0 && count < precision) {
+    frac *= radix;
+    const digit = Math.floor(frac);
+    fracText += digit.toString(radix).toUpperCase();
+    frac -= digit;
+    count += 1;
+  }
+  const combined = `${intText}.${fracText}`;
+  return negative ? `-${combined}` : combined;
+};
+
+const formatBaseValue = (value: bigint | number, base: BinaryBase) => {
+  if (typeof value === "number") {
+    if (base === "DEC") {
+      return formatDecimalNumber(value);
+    }
+    return convertDecimalToBase(value, base);
+  }
+  const negative = value < 0n;
+  const absValue = negative ? -value : value;
+  const formatted = absValue.toString(baseToRadix[base]).toUpperCase();
+  return negative ? `-${formatted}` : formatted;
+};
+
+const evaluateDecimalExpression = (expr: string) => {
+  const tokens: Array<{ type: "number" | "operator" | "paren"; value: number | string }> = [];
+  const input = expr.replace(/\s+/g, "");
+  if (!input) return { result: null as number | null, error: "Empty expression" };
+
+  let i = 0;
+  let prev: "start" | "operator" | "lparen" | "number" | "rparen" = "start";
+
+  const pushNumber = (digits: string, negative: boolean) => {
+    if (!/^\d*(\.\d*)?$/.test(digits) || digits === "" || digits === ".") return false;
+    const parsed = Number.parseFloat(digits);
+    if (Number.isNaN(parsed)) return false;
+    tokens.push({ type: "number", value: negative ? -parsed : parsed });
+    return true;
+  };
+
+  while (i < input.length) {
+    const ch = input[i];
+    if (ch === "(") {
+      tokens.push({ type: "paren", value: "(" });
+      prev = "lparen";
+      i += 1;
+      continue;
+    }
+    if (ch === ")") {
+      tokens.push({ type: "paren", value: ")" });
+      prev = "rparen";
+      i += 1;
+      continue;
+    }
+    if ("+-*/%".includes(ch)) {
+      const isUnary = ch === "-" && (prev === "start" || prev === "operator" || prev === "lparen");
+      if (isUnary) {
+        const next = input[i + 1];
+        if (next === "(") {
+          tokens.push({ type: "number", value: 0 });
+          tokens.push({ type: "operator", value: "-" });
+          prev = "operator";
+          i += 1;
+          continue;
+        }
+        let j = i + 1;
+        let digits = "";
+        let dotSeen = false;
+        while (j < input.length) {
+          const candidate = input[j];
+          if (candidate === ".") {
+            if (dotSeen) break;
+            dotSeen = true;
+            digits += candidate;
+            j += 1;
+            continue;
+          }
+          if (!/[0-9]/.test(candidate)) break;
+          digits += candidate;
+          j += 1;
+        }
+        if (!digits) return { result: null, error: "Invalid expression" };
+        if (!pushNumber(digits, true)) return { result: null, error: "Invalid number" };
+        prev = "number";
+        i = j;
+        continue;
+      }
+
+      tokens.push({ type: "operator", value: ch });
+      prev = "operator";
+      i += 1;
+      continue;
+    }
+
+    if (/[0-9.]/.test(ch)) {
+      let j = i;
+      let digits = "";
+      let dotSeen = false;
+      while (j < input.length) {
+        const candidate = input[j];
+        if (candidate === ".") {
+          if (dotSeen) break;
+          dotSeen = true;
+          digits += candidate;
+          j += 1;
+          continue;
+        }
+        if (!/[0-9]/.test(candidate)) break;
+        digits += candidate;
+        j += 1;
+      }
+      if (!pushNumber(digits, false)) return { result: null, error: "Invalid number" };
+      prev = "number";
+      i = j;
+      continue;
+    }
+
+    return { result: null, error: "Invalid character" };
+  }
+
+  const output: Array<number | string> = [];
+  const ops: string[] = [];
+  const precedence: Record<string, number> = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2 };
+
+  for (const token of tokens) {
+    if (token.type === "number") {
+      output.push(token.value as number);
+      continue;
+    }
+    if (token.type === "operator") {
+      while (ops.length) {
+        const top = ops[ops.length - 1];
+        if (top === "(") break;
+        if (precedence[top] >= precedence[token.value as string]) {
+          output.push(ops.pop() as string);
+        } else {
+          break;
+        }
+      }
+      ops.push(token.value as string);
+      continue;
+    }
+    if (token.value === "(") {
+      ops.push(token.value as string);
+      continue;
+    }
+    if (token.value === ")") {
+      while (ops.length && ops[ops.length - 1] !== "(") {
+        output.push(ops.pop() as string);
+      }
+      if (!ops.length) return { result: null, error: "Mismatched parentheses" };
+      ops.pop();
+    }
+  }
+
+  while (ops.length) {
+    const op = ops.pop() as string;
+    if (op === "(") return { result: null, error: "Mismatched parentheses" };
+    output.push(op);
+  }
+
+  const stack: number[] = [];
+  for (const token of output) {
+    if (typeof token === "number") {
+      stack.push(token);
+      continue;
+    }
+    if (stack.length < 2) return { result: null, error: "Invalid expression" };
+    const b = stack.pop() as number;
+    const a = stack.pop() as number;
+    if ((token === "/" || token === "%") && b === 0) {
+      return { result: null, error: "Division by zero" };
+    }
+    switch (token) {
+      case "+":
+        stack.push(a + b);
+        break;
+      case "-":
+        stack.push(a - b);
+        break;
+      case "*":
+        stack.push(a * b);
+        break;
+      case "/":
+        stack.push(a / b);
+        break;
+      case "%":
+        stack.push(a % b);
+        break;
+    }
+  }
+
+  if (stack.length !== 1) return { result: null, error: "Invalid expression" };
+  return { result: stack[0], error: null };
+};
+
+const evaluateBaseExpression = (expr: string, base: BinaryBase) => {
+  if (base === "DEC") {
+    return evaluateDecimalExpression(expr);
+  }
+  const tokens: Array<{ type: "number" | "operator" | "paren"; value: string }> = [];
+  const input = expr.replace(/\s+/g, "");
+  if (!input) return { result: null as bigint | null, error: "Empty expression" };
+
+  let i = 0;
+  let prev: "start" | "operator" | "lparen" | "number" | "rparen" = "start";
+
+  const pushNumber = (digits: string, negative: boolean) => {
+    const parsed = parseBaseValue((negative ? "-" : "") + digits, base);
+    if (parsed === null) return false;
+    tokens.push({ type: "number", value: parsed.toString() });
+    return true;
+  };
+
+  while (i < input.length) {
+    const ch = input[i];
+    if (ch === "(") {
+      tokens.push({ type: "paren", value: "(" });
+      prev = "lparen";
+      i += 1;
+      continue;
+    }
+    if (ch === ")") {
+      tokens.push({ type: "paren", value: ")" });
+      prev = "rparen";
+      i += 1;
+      continue;
+    }
+    if ("+-*/%".includes(ch)) {
+      const isUnary = ch === "-" && (prev === "start" || prev === "operator" || prev === "lparen");
+      if (isUnary) {
+        const next = input[i + 1];
+        if (next === "(") {
+          tokens.push({ type: "number", value: "0" });
+          tokens.push({ type: "operator", value: "-" });
+          prev = "operator";
+          i += 1;
+          continue;
+        }
+        let j = i + 1;
+        let digits = "";
+        while (j < input.length && isValidDigitForBase(input[j], base)) {
+          digits += input[j].toUpperCase();
+          j += 1;
+        }
+        if (!digits) return { result: null, error: "Invalid expression" };
+        if (!pushNumber(digits, true)) return { result: null, error: "Invalid number" };
+        prev = "number";
+        i = j;
+        continue;
+      }
+
+      tokens.push({ type: "operator", value: ch });
+      prev = "operator";
+      i += 1;
+      continue;
+    }
+
+    if (isValidDigitForBase(ch, base)) {
+      let j = i;
+      let digits = "";
+      while (j < input.length && isValidDigitForBase(input[j], base)) {
+        digits += input[j].toUpperCase();
+        j += 1;
+      }
+      if (!pushNumber(digits, false)) return { result: null, error: "Invalid number" };
+      prev = "number";
+      i = j;
+      continue;
+    }
+
+    return { result: null, error: "Invalid character" };
+  }
+
+  const output: Array<string> = [];
+  const ops: string[] = [];
+  const precedence: Record<string, number> = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2 };
+
+  for (const token of tokens) {
+    if (token.type === "number") {
+      output.push(token.value);
+      continue;
+    }
+    if (token.type === "operator") {
+      while (ops.length) {
+        const top = ops[ops.length - 1];
+        if (top === "(") break;
+        if (precedence[top] >= precedence[token.value]) {
+          output.push(ops.pop() as string);
+        } else {
+          break;
+        }
+      }
+      ops.push(token.value);
+      continue;
+    }
+    if (token.value === "(") {
+      ops.push(token.value);
+      continue;
+    }
+    if (token.value === ")") {
+      while (ops.length && ops[ops.length - 1] !== "(") {
+        output.push(ops.pop() as string);
+      }
+      if (!ops.length) return { result: null, error: "Mismatched parentheses" };
+      ops.pop();
+    }
+  }
+
+  while (ops.length) {
+    const op = ops.pop() as string;
+    if (op === "(") return { result: null, error: "Mismatched parentheses" };
+    output.push(op);
+  }
+
+  const stack: bigint[] = [];
+  for (const token of output) {
+    if (!"+-*/%".includes(token)) {
+      stack.push(BigInt(token));
+      continue;
+    }
+    if (stack.length < 2) return { result: null, error: "Invalid expression" };
+    const b = stack.pop() as bigint;
+    const a = stack.pop() as bigint;
+    if ((token === "/" || token === "%") && b === 0n) {
+      return { result: null, error: "Division by zero" };
+    }
+    switch (token) {
+      case "+":
+        stack.push(a + b);
+        break;
+      case "-":
+        stack.push(a - b);
+        break;
+      case "*":
+        stack.push(a * b);
+        break;
+      case "/":
+        stack.push(a / b);
+        break;
+      case "%":
+        stack.push(a % b);
+        break;
+    }
+  }
+
+  if (stack.length !== 1) return { result: null, error: "Invalid expression" };
+  return { result: stack[0], error: null };
+};
 
 // ─── Ripple Effect Component ─────────────────────────────────────────────────
 function RippleButton({
@@ -594,6 +1041,7 @@ export default function CalculatorModal() {
     isOpen,
     isMinimized,
     isScientific,
+    isBinary,
     position,
     memory,
     addHistory,
@@ -601,6 +1049,7 @@ export default function CalculatorModal() {
     minimize,
     maximize,
     toggleScientific,
+    toggleBinary,
     memoryAdd,
     memorySubtract,
     memoryClear,
@@ -617,9 +1066,36 @@ export default function CalculatorModal() {
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
   const [parenCount, setParenCount] = useState(0);
+  const [binaryDisplay, setBinaryDisplay] = useState("0");
+  const [binaryExpression, setBinaryExpression] = useState("");
+  const [binaryError, setBinaryError] = useState<string | null>(null);
+  const [binaryBase, setBinaryBase] = useState<BinaryBase>("BIN");
+  const [binaryUndoStack, setBinaryUndoStack] = useState<string[]>([]);
+  const [binaryRedoStack, setBinaryRedoStack] = useState<string[]>([]);
+  const [modalScale, setModalScale] = useState(1);
+  const [dragBounds, setDragBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  const activeDisplay = isBinary ? binaryDisplay : display;
+  const activeExpression = isBinary ? binaryExpression : expression;
+  const activeError = isBinary ? binaryError : error;
+
+  const binaryConversions = useMemo(() => {
+    const parsed = parseBaseValue(binaryDisplay, binaryBase);
+    if (parsed === null) {
+      return { BIN: "--", DEC: "--", OCT: "--", HEX: "--" };
+    }
+    return {
+      BIN: formatBaseValue(parsed, "BIN"),
+      DEC: formatBaseValue(parsed, "DEC"),
+      OCT: formatBaseValue(parsed, "OCT"),
+      HEX: formatBaseValue(parsed, "HEX"),
+    };
+  }, [binaryDisplay, binaryBase]);
 
   const displayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
 
   // Motion values for smooth dragging
@@ -627,6 +1103,102 @@ export default function CalculatorModal() {
   const y = useMotionValue(position.y || 0);
   const springX = useSpring(x, { stiffness: 300, damping: 30 });
   const springY = useSpring(y, { stiffness: 300, damping: 30 });
+
+  useEffect(() => {
+    x.set(position.x || 0);
+    y.set(position.y || 0);
+  }, [position.x, position.y, x, y]);
+
+  useEffect(() => {
+    if (!isOpen || position.x !== 0 || position.y !== 0) return;
+    const width = 360;
+    const height = 520;
+    const centeredX = Math.max(16, (window.innerWidth - width) / 2);
+    const centeredY = Math.max(16, (window.innerHeight - height) / 2);
+    setPosition({ x: centeredX, y: centeredY });
+  }, [isOpen, position.x, position.y, setPosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updateScale = () => {
+      if (!contentRef.current) return;
+      const width = contentRef.current.offsetWidth || 360;
+      const height = contentRef.current.scrollHeight || 520;
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const bottomNav = document.querySelector('.bottom-nav') as HTMLElement | null;
+      const bottomOffset = bottomNav?.getBoundingClientRect().height || 0;
+      const availableWidth = Math.max(0, viewportWidth - 24);
+      const availableHeight = Math.max(0, viewportHeight - 24 - bottomOffset);
+      const scaleX = availableWidth / width;
+      const scaleY = availableHeight / height;
+      const nextScale = Math.min(1, scaleX, scaleY);
+      setModalScale(Number.isFinite(nextScale) ? nextScale : 1);
+    };
+
+    const requestScaleUpdate = () => {
+      requestAnimationFrame(updateScale);
+    };
+
+    requestScaleUpdate();
+    window.addEventListener("resize", requestScaleUpdate);
+    window.visualViewport?.addEventListener("resize", requestScaleUpdate);
+
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+    }
+    resizeObserverRef.current = new ResizeObserver(() => requestScaleUpdate());
+    if (contentRef.current) {
+      resizeObserverRef.current.observe(contentRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("resize", requestScaleUpdate);
+      window.visualViewport?.removeEventListener("resize", requestScaleUpdate);
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+    };
+  }, [isOpen, isScientific, isBinary]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updateBounds = () => {
+      if (!containerRef.current || !contentRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const bottomNav = document.querySelector('.bottom-nav') as HTMLElement | null;
+      const bottomOffset = bottomNav?.getBoundingClientRect().height || 0;
+      const width = rect.width * modalScale;
+      const height = (contentRef.current.scrollHeight || rect.height) * modalScale;
+      const overflowX = width * 0.2;
+      const overflowY = height * 0.2;
+      setDragBounds({
+        left: -overflowX,
+        top: -overflowY,
+        right: Math.max(-overflowX, viewportWidth - width + overflowX),
+        bottom: Math.max(-overflowY, viewportHeight - bottomOffset - height + overflowY),
+      });
+    };
+
+    updateBounds();
+    window.addEventListener("resize", updateBounds);
+    window.visualViewport?.addEventListener("resize", updateBounds);
+    return () => {
+      window.removeEventListener("resize", updateBounds);
+      window.visualViewport?.removeEventListener("resize", updateBounds);
+    };
+  }, [isOpen, modalScale]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const clampedX = Math.min(Math.max(dragBounds.left, x.get()), dragBounds.right);
+    const clampedY = Math.min(Math.max(dragBounds.top, y.get()), dragBounds.bottom);
+    if (clampedX !== x.get()) x.set(clampedX);
+    if (clampedY !== y.get()) y.set(clampedY);
+  }, [isOpen, dragBounds, x, y]);
 
   // Auto-scroll display
   useEffect(() => {
@@ -637,7 +1209,7 @@ export default function CalculatorModal() {
 
   // Preview calculation
   useEffect(() => {
-    if (expression && !error) {
+    if (expression && !error && !isBinary) {
       const { result, error: err } = mathEngine.evaluate(expression);
       if (result !== null && !err) {
         setPreview(formatNumber(result));
@@ -647,7 +1219,7 @@ export default function CalculatorModal() {
     } else {
       setPreview("");
     }
-  }, [expression, error]);
+  }, [expression, error, isBinary]);
 
   // Keyboard support
   useEffect(() => {
@@ -655,6 +1227,40 @@ export default function CalculatorModal() {
       if (!isOpen || isMinimized) return;
 
       const key = e.key;
+
+      if (isBinary) {
+        if (key === "Escape") {
+          store.close();
+          return;
+        }
+        if (key === "Enter" || key === "=") {
+          e.preventDefault();
+          handleBinaryEquals();
+          return;
+        }
+        if (key === "Backspace") {
+          e.preventDefault();
+          handleBinaryBackspace();
+          return;
+        }
+        if (key === "(" || key === ")") {
+          e.preventDefault();
+          handleBinaryParen(key);
+          return;
+        }
+        if (["+", "-", "*", "/", "%"].includes(key)) {
+          e.preventDefault();
+          const displayValue = key === "*" ? "×" : key === "/" ? "÷" : key === "-" ? "−" : key;
+          handleBinaryInput(displayValue, key);
+          return;
+        }
+        if (isValidDigitForBase(key, binaryBase)) {
+          e.preventDefault();
+          handleBinaryInput(key.toUpperCase());
+          return;
+        }
+        return;
+      }
 
       if (key === "Escape") {
         store.close();
@@ -709,30 +1315,37 @@ export default function CalculatorModal() {
 
       if (["+", "-", "*", "/", "%", "(", ")", "^"].includes(key)) {
         e.preventDefault();
-        handleInput(key === "*" ? "×" : key === "/" ? "÷" : key);
+        handleInput(key === "*" ? "×" : key === "/" ? "÷" : key, key);
         return;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isMinimized, display, expression]);
+  }, [isOpen, isMinimized, display, expression, isBinary, binaryBase]);
 
   // Save position on drag end
   const handleDragEnd = useCallback(
-    (_: any, info: any) => {
-      const newX = info.point.x - (containerRef.current?.offsetWidth || 0) / 2;
-      const newY = info.point.y - 24;
-      const clampedX = Math.max(0, Math.min(window.innerWidth - 320, newX));
-      const clampedY = Math.max(0, Math.min(window.innerHeight - 100, newY));
+    () => {
+      const width = containerRef.current?.offsetWidth || 360;
+      const height = containerRef.current?.offsetHeight || 520;
+      const newX = x.get();
+      const newY = y.get();
+      const clampedX = Math.max(0, Math.min(window.innerWidth - width, newX));
+      const clampedY = Math.max(0, Math.min(window.innerHeight - height, newY));
       setPosition({ x: clampedX, y: clampedY });
     },
-    [setPosition]
+    [setPosition, x, y]
   );
 
   const pushUndo = () => {
     setUndoStack((prev) => [...prev.slice(-20), expression]);
     setRedoStack([]);
+  };
+
+  const pushBinaryUndo = () => {
+    setBinaryUndoStack((prev) => [...prev.slice(-20), binaryExpression]);
+    setBinaryRedoStack([]);
   };
 
   const handleUndo = () => {
@@ -755,28 +1368,152 @@ export default function CalculatorModal() {
     }
   };
 
-  const handleInput = (value: string) => {
+  const handleBinaryUndo = () => {
+    if (binaryUndoStack.length > 0) {
+      const prev = binaryUndoStack[binaryUndoStack.length - 1];
+      setBinaryRedoStack((r) => [...r, binaryExpression]);
+      setBinaryExpression(prev);
+      setBinaryDisplay(prev || "0");
+      setBinaryUndoStack((s) => s.slice(0, -1));
+    }
+  };
+
+  const handleBinaryRedo = () => {
+    if (binaryRedoStack.length > 0) {
+      const next = binaryRedoStack[binaryRedoStack.length - 1];
+      setBinaryUndoStack((u) => [...u, binaryExpression]);
+      setBinaryExpression(next);
+      setBinaryDisplay(next || "0");
+      setBinaryRedoStack((r) => r.slice(0, -1));
+    }
+  };
+
+  const normalizeDisplayExpression = (value: string) =>
+    value.replace(/,/g, "").replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
+
+  const isOperator = (value: string) => ["+", "-", "*", "/", "%", "^"] .includes(value);
+
+  const getLastNumberSegment = (value: string) => {
+    const parts = value.split(/[^0-9.]/);
+    return parts[parts.length - 1] || "";
+  };
+
+  const handleInput = (value: string, rawValue = value) => {
+    const lastChar = expression.slice(-1);
+
+    if (rawValue === ".") {
+      const segment = getLastNumberSegment(expression);
+      if (segment.includes(".")) return;
+    }
+
+    if (isOperator(rawValue)) {
+      if (!expression && rawValue !== "-") return;
+      if (isOperator(lastChar)) {
+        pushUndo();
+        setError(null);
+        setDisplay((prev) => prev.slice(0, -1) + value);
+        setExpression((prev) => prev.slice(0, -1) + rawValue);
+        return;
+      }
+    }
+
+    if (!expression && rawValue === "-") {
+      pushUndo();
+      setError(null);
+      setDisplay("−");
+      setExpression("-");
+      return;
+    }
+
     pushUndo();
     setError(null);
 
     if (display === "Error" || display === "0") {
       if (value === ".") {
         setDisplay("0.");
-        setExpression("0.");
+        setExpression(rawValue === value ? "0." : "0." + rawValue);
       } else if (/[0-9]/.test(value)) {
         setDisplay(value);
-        setExpression(value);
+        setExpression(rawValue);
       } else {
         setDisplay("0" + value);
-        setExpression("0" + value);
+        setExpression("0" + rawValue);
       }
     } else {
       setDisplay((prev) => prev + value);
-      setExpression((prev) => prev + value);
+      setExpression((prev) => prev + rawValue);
     }
   };
 
+  const handleBinaryInput = (displayValue: string, rawValue = displayValue) => {
+    const normalized = rawValue.toUpperCase();
+    const lastChar = binaryExpression.slice(-1);
+
+    if (normalized === ".") {
+      if (binaryBase !== "DEC") return;
+      const segment = getLastNumberSegment(binaryExpression);
+      if (segment.includes(".")) return;
+    }
+
+    if (isOperator(normalized)) {
+      if (!binaryExpression && normalized !== "-") return;
+      if (isOperator(lastChar)) {
+        pushBinaryUndo();
+        setBinaryError(null);
+        setBinaryDisplay((prev) => prev.slice(0, -1) + displayValue);
+        setBinaryExpression((prev) => prev.slice(0, -1) + normalized);
+        return;
+      }
+    }
+
+    if (!binaryExpression && normalized === "-") {
+      pushBinaryUndo();
+      setBinaryError(null);
+      setBinaryDisplay("-");
+      setBinaryExpression("-");
+      return;
+    }
+
+    if (!isOperator(normalized)) {
+      const isDecimalPoint = normalized === ".";
+      if (isDecimalPoint && binaryBase !== "DEC") return;
+      if (!isDecimalPoint && !isValidDigitForBase(normalized, binaryBase)) return;
+    }
+
+    if (binaryDisplay === "0" || binaryDisplay === "Error") {
+      if (isOperator(normalized)) return;
+      pushBinaryUndo();
+      setBinaryError(null);
+      if (normalized === ".") {
+        setBinaryDisplay("0.");
+        setBinaryExpression("0.");
+      } else {
+        setBinaryDisplay(displayValue);
+        setBinaryExpression(normalized);
+      }
+      return;
+    }
+
+    pushBinaryUndo();
+    setBinaryError(null);
+    setBinaryDisplay((prev) => prev + displayValue);
+    setBinaryExpression((prev) => prev + normalized);
+  };
+
+  const handleBinaryParen = (value: "(" | ")") => {
+    if (!binaryExpression && value === ")") return;
+    if (value === ")" && isOperator(binaryExpression.slice(-1))) return;
+    pushBinaryUndo();
+    setBinaryError(null);
+    setBinaryDisplay((prev) => (prev === "0" ? value : prev + value));
+    setBinaryExpression((prev) => (prev === "" || prev === "0" ? value : prev + value));
+  };
+
   const handleBackspace = () => {
+    if (isBinary) {
+      handleBinaryBackspace();
+      return;
+    }
     pushUndo();
     if (display === "Error") {
       setDisplay("0");
@@ -789,17 +1526,49 @@ export default function CalculatorModal() {
     } else {
       const newDisplay = display.slice(0, -1);
       setDisplay(newDisplay);
-      setExpression(newDisplay);
+      setExpression(normalizeDisplayExpression(newDisplay));
     }
   };
 
+  const handleBinaryBackspace = () => {
+    if (binaryDisplay === "Error") {
+      setBinaryDisplay("0");
+      setBinaryExpression("");
+      setBinaryError(null);
+      return;
+    }
+    if (!binaryExpression || binaryDisplay.length <= 1) {
+      pushBinaryUndo();
+      setBinaryDisplay("0");
+      setBinaryExpression("");
+      setBinaryError(null);
+      return;
+    }
+    pushBinaryUndo();
+    const newDisplay = binaryDisplay.slice(0, -1);
+    const newExpression = binaryExpression.slice(0, -1);
+    setBinaryDisplay(newDisplay || "0");
+    setBinaryExpression(newExpression);
+  };
+
   const handleClear = () => {
+    if (isBinary) {
+      handleBinaryClear();
+      return;
+    }
     pushUndo();
     setDisplay("0");
     setExpression("");
     setError(null);
     setPreview("");
     setParenCount(0);
+  };
+
+  const handleBinaryClear = () => {
+    pushBinaryUndo();
+    setBinaryDisplay("0");
+    setBinaryExpression("");
+    setBinaryError(null);
   };
 
   const handleParen = () => {
@@ -840,6 +1609,7 @@ export default function CalculatorModal() {
     addHistory({
       expression: finalExpr,
       result: formattedResult,
+      pinned: false,
     });
 
     setDisplay(formattedResult);
@@ -847,6 +1617,44 @@ export default function CalculatorModal() {
     setPreview("");
     setError(null);
     setParenCount(0);
+  };
+
+  const handleBinaryEquals = () => {
+    if (!binaryExpression) return;
+    const { result, error: evalError } = evaluateBaseExpression(binaryExpression, binaryBase);
+
+    if (evalError || result === null) {
+      setBinaryError(evalError || "Error");
+      setBinaryDisplay("Error");
+      return;
+    }
+
+    const formatted = formatBaseValue(result as bigint | number, binaryBase);
+    addHistory({
+      expression: binaryExpression,
+      result: formatted,
+      pinned: false,
+    });
+
+    setBinaryDisplay(formatted);
+    setBinaryExpression(formatted);
+    setBinaryError(null);
+  };
+
+  const handleBinaryBaseChange = (base: BinaryBase) => {
+    if (base === binaryBase) return;
+    const parsed = parseBaseValue(binaryDisplay, binaryBase);
+    setBinaryBase(base);
+
+    if (parsed === null) {
+      setBinaryError(null);
+      return;
+    }
+
+    const formatted = formatBaseValue(parsed, base);
+    setBinaryDisplay(formatted);
+    setBinaryExpression(formatted);
+    setBinaryError(null);
   };
 
   const handleMemory = (action: string) => {
@@ -870,7 +1678,7 @@ export default function CalculatorModal() {
   };
 
   const handleCopy = async () => {
-    const textToCopy = display === "Error" ? expression : display;
+    const textToCopy = activeDisplay === "Error" ? activeExpression : activeDisplay;
     try {
       await navigator.clipboard.writeText(textToCopy.replace(/,/g, ""));
       setCopied(true);
@@ -900,6 +1708,29 @@ export default function CalculatorModal() {
   };
 
   const handleButtonPress = (btn: CalcButton) => {
+    if (isBinary) {
+      switch (btn.value) {
+        case "clear":
+          handleBinaryClear();
+          break;
+        case "equals":
+          handleBinaryEquals();
+          break;
+        case "backspace":
+          handleBinaryBackspace();
+          break;
+        case "(":
+          handleBinaryParen("(");
+          break;
+        case ")":
+          handleBinaryParen(")");
+          break;
+        default:
+          handleBinaryInput(btn.label, btn.value);
+      }
+      return;
+    }
+
     switch (btn.value) {
       case "clear":
         handleClear();
@@ -920,14 +1751,14 @@ export default function CalculatorModal() {
         if (btn.type === "scientific") {
           handleScientific(btn.value);
         } else {
-          handleInput(btn.label);
+          handleInput(btn.label, btn.value);
         }
     }
   };
 
   // Button styling
   const getButtonStyle = (btn: CalcButton) => {
-    const base = "h-14 rounded-2xl text-lg font-medium transition-all duration-150 flex items-center justify-center";
+    const base = "h-12 sm:h-14 rounded-2xl text-base sm:text-lg font-medium transition-all duration-150 flex items-center justify-center";
 
     if (btn.type === "number") {
       return cn(
@@ -990,11 +1821,12 @@ export default function CalculatorModal() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => store.open()}
-          className="fixed bottom-6 right-6 z-[9990] w-14 h-14 rounded-2xl bg-indigo-500 text-white shadow-xl shadow-indigo-500/30 flex items-center justify-center backdrop-blur-xl border border-indigo-400/20"
+          className="fixed bottom-6 right-6 z-[10010] w-14 h-14 rounded-2xl bg-indigo-500 text-white shadow-xl shadow-indigo-500/30 flex items-center justify-center backdrop-blur-xl border border-indigo-400/20 pointer-events-auto"
+          style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
         >
           <Calculator className="w-6 h-6" />
           <motion.div
-            className="absolute inset-0 rounded-2xl bg-indigo-400/20"
+            className="absolute inset-0 rounded-2xl bg-indigo-400/20 pointer-events-none"
             animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -1018,22 +1850,28 @@ export default function CalculatorModal() {
             dragControls={dragControls}
             dragMomentum={false}
             dragElastic={0.05}
+            dragConstraints={dragBounds}
             onDragEnd={handleDragEnd}
             style={{
               x: springX,
               y: springY,
               position: "fixed",
-              top: position.y || 20,
-              left: position.x || "auto",
-              right: position.x ? "auto" : 20,
-              zIndex: 9999,
+              top: 0,
+              left: 0,
+              zIndex: 10020,
+              width: "min(360px, calc(100vw - 1.5rem))",
+              transformOrigin: "top left",
+              scale: modalScale,
             }}
-            className="w-[360px] max-w-[calc(100vw-2rem)] select-none"
+            className="select-none"
           >
             {/* Glow effect */}
             <div className="absolute -inset-1 bg-indigo-500/20 rounded-[2rem] blur-xl opacity-50" />
 
-            <div className="relative bg-slate-950/90 backdrop-blur-2xl rounded-3xl border border-white/[0.08] shadow-2xl shadow-black/50 overflow-hidden">
+            <div
+              ref={contentRef}
+              className="relative bg-slate-950/90 backdrop-blur-2xl rounded-3xl border border-white/[0.08] shadow-2xl shadow-black/50 overflow-hidden"
+            >
               {/* Top gradient line */}
               <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
 
@@ -1068,6 +1906,20 @@ export default function CalculatorModal() {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
+                    onClick={toggleBinary}
+                    className={cn(
+                      "p-1.5 rounded-lg transition-colors",
+                      isBinary
+                        ? "bg-indigo-500/20 text-indigo-400"
+                        : "hover:bg-white/10 text-white/40"
+                    )}
+                    title="Binary mode"
+                  >
+                    <Binary className="w-4 h-4" />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setHistoryOpen(true)}
                     className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 transition-colors"
                     title="History"
@@ -1096,32 +1948,32 @@ export default function CalculatorModal() {
               </div>
 
               {/* Display */}
-              <div className="px-5 pb-3">
+              <div className="px-4 pb-3 sm:px-5">
                 <div className="bg-white/[0.03] rounded-2xl p-4 border border-white/[0.05]">
                   {/* Expression */}
                   <div
                     ref={displayRef}
                     className="text-right text-white/40 text-sm font-mono min-h-[20px] overflow-x-auto whitespace-nowrap scrollbar-hide"
                   >
-                    {expression || "\u00A0"}
+                    {activeExpression || "\u00A0"}
                   </div>
                   {/* Main display */}
                   <div className="text-right mt-1">
                     <motion.div
-                      key={display}
+                      key={activeDisplay}
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={cn(
                         "text-4xl font-light tracking-tight font-mono truncate",
-                        error ? "text-red-400" : "text-white"
+                        activeError ? "text-red-400" : "text-white"
                       )}
                     >
-                      {display}
+                      {activeDisplay}
                     </motion.div>
                   </div>
                   {/* Preview */}
                   <AnimatePresence>
-                    {preview && !error && (
+                    {preview && !activeError && !isBinary && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
@@ -1133,7 +1985,7 @@ export default function CalculatorModal() {
                     )}
                   </AnimatePresence>
                   {/* Memory indicator */}
-                  {memory !== 0 && (
+                  {!isBinary && memory !== 0 && (
                     <div className="flex items-center gap-1 mt-1 justify-end">
                       <span className="text-[10px] text-amber-400/60 uppercase tracking-wider font-medium">
                         M {formatNumber(memory)}
@@ -1143,9 +1995,58 @@ export default function CalculatorModal() {
                 </div>
               </div>
 
+              {isBinary && (
+                <div className="px-4 pb-2 sm:px-5">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    {BINARY_BASES.map((base) => (
+                      <button
+                        key={base}
+                        onClick={() => handleBinaryBaseChange(base)}
+                        className={cn(
+                          "px-3 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                          base === binaryBase
+                            ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            : "bg-white/[0.04] text-white/40 border border-white/[0.05] hover:bg-white/[0.08]"
+                        )}
+                      >
+                        {base}
+                      </button>
+                    ))}
+                  </div>
+                  {binaryBase === "HEX" && (
+                    <div className="grid grid-cols-3 gap-1.5 mb-2">
+                      {HEX_BUTTONS.map((btn) => (
+                        <RippleButton
+                          key={btn.label}
+                          onClick={() => handleBinaryInput(btn.label, btn.value)}
+                          className={getButtonStyle(btn)}
+                        >
+                          {btn.label}
+                        </RippleButton>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {BINARY_BASES.map((base) => (
+                      <div
+                        key={base}
+                        className="bg-white/[0.03] border border-white/[0.05] rounded-lg px-2.5 py-1.5"
+                      >
+                        <div className="text-[9px] text-white/30 uppercase tracking-wider">
+                          {base}
+                        </div>
+                        <div className="text-xs text-white/70 font-mono truncate">
+                          {binaryConversions[base]}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Scientific Panel */}
               <AnimatePresence>
-                {isScientific && (
+                {isScientific && !isBinary && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
@@ -1192,22 +2093,24 @@ export default function CalculatorModal() {
 
               {/* Memory Buttons */}
               <div className="px-4 pb-2">
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
                   {MEMORY_BUTTONS.map((btn) => (
                     <RippleButton
                       key={btn.label}
                       onClick={() => handleButtonPress(btn)}
                       className={cn(
-                        "h-9 rounded-xl text-xs font-medium",
+                        "h-8 sm:h-9 rounded-xl text-xs font-medium",
                         "bg-white/[0.03] hover:bg-white/[0.06] text-white/50",
                         "border border-white/[0.03]",
+                        isBinary && "opacity-40",
                         memory === 0 &&
                           (btn.value === "mr" || btn.value === "mc") &&
                           "opacity-40"
                       )}
                       disabled={
-                        memory === 0 &&
-                        (btn.value === "mr" || btn.value === "mc")
+                        isBinary ||
+                        (memory === 0 &&
+                          (btn.value === "mr" || btn.value === "mc"))
                       }
                     >
                       {btn.label}
@@ -1217,14 +2120,28 @@ export default function CalculatorModal() {
               </div>
 
               {/* Main Keypad */}
-              <div className="p-4 pt-2 space-y-1.5">
+              <div className="p-4 pt-2 space-y-1">
                 {BASIC_BUTTONS.map((row, i) => (
-                  <div key={i} className="grid grid-cols-4 gap-1.5">
+                  <div key={i} className="grid grid-cols-4 gap-1 sm:gap-1.5">
                     {row.map((btn) => (
                       <RippleButton
                         key={btn.label}
                         onClick={() => handleButtonPress(btn)}
-                        className={cn(getButtonStyle(btn), btn.span === 2 && "col-span-2")}
+                        disabled={
+                          isBinary &&
+                          ((btn.type === "number" &&
+                            !isValidDigitForBase(btn.value, binaryBase)) ||
+                            (btn.value === "." && binaryBase !== "DEC"))
+                        }
+                        className={cn(
+                          getButtonStyle(btn),
+                          btn.span === 2 && "col-span-2",
+                          isBinary &&
+                            ((btn.type === "number" &&
+                              !isValidDigitForBase(btn.value, binaryBase)) ||
+                              (btn.value === "." && binaryBase !== "DEC")) &&
+                            "opacity-40"
+                        )}
                       >
                         {btn.label}
                       </RippleButton>
@@ -1239,8 +2156,8 @@ export default function CalculatorModal() {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={handleUndo}
-                    disabled={undoStack.length === 0}
+                    onClick={isBinary ? handleBinaryUndo : handleUndo}
+                    disabled={isBinary ? binaryUndoStack.length === 0 : undoStack.length === 0}
                     className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors"
                     title="Undo"
                   >
@@ -1249,12 +2166,22 @@ export default function CalculatorModal() {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={handleRedo}
-                    disabled={redoStack.length === 0}
+                    onClick={isBinary ? handleBinaryRedo : handleRedo}
+                    disabled={isBinary ? binaryRedoStack.length === 0 : redoStack.length === 0}
                     className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors"
                     title="Redo"
                   >
                     <RotateCcw className="w-3.5 h-3.5 scale-x-[-1]" />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleBackspace}
+                    disabled={activeDisplay === "0" && !activeExpression}
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors"
+                    title="Backspace"
+                  >
+                    <Delete className="w-3.5 h-3.5" />
                   </motion.button>
                 </div>
                 <motion.button
@@ -1298,7 +2225,7 @@ export default function CalculatorModal() {
               className="flex items-center gap-3 px-5 py-3 bg-slate-950/90 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-2xl shadow-black/50 text-white"
             >
               <Calculator className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium">{display}</span>
+              <span className="text-sm font-medium">{activeDisplay}</span>
               <Maximize2 className="w-4 h-4 text-white/40" />
             </motion.button>
           </motion.div>

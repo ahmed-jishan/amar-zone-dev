@@ -2,7 +2,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CheckSquare, Moon, Wallet, Settings, Calculator } from 'lucide-react'
+import { CheckSquare, Moon, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
 import CalculatorModal from '@/components/ui/CalculatorModal'
@@ -18,7 +18,6 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   useTheme()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
-  const [calcOpen, setCalcOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -83,51 +82,11 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
               )
             })}
 
-            {/* Calc tab – same styling, opens modal */}
-            <button
-              type="button"
-              onClick={() => setCalcOpen(!calcOpen)}
-              aria-pressed={calcOpen}
-              aria-label="Open calculator"
-              className={`bottom-nav-item ${calcOpen ? 'active' : ''}`}
-              style={{
-                backgroundColor: calcOpen ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                border: calcOpen ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
-                boxShadow: calcOpen ? '0 2px 8px rgba(99, 102, 241, 0.2)' : 'none',
-                borderRadius: '12px',
-              }}
-            >
-              <div className="bottom-nav-icon-wrapper">
-                <Calculator
-                  size={18}
-                  strokeWidth={calcOpen ? 2.2 : 1.8}
-                  className="bottom-nav-icon"
-                  style={{
-                    color: calcOpen ? '#6366f1' : 'rgb(var(--muted))',
-                    transform: calcOpen ? 'scale(1.08)' : 'scale(1)',
-                    filter: calcOpen ? 'drop-shadow(0 0 4px #6366f1)' : 'none',
-                    transition: 'transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1), color 0.2s, filter 0.2s',
-                  }}
-                />
-                {calcOpen && <div className="active-top-bar" />}
-              </div>
-              <span
-                className="bottom-nav-label"
-                style={{
-                  fontWeight: calcOpen ? 700 : 500,
-                  color: calcOpen ? '#6366f1' : 'rgb(var(--muted))',
-                  transform: calcOpen ? 'scale(1.01)' : 'scale(1)',
-                  fontSize: '9px',
-                }}
-              >
-                Calc
-              </span>
-            </button>
           </div>
         </nav>
       </div>
 
-      <CalculatorModal isOpen={calcOpen} onClose={() => setCalcOpen(false)} />
+      <CalculatorModal />
 
       <style>{`
         .bottom-nav {
