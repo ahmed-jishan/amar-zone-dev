@@ -3,6 +3,7 @@
 import CalculationMethod from './CalculationMethod';
 import LocationPicker from './LocationPicker';
 import ReminderSettings from './ReminderSettings';
+import AzanSettings from './AzanSettings';
 import { usePrefsStore } from '../../store/prefsStore';
 
 export default function PreferencesView() {
@@ -17,6 +18,7 @@ export default function PreferencesView() {
       <LocationPicker />
       <CalculationMethod />
       <ReminderSettings />
+      <AzanSettings />
 
       <section className="bg-white/70 border border-emerald-100 rounded-2xl p-5 space-y-4">
         <h3 className="text-lg font-semibold text-emerald-950">Special Modes</h3>

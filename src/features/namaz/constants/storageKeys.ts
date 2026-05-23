@@ -12,5 +12,9 @@ export const NAMAZ_STORAGE_KEYS = {
   tasbih: 'namaz-tasbih',
   dua: 'namaz-dua-state',
   prayerTimesCache: 'namaz-prayer-times-cache',
+  locationCache: 'namaz-location-cache',
+  mosqueCache: 'namaz-mosque-cache',
   notifications: 'namaz-notifications',
+  quran: 'namaz-quran-state',
+  quranCache: 'namaz-quran-cache',
 } as const;

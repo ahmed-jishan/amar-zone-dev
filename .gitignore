@@ -5,4 +5,5 @@ android/
 ios/
 .env*.local
 *.tsbuildinfo
+.next-dev*.log
 .DS_Store

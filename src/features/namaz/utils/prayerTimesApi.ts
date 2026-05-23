@@ -86,6 +86,7 @@ function normalizeResponse(
     },
     rawTimings: {
       Fajr: cleanTime(timings.Fajr),
+      Sunrise: cleanTime(timings.Sunrise),
       Dhuhr: cleanTime(timings.Dhuhr),
       Asr: cleanTime(timings.Asr),
       Maghrib: cleanTime(timings.Maghrib),

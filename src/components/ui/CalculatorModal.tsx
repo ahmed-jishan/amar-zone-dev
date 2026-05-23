@@ -388,7 +388,7 @@ const formatBaseValue = (value: bigint | number, base: BinaryBase) => {
     }
     return convertDecimalToBase(value, base);
   }
-  const negative = value < 0n;
+  const negative = value < BigInt(0);
   const absValue = negative ? -value : value;
   const formatted = absValue.toString(baseToRadix[base]).toUpperCase();
   return negative ? `-${formatted}` : formatted;
@@ -694,7 +694,7 @@ const evaluateBaseExpression = (expr: string, base: BinaryBase) => {
     if (stack.length < 2) return { result: null, error: "Invalid expression" };
     const b = stack.pop() as bigint;
     const a = stack.pop() as bigint;
-    if ((token === "/" || token === "%") && b === 0n) {
+    if ((token === "/" || token === "%") && b === BigInt(0)) {
       return { result: null, error: "Division by zero" };
     }
     switch (token) {

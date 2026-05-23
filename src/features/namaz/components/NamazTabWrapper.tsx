@@ -1,8 +1,8 @@
 // app/(tabs)/namaz/components/NamazTabWrapper.tsx
 'use client';
 
-import { useState } from 'react';
-import TopbarNav from './TopbarNav';
+import { useEffect, useState } from 'react';
+import TopbarNav, { type ActiveTab } from './TopbarNav';
 import DashboardView from './DashboardView';
 // Import other views (make them first, then uncomment)
 import LogsView from './LogsView';
@@ -10,21 +10,29 @@ import CalendarView from './CalendarView';
 import QiblaView from './QiblaView';
 import TasbihView from './TasbihView';
 import DuaView from './DuaView';
+import QuranView from './QuranView';
 import InsightsView from './InsightsView';
 import PreferencesView from './PreferencesView';
-
-type ActiveTab = 
-  | 'dashboard' 
-  | 'logs' 
-  | 'calendar' 
-  | 'qibla' 
-  | 'tasbih' 
-  | 'dua' 
-  | 'insights' 
-  | 'preferences';
+import { usePrayerTimes } from '../hooks/usePrayerTimes';
+import { useAzanScheduler } from '../hooks/useAzanScheduler';
+import { useLocationSync } from '../hooks/useLocationSync';
 
 export function NamazTabWrapper() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const locationSync = useLocationSync(true);
+  const { data: prayerTimes } = usePrayerTimes();
+  const azan = useAzanScheduler(prayerTimes);
+
+  useEffect(() => {
+    const openQibla = () => setActiveTab('qibla');
+    const openDua = () => setActiveTab('dua');
+    window.addEventListener('namaz:open-qibla', openQibla);
+    window.addEventListener('namaz:open-dua', openDua);
+    return () => {
+      window.removeEventListener('namaz:open-qibla', openQibla);
+      window.removeEventListener('namaz:open-dua', openDua);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-amber-50">
@@ -41,12 +49,21 @@ export function NamazTabWrapper() {
         <TopbarNav activeTab={activeTab} onTabChange={setActiveTab} />
         
         <div className="mt-8 transition-all duration-300">
-          {activeTab === 'dashboard' && <DashboardView />}
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              azan={azan}
+              prayerTimesResponse={prayerTimes}
+              locationLabel={locationSync.label}
+              locationStatus={locationSync.status}
+              onOpenQuran={() => setActiveTab('quran')}
+            />
+          )}
           {activeTab === 'logs' && <LogsView />}
           {activeTab === 'calendar' && <CalendarView />}
           {activeTab === 'qibla' && <QiblaView />}
           {activeTab === 'tasbih' && <TasbihView />}
           {activeTab === 'dua' && <DuaView />}
+          {activeTab === 'quran' && <QuranView />}
           {activeTab === 'insights' && <InsightsView />}
           {activeTab === 'preferences' && <PreferencesView />}
         </div>

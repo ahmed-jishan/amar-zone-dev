@@ -9,16 +9,18 @@ import {
   BookOpen, 
   TrendingUp, 
   Settings2,
-  ListChecks 
+  ListChecks,
+  Library
 } from 'lucide-react';
 
-type ActiveTab = 
+export type ActiveTab = 
   | 'dashboard' 
   | 'logs' 
   | 'calendar' 
   | 'qibla' 
   | 'tasbih' 
   | 'dua' 
+  | 'quran'
   | 'insights' 
   | 'preferences';
 
@@ -34,6 +36,7 @@ const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
   { id: 'qibla', label: 'Qibla', icon: <Compass size={18} /> },
   { id: 'tasbih', label: 'Tasbih', icon: <Sparkles size={18} /> },
   { id: 'dua', label: 'Duas', icon: <BookOpen size={18} /> },
+  { id: 'quran', label: 'Quran', icon: <Library size={18} /> },
   { id: 'insights', label: 'Insights', icon: <TrendingUp size={18} /> },
   { id: 'preferences', label: 'Prefs', icon: <Settings2 size={18} /> },
 ];

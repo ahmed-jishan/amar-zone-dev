@@ -22,6 +22,7 @@ export interface PrayerTime {
 
 export interface PrayerTimes {
   Fajr: string;
+  Sunrise?: string;
   Dhuhr: string;
   Asr: string;
   Maghrib: string;
@@ -55,5 +56,10 @@ export interface PrayerLocation {
   latitude: number;
   longitude: number;
   city?: string;
+  region?: string;
   country?: string;
+  displayName?: string;
+  accuracy?: number;
+  source?: 'device' | 'manual' | 'fallback';
+  updatedAt?: number;
 }

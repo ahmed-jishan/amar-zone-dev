@@ -42,17 +42,25 @@ export default function CalculationMethod() {
         ))}
       </div>
 
-      <div className="inline-flex rounded-xl border border-emerald-100 bg-white/70 p-1">
-        {(['shafi', 'hanafi'] as Madhab[]).map((item) => (
+      <div className="grid gap-2 sm:grid-cols-2">
+        {([
+          { id: 'shafi', label: 'Standard Asr', note: 'Matches Dhaka reference time, e.g. 03:17 PM' },
+          { id: 'hanafi', label: 'Hanafi Asr', note: 'Later Asr shadow calculation, e.g. 04:34 PM' },
+        ] as const).map((item) => (
           <button
-            key={item}
+            key={item.id}
             type="button"
-            onClick={() => setMadhab(item)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${
-              madhab === item ? 'bg-emerald-600 text-white' : 'text-emerald-800 hover:bg-emerald-50'
+            onClick={() => setMadhab(item.id as Madhab)}
+            className={`rounded-xl border p-3 text-left text-sm transition ${
+              madhab === item.id
+                ? 'border-emerald-500 bg-emerald-600 text-white'
+                : 'border-emerald-100 bg-white/70 text-emerald-900 hover:bg-emerald-50'
             }`}
           >
-            {item}
+            <span className="block font-semibold">{item.label}</span>
+            <span className={`mt-1 block text-xs ${madhab === item.id ? 'text-emerald-50' : 'text-emerald-700'}`}>
+              {item.note}
+            </span>
           </button>
         ))}
       </div>

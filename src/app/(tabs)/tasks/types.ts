@@ -23,6 +23,9 @@ export type Subtask = {
   id: string;
   title: string;
   completed: boolean;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type TaskReminder = {

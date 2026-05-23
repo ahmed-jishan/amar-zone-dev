@@ -6,6 +6,7 @@ import { useTaskStore } from '@/lib/store/taskStore';
 import { PRIORITIES } from '../../constants/priorities';
 import { CATEGORIES } from '../../constants/categories';
 import { formatTaskDate } from '../../utils/taskDates';
+import { generateId } from '@/lib/utils/helpers';
 
 interface Props {
   task: Task;
@@ -32,6 +33,11 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
   const [newSubtask, setNewSubtask] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'sessions' | 'notes'>('details');
 
+  const syncSubtasks = useCallback((nextSubtasks: Subtask[]) => {
+    setSubtasks(nextSubtasks);
+    updateTask(task.id, { subtasks: nextSubtasks.length ? nextSubtasks : undefined });
+  }, [task.id, updateTask]);
+
   const handleSave = useCallback(() => {
     updateTask(task.id, {
       title: title.trim(),
@@ -51,16 +57,35 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
 
   const addSubtask = () => {
     if (!newSubtask.trim()) return;
-    setSubtasks((prev) => [...prev, { id: Date.now().toString(), title: newSubtask.trim(), completed: false }]);
+    const now = new Date().toISOString();
+    const nextSubtasks = [
+      ...subtasks,
+      {
+        id: generateId(),
+        title: newSubtask.trim(),
+        completed: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    syncSubtasks(nextSubtasks);
     setNewSubtask('');
   };
 
   const toggleSubtask = (id: string) => {
-    setSubtasks((prev) => prev.map((s) => (s.id === id ? { ...s, completed: !s.completed } : s)));
+    syncSubtasks(subtasks.map((s) => (
+      s.id === id ? { ...s, completed: !s.completed, updatedAt: new Date().toISOString() } : s
+    )));
+  };
+
+  const updateSubtaskNotes = (id: string, value: string) => {
+    syncSubtasks(subtasks.map((s) => (
+      s.id === id ? { ...s, notes: value.trim() ? value : undefined, updatedAt: new Date().toISOString() } : s
+    )));
   };
 
   const removeSubtask = (id: string) => {
-    setSubtasks((prev) => prev.filter((s) => s.id !== id));
+    syncSubtasks(subtasks.filter((s) => s.id !== id));
   };
 
   const pri = PRIORITIES[priority];
@@ -289,7 +314,12 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
                 <input
                   value={newSubtask}
                   onChange={(e) => setNewSubtask(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addSubtask()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSubtask();
+                    }
+                  }}
                   placeholder="Add a subtask..."
                   className="flex-1 bg-[var(--az-surface-2)] border border-[var(--az-border)] rounded-[var(--az-radius-lg)] px-3 py-2 text-[14px] text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none focus:border-[var(--az-accent)] transition-all"
                 />
@@ -306,35 +336,48 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
                 {subtasks.map((sub) => (
                   <div
                     key={sub.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-[var(--az-radius-lg)] bg-[var(--az-surface-2)] border border-[var(--az-border)] group hover:border-[var(--az-border-hover)] transition-all"
+                    className="rounded-[var(--az-radius-lg)] bg-[var(--az-surface-2)] border border-[var(--az-border)] group hover:border-[var(--az-border-hover)] transition-all"
                   >
-                    <button
-                      onClick={() => toggleSubtask(sub.id)}
-                      className={`
-                        w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
-                        ${sub.completed
-                          ? 'bg-[var(--az-success)] border-[var(--az-success)]'
-                          : 'border-[var(--az-border-strong)] hover:border-[var(--az-accent)]'
-                        }
-                      `}
-                    >
-                      {sub.completed && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path d="M5 13l4 4L19 7" />
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <button
+                        onClick={() => toggleSubtask(sub.id)}
+                        className={`
+                          w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
+                          ${sub.completed
+                            ? 'bg-[var(--az-success)] border-[var(--az-success)]'
+                            : 'border-[var(--az-border-strong)] hover:border-[var(--az-accent)]'
+                          }
+                        `}
+                        aria-label={sub.completed ? 'Mark subtask incomplete' : 'Mark subtask complete'}
+                      >
+                        {sub.completed && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                      <span className={`flex-1 text-[14px] ${sub.completed ? 'text-[var(--az-text-3)] line-through' : 'text-[var(--az-text-1)]'}`}>
+                        {sub.title}
+                      </span>
+                      <button
+                        onClick={() => removeSubtask(sub.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-[var(--az-danger)] hover:bg-[var(--az-danger-bg)] transition-all"
+                        aria-label="Remove subtask"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                      )}
-                    </button>
-                    <span className={`flex-1 text-[14px] ${sub.completed ? 'text-[var(--az-text-3)] line-through' : 'text-[var(--az-text-1)]'}`}>
-                      {sub.title}
-                    </span>
-                    <button
-                      onClick={() => removeSubtask(sub.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-[var(--az-danger)] hover:bg-[var(--az-danger-bg)] transition-all"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                      </button>
+                    </div>
+                    <div className="px-3 pb-3">
+                      <textarea
+                        value={sub.notes || ''}
+                        onChange={(e) => updateSubtaskNotes(sub.id, e.target.value)}
+                        rows={2}
+                        placeholder="Notes for this subtask..."
+                        className="w-full resize-none rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-1)] px-3 py-2 text-[12px] text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none transition-all focus:border-[var(--az-accent)]"
+                      />
+                    </div>
                   </div>
                 ))}
                 {subtasks.length === 0 && (

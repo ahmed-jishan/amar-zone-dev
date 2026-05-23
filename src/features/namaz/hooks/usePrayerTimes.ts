@@ -3,13 +3,28 @@ import { fetchPrayerTimes, getCachedPrayerTimes } from '../utils/prayerTimesApi'
 import { usePrefsStore } from '../store/prefsStore';
 import type { PrayerTimesResponse } from '../types/prayer.types';
 
-export function usePrayerTimes(date: Date = new Date()) {
+export function usePrayerTimes(inputDate?: Date) {
+  const [currentDate, setCurrentDate] = useState(() => inputDate ?? new Date());
+  const date = inputDate ?? currentDate;
   const location = usePrefsStore((state) => state.location);
   const calculationMethod = usePrefsStore((state) => state.calculationMethod);
   const madhab = usePrefsStore((state) => state.madhab);
   const [data, setData] = useState<PrayerTimesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (inputDate) return;
+
+    const interval = window.setInterval(() => {
+      setCurrentDate((previous) => {
+        const next = new Date();
+        return previous.toDateString() === next.toDateString() ? previous : next;
+      });
+    }, 60_000);
+
+    return () => window.clearInterval(interval);
+  }, [inputDate]);
 
   const request = useMemo(
     () => ({

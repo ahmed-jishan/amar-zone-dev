@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "predev": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){console.warn('Skipping .next cleanup:',e.code||e.message)}\"",
     "dev": "next dev",
-    "prebuild": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "prebuild": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){console.warn('Skipping .next cleanup:',e.code||e.message)}\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

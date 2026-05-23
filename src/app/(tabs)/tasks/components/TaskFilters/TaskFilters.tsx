@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FilterKey, SortMode, ViewMode } from '../../types';
 import { useTaskStore } from '@/lib/store/taskStore';
 
@@ -21,6 +22,9 @@ interface Props {
 
 export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
   const [showSort, setShowSort] = useState(false);
+  const [sortPosition, setSortPosition] = useState({ top: 0, left: 0 });
+  const sortButtonRef = useRef<HTMLButtonElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
   const sortMode = useTaskStore((s) => s.sortMode);
   const setSortMode = useTaskStore((s) => s.setSortMode);
   const viewMode = useTaskStore((s) => s.viewMode);
@@ -28,6 +32,49 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
   const searchQuery = useTaskStore((s) => s.searchQuery);
   const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
   const setSelectionMode = useTaskStore((s) => s.setSelectionMode);
+
+  useEffect(() => {
+    if (!showSort) return;
+
+    const updatePosition = () => {
+      const rect = sortButtonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = 168;
+      const openUp = window.innerHeight - rect.bottom < 240 && rect.top > 240;
+      setSortPosition({
+        top: openUp ? rect.top - 238 : rect.bottom + 8,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [showSort]);
+
+  useEffect(() => {
+    if (!showSort) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (sortButtonRef.current?.contains(target) || sortMenuRef.current?.contains(target)) return;
+      setShowSort(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowSort(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showSort]);
 
   return (
     <div className="mb-4 space-y-3 animate-[az-slide-up_300ms_ease-out]">
@@ -109,17 +156,28 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
         {/* Sort dropdown */}
         <div className="relative">
           <button
+            ref={sortButtonRef}
             onClick={() => setShowSort((s) => !s)}
+            aria-haspopup="menu"
+            aria-expanded={showSort}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] transition-all"
           >
             <SortIcon />
             <span className="capitalize">{sortMode}</span>
           </button>
-          {showSort && (
-            <div className="absolute top-full left-0 mt-1 z-20 w-[160px] az-glass-strong rounded-[var(--az-radius-lg)] shadow-[var(--az-shadow-lg)] border border-[var(--az-glass-border)] overflow-hidden py-1 animate-[az-scale-in_150ms_ease-out]">
+          {showSort && createPortal(
+            <div
+              ref={sortMenuRef}
+              role="menu"
+              className="fixed z-[1000] w-[168px] az-glass-strong rounded-[var(--az-radius-lg)] shadow-[var(--az-shadow-lg)] border border-[var(--az-glass-border)] overflow-hidden py-1 animate-[az-scale-in_150ms_ease-out]"
+              style={{ top: sortPosition.top, left: sortPosition.left }}
+            >
               {(['manual', 'priority', 'dueDate', 'created', 'energy', 'title'] as SortMode[]).map((m) => (
                 <button
                   key={m}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={sortMode === m}
                   onClick={() => { setSortMode(m); setShowSort(false); }}
                   className={`
                     w-full text-left px-3 py-2 text-[12px] font-medium capitalize transition-colors
@@ -129,7 +187,8 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
                   {m === 'dueDate' ? 'Due Date' : m}
                 </button>
               ))}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
