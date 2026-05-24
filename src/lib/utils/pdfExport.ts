@@ -13,7 +13,7 @@ export function exportMonthlyReport(
 
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.text('Amar Zone — Monthly Report', 14, 20)
+  doc.text('SelfSync — Monthly Report', 14, 20)
 
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
@@ -47,5 +47,5 @@ export function exportMonthlyReport(
     headStyles: { fillColor: [245, 158, 11] },
   })
 
-  doc.save(`amar-zone-${month}.pdf`)
+  doc.save(`selfsync-${month}.pdf`)
 }

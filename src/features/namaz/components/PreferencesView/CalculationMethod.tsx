@@ -18,10 +18,10 @@ export default function CalculationMethod() {
   const setMadhab = usePrefsStore((state) => state.setMadhab);
 
   return (
-    <section className="bg-white/70 border border-emerald-100 rounded-2xl p-5 space-y-4">
+    <section className="rounded-2xl p-5 space-y-4 nz-card">
       <div>
-        <h3 className="text-lg font-semibold text-emerald-950">Calculation Method</h3>
-        <p className="text-sm text-emerald-700">Choose the prayer-time convention and Asr school.</p>
+        <h3 className="text-lg font-semibold nz-text">Calculation Method</h3>
+        <p className="text-sm nz-muted">Choose the prayer-time convention and Asr school.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -32,12 +32,12 @@ export default function CalculationMethod() {
             onClick={() => setCalculationMethod(method.id)}
             className={`text-left rounded-xl border p-4 transition ${
               calculationMethod === method.id
-                ? 'border-emerald-500 bg-emerald-50 text-emerald-950'
-                : 'border-emerald-100 bg-white/60 text-emerald-900 hover:bg-emerald-50'
+                ? 'nz-primary border-transparent'
+                : 'nz-control'
             }`}
           >
             <span className="block text-sm font-semibold">{method.shortName}</span>
-            <span className="block text-xs text-emerald-700">{method.description}</span>
+            <span className={`block text-xs ${calculationMethod === method.id ? 'text-white/80' : 'nz-muted'}`}>{method.description}</span>
           </button>
         ))}
       </div>
@@ -53,12 +53,12 @@ export default function CalculationMethod() {
             onClick={() => setMadhab(item.id as Madhab)}
             className={`rounded-xl border p-3 text-left text-sm transition ${
               madhab === item.id
-                ? 'border-emerald-500 bg-emerald-600 text-white'
-                : 'border-emerald-100 bg-white/70 text-emerald-900 hover:bg-emerald-50'
+                ? 'nz-primary border-transparent'
+                : 'nz-control'
             }`}
           >
             <span className="block font-semibold">{item.label}</span>
-            <span className={`mt-1 block text-xs ${madhab === item.id ? 'text-emerald-50' : 'text-emerald-700'}`}>
+            <span className={`mt-1 block text-xs ${madhab === item.id ? 'text-white/80' : 'nz-muted'}`}>
               {item.note}
             </span>
           </button>

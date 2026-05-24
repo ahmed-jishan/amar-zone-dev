@@ -185,19 +185,19 @@ export default function QuranView() {
   if (selectedSurah) {
     return (
       <div className={`space-y-4 ${readingMode ? 'mx-auto max-w-3xl' : ''}`}>
-        <div className="sticky top-0 z-20 rounded-2xl border border-emerald-100 bg-white/90 p-4 shadow-sm shadow-emerald-900/5 backdrop-blur">
+        <div className="sticky top-0 z-20 rounded-2xl p-4 nz-surface">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setSelectedSurah(null)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl nz-control"
               aria-label="Back to Surah list"
             >
               <ArrowLeft size={18} />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-emerald-700">{selectedSurah.transliteration}</p>
-              <h2 className="truncate text-2xl font-bold text-emerald-950" dir="rtl">
+              <p className="truncate text-sm font-semibold nz-accent">{selectedSurah.transliteration}</p>
+              <h2 className="truncate text-2xl font-bold nz-text" dir="rtl">
                 {selectedSurah.arabicName}
               </h2>
             </div>
@@ -205,13 +205,13 @@ export default function QuranView() {
               type="button"
               onClick={() => setReadingMode(!readingMode)}
               className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                readingMode ? 'bg-emerald-700 text-white' : 'bg-amber-50 text-amber-800'
+                readingMode ? 'nz-primary' : 'nz-control nz-gold'
               }`}
             >
               Calm
             </button>
           </div>
-          <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2 text-xs nz-soft nz-text">
             <span>{selectedSurah.banglaMeaning} • {selectedSurah.verses} ayah</span>
             <span className="inline-flex items-center gap-1">
               <Headphones size={13} /> {quranReciter}
@@ -219,8 +219,8 @@ export default function QuranView() {
           </div>
         </div>
 
-        {isLoading && <div className="rounded-2xl bg-white/70 p-6 text-center text-emerald-700">Loading Surah...</div>}
-        {error && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">{error}</div>}
+        {isLoading && <div className="rounded-2xl p-6 text-center nz-card nz-accent">Loading Surah...</div>}
+        {error && <div className="rounded-2xl p-5 text-sm nz-soft nz-gold">{error}</div>}
 
         <div className="space-y-3">
           {ayahs.map((ayah) => {
@@ -234,12 +234,12 @@ export default function QuranView() {
                 }}
                 className={`rounded-2xl border p-4 shadow-sm transition ${
                   active
-                    ? 'border-emerald-300 bg-emerald-50 shadow-emerald-900/10'
-                    : 'border-emerald-100 bg-white/80 shadow-emerald-900/5'
+                    ? 'nz-soft shadow-emerald-900/10'
+                    : 'nz-card shadow-emerald-900/5'
                 }`}
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-amber-100 px-2 text-sm font-bold text-amber-800">
+                  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm font-bold nz-soft nz-gold">
                     {ayah.numberInSurah}
                   </span>
                   <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function QuranView() {
                       type="button"
                       onClick={() => toggleBookmark({ surah: selectedSurah.number, ayah: ayah.numberInSurah })}
                       className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
-                        bookmarked ? 'bg-amber-500 text-white' : 'bg-emerald-50 text-emerald-700'
+                        bookmarked ? 'bg-amber-500 text-white' : 'nz-control'
                       }`}
                       aria-label="Bookmark ayah"
                     >
@@ -256,24 +256,24 @@ export default function QuranView() {
                     <button
                       type="button"
                       onClick={() => playPosition(selectedSurah, ayah.numberInSurah)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl nz-primary"
                       aria-label="Play ayah"
                     >
                       {renderPlayIcon(selectedSurah.number, ayah.numberInSurah)}
                     </button>
                   </div>
                 </div>
-                <p className="text-right text-3xl leading-[2.2] text-emerald-950 sm:text-4xl" dir="rtl">
+                <p className="text-right text-3xl leading-[2.2] nz-text sm:text-4xl" dir="rtl">
                   {ayah.arabic}
                 </p>
-                <p className="mt-3 rounded-xl bg-amber-50 px-3 py-3 text-[15px] leading-7 text-amber-950">
-                  <span className="mb-1 block text-xs font-semibold text-amber-700">বাংলা উচ্চারণ সহায়ক</span>
+                <p className="mt-3 rounded-xl px-3 py-3 text-[15px] leading-7 nz-soft nz-text">
+                  <span className="mb-1 block text-xs font-semibold nz-gold">বাংলা উচ্চারণ সহায়ক</span>
                   {ayah.pronunciation}
                 </p>
-                <p className="mt-3 border-t border-emerald-100 pt-3 text-[15px] leading-7 text-slate-700">
+                <p className="mt-3 border-t pt-3 text-[15px] leading-7 nz-divider nz-text">
                   {ayah.bangla}
                 </p>
-                <p className="mt-2 text-xs text-emerald-600">
+                <p className="mt-2 text-xs nz-muted">
                   সহায়ক উচ্চারণটি শেখার জন্য; সবচেয়ে নির্ভরযোগ্য পাঠের জন্য অডিও তিলাওয়াত অনুসরণ করুন।
                 </p>
               </article>
@@ -286,20 +286,20 @@ export default function QuranView() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-emerald-100 bg-white/80 p-5 shadow-sm shadow-emerald-900/5">
+      <section className="rounded-3xl p-5 nz-elevated-panel nz-quran-hero">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <p className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold nz-chip">
               <BookOpen size={14} /> Quran Companion
             </p>
-            <h1 className="mt-3 text-2xl font-bold text-emerald-950">Read, listen, resume.</h1>
-            <p className="mt-2 text-sm leading-6 text-emerald-700">
+            <h1 className="mt-3 text-2xl font-bold nz-text">Read, listen, resume.</h1>
+            <p className="mt-2 text-sm leading-6 nz-muted">
               A calm Quran space with Bangla meaning, ayah audio, bookmarks, and last-read memory.
             </p>
           </div>
-          <div className="hidden rounded-2xl bg-amber-50 p-4 text-right sm:block">
-            <p className="text-3xl font-bold text-amber-700">١١٤</p>
-            <p className="text-xs font-semibold text-amber-800">Surahs</p>
+          <div className="hidden rounded-2xl p-4 text-right nz-soft sm:block">
+            <p className="text-3xl font-bold nz-gold">١١٤</p>
+            <p className="text-xs font-semibold nz-muted">Surahs</p>
           </div>
         </div>
 
@@ -308,18 +308,18 @@ export default function QuranView() {
             type="button"
             disabled={!lastRead}
             onClick={resumeLastRead}
-            className="rounded-2xl border border-emerald-100 bg-emerald-700 p-4 text-left text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+            className="rounded-2xl p-4 text-left disabled:cursor-not-allowed nz-primary"
           >
             <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Quick resume</span>
             <p className="mt-1 font-bold">
               {lastRead ? `Surah ${lastRead.surah}, Ayah ${lastRead.ayah}` : 'No reading position yet'}
             </p>
           </button>
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+          <div className="rounded-2xl p-4 nz-soft">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide nz-gold">
               <Bookmark size={14} /> Bookmarks
             </span>
-            <p className="mt-1 text-lg font-bold text-amber-950">
+            <p className="mt-1 text-lg font-bold nz-text">
               {bookmarks.length} ayah • {savedSurahs.length} surah
             </p>
           </div>
@@ -334,7 +334,7 @@ export default function QuranView() {
                     key={surah.number}
                     type="button"
                     onClick={() => playPosition(surah, 1)}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-emerald-800"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold nz-control"
                   >
                     {activeSurah === surah.number && isPlaying ? <Pause size={15} /> : <Volume2 size={15} />}
                     {surah.transliteration}
@@ -349,7 +349,7 @@ export default function QuranView() {
                     key={`${bookmark.surah}:${bookmark.ayah}`}
                     type="button"
                     onClick={() => playBookmark(bookmark.surah, bookmark.ayah)}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold nz-control"
                   >
                     {renderPlayIcon(bookmark.surah, bookmark.ayah)}
                     {bookmark.surah}:{bookmark.ayah}
@@ -361,8 +361,8 @@ export default function QuranView() {
         )}
       </section>
 
-      <div className="sticky top-0 z-10 rounded-2xl border border-emerald-100 bg-white/90 p-3 backdrop-blur">
-        <label className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-emerald-900">
+      <div className="sticky top-0 z-10 rounded-2xl p-3 nz-surface">
+        <label className="flex items-center gap-2 rounded-xl px-3 py-2 nz-control">
           <Search size={16} />
           <input
             value={query}
@@ -380,21 +380,21 @@ export default function QuranView() {
           return (
             <div
               key={surah.number}
-              className="group rounded-2xl border border-emerald-100 bg-white/80 p-4 text-left shadow-sm shadow-emerald-900/5 transition hover:border-emerald-300 hover:bg-emerald-50"
+              className="group rounded-2xl p-4 text-left transition nz-card"
             >
               <button type="button" onClick={() => openSurah(surah)} className="w-full text-left">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-emerald-100 px-2 text-sm font-bold text-emerald-800">
+                  <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm font-bold nz-soft nz-accent">
                     {surah.number}
                   </span>
-                  <span className="text-right text-2xl font-semibold text-emerald-950" dir="rtl">
+                  <span className="text-right text-2xl font-semibold nz-text" dir="rtl">
                     {surah.arabicName}
                   </span>
                 </div>
-                <p className="mt-3 font-bold text-emerald-950">{surah.transliteration}</p>
-                <div className="mt-2 flex items-center justify-between gap-3 text-sm text-emerald-700">
+                <p className="mt-3 font-bold nz-text">{surah.transliteration}</p>
+                <div className="mt-2 flex items-center justify-between gap-3 text-sm nz-muted">
                   <span>{surah.banglaMeaning}</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs nz-soft nz-gold">
                     <ListMusic size={12} /> {surah.verses}
                   </span>
                 </div>
@@ -403,7 +403,7 @@ export default function QuranView() {
                 <button
                   type="button"
                   onClick={() => playPosition(surah, active && activeAyah ? activeAyah : 1)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold nz-primary"
                 >
                   {active && isPlaying ? <Pause size={16} /> : <Play size={16} />}
                   {active && isPlaying ? 'Pause' : 'Play'}
@@ -412,7 +412,7 @@ export default function QuranView() {
                   type="button"
                   onClick={() => toggleSurahBookmark(surah.number)}
                   className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
-                    saved ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800'
+                    saved ? 'bg-amber-500 text-white' : 'nz-control nz-gold'
                   }`}
                   aria-label="Save Surah"
                 >

@@ -460,7 +460,7 @@ export const useMoneyStore = create<MoneyState>()(
       setFilterType: (type) => set({ filterType: type }),
     }),
     {
-      name: 'amar-zone-money-v2',
+      name: 'selfsync-money-v2',
       partialize: (state) => ({
         transactions: state.transactions,
         loans: state.loans,

@@ -38,32 +38,32 @@ export default function CalendarView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-100 rounded-xl">
-            <Calendar className="text-emerald-700" size={24} />
+          <div className="p-2 rounded-xl nz-accent-bg">
+            <Calendar className="nz-accent" size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-emerald-900">নামাজ ক্যালেন্ডার</h2>
-            <p className="text-emerald-600 text-sm">মাসিক অগ্রগতি দেখুন ও দিন নির্বাচন করুন</p>
+            <h2 className="text-2xl font-bold nz-text">নামাজ ক্যালেন্ডার</h2>
+            <p className="nz-muted text-sm">মাসিক অগ্রগতি দেখুন ও দিন নির্বাচন করুন</p>
           </div>
         </div>
       </div>
 
       {/* Calendar Navigation */}
-      <div className="flex items-center justify-between bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-emerald-100">
+      <div className="flex items-center justify-between rounded-xl p-3 nz-surface">
         <button
           onClick={handlePrevMonth}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg text-emerald-700 hover:bg-emerald-100 transition"
+          className="flex items-center gap-1 px-3 py-2 rounded-lg nz-text hover:bg-emerald-100/20 transition"
         >
           <ChevronLeft size={18} />
           <span className="hidden sm:inline">পূর্ববর্তী</span>
         </button>
         <div className="text-center">
-          <p className="text-sm text-emerald-500">{currentDate.toLocaleString('default', { year: 'numeric' })}</p>
-          <p className="font-semibold text-emerald-900 text-lg">{currentDate.toLocaleString('bn-BD', { month: 'long' })}</p>
+          <p className="text-sm nz-muted">{currentDate.toLocaleString('default', { year: 'numeric' })}</p>
+          <p className="font-semibold nz-text text-lg">{currentDate.toLocaleString('bn-BD', { month: 'long' })}</p>
         </div>
         <button
           onClick={handleNextMonth}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg text-emerald-700 hover:bg-emerald-100 transition"
+          className="flex items-center gap-1 px-3 py-2 rounded-lg nz-text hover:bg-emerald-100/20 transition"
         >
           <span className="hidden sm:inline">পরবর্তী</span>
           <ChevronRight size={18} />

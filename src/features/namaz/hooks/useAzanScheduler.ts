@@ -13,7 +13,7 @@ function updateAzanMediaSession(label: string): void {
 
   navigator.mediaSession.metadata = new MediaMetadata({
     title: `${label} Azan`,
-    artist: 'Amar Zone',
+    artist: 'SelfSync',
     album: 'Prayer Time',
   });
   navigator.mediaSession.setActionHandler('play', () => {

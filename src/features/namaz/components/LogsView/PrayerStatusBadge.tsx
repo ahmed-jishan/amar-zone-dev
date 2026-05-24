@@ -34,7 +34,7 @@ export default function PrayerStatusBadge({ status, onStatusChange, isOpen, onOp
   if (!current) {
     return (
       <div className="relative">
-        <button className="px-3 py-1.5 rounded-full border text-sm bg-gray-100 text-gray-600">
+        <button className="px-3 py-1.5 rounded-full border text-sm nz-soft nz-text">
           অজানা
         </button>
       </div>
@@ -45,7 +45,7 @@ export default function PrayerStatusBadge({ status, onStatusChange, isOpen, onOp
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${current.bg} ${current.color} border-current/20`}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-all nz-pill ${current.bg} ${current.color} border-current/20`}
       >
         {current.icon}
         <span>{current.label}</span>
@@ -55,7 +55,7 @@ export default function PrayerStatusBadge({ status, onStatusChange, isOpen, onOp
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-40 overflow-hidden">
+        <div className="absolute right-0 bottom-full mb-2 w-40 rounded-xl shadow-xl z-40 overflow-hidden nz-card">
           {Object.entries(statusConfig).map(([key, config]) => (
             <button
               key={key}
@@ -63,7 +63,7 @@ export default function PrayerStatusBadge({ status, onStatusChange, isOpen, onOp
                 onStatusChange(key as PrayerStatus);
                 setOpen(false);
               }}
-              className={`flex items-center gap-3 w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${config.color}`}
+              className={`flex items-center gap-3 w-full px-4 py-2 text-left text-sm hover:bg-emerald-100/10 ${config.color}`}
             >
               {config.icon}
               <span>{config.label}</span>

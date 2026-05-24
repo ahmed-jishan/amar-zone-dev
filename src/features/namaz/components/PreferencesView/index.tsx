@@ -20,21 +20,21 @@ export default function PreferencesView() {
       <ReminderSettings />
       <AzanSettings />
 
-      <section className="bg-white/70 border border-emerald-100 rounded-2xl p-5 space-y-4">
-        <h3 className="text-lg font-semibold text-emerald-950">Special Modes</h3>
+      <section className="rounded-2xl p-5 space-y-4 nz-card">
+        <h3 className="text-lg font-semibold nz-text">Special Modes</h3>
         <div className="flex flex-wrap gap-3">
-          <label className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm text-emerald-900">
+          <label className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm nz-control">
             <input type="checkbox" checked={ramadanMode} onChange={(e) => setSpecialMode('ramadanMode', e.target.checked)} />
             Ramadan mode
           </label>
-          <label className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm text-emerald-900">
+          <label className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm nz-control">
             <input type="checkbox" checked={travelMode} onChange={(e) => setSpecialMode('travelMode', e.target.checked)} />
             Travel mode
           </label>
           <select
             value={lifeMode}
             onChange={(event) => setLifeMode(event.target.value as typeof lifeMode)}
-            className="rounded-xl border border-emerald-100 bg-white px-4 py-2 text-sm text-emerald-900"
+            className="rounded-xl px-4 py-2 text-sm nz-control"
           >
             <option value="normal">Normal</option>
             <option value="busy">Busy</option>

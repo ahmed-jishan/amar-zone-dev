@@ -103,3 +103,359 @@ html, body {
 }
 .animate-slide-up { animation: slideUp 0.3s ease-out; }
 .animate-fade-in  { animation: fadeIn 0.2s ease-out; }
+
+/* Namaz theme tokens: scoped so the existing product identity stays intact. */
+.namaz-root {
+  --nz-bg: #f6fbf9;
+  --nz-bg-2: #eff8f5;
+  --nz-surface: rgba(255, 255, 255, 0.84);
+  --nz-surface-strong: rgba(255, 255, 255, 0.94);
+  --nz-card: rgba(255, 255, 255, 0.76);
+  --nz-card-hover: rgba(247, 253, 251, 0.94);
+  --nz-soft: rgba(231, 246, 241, 0.78);
+  --nz-border: rgba(23, 78, 64, 0.14);
+  --nz-border-strong: rgba(24, 111, 91, 0.28);
+  --nz-text: #10251f;
+  --nz-text-soft: #25483e;
+  --nz-muted: #557269;
+  --nz-accent: #177b6a;
+  --nz-accent-strong: #0f6b5c;
+  --nz-accent-soft: rgba(23, 123, 106, 0.12);
+  --nz-accent-softer: rgba(23, 123, 106, 0.08);
+  --nz-gold: #b08a35;
+  --nz-gold-soft: rgba(176, 138, 53, 0.13);
+  --nz-danger: #c45151;
+  --nz-danger-soft: rgba(196, 81, 81, 0.12);
+  --nz-info: #2f7591;
+  --nz-info-soft: rgba(47, 117, 145, 0.12);
+  --nz-radius-card: 1rem;
+  --nz-radius-control: 0.75rem;
+  --nz-shadow: 0 14px 34px rgba(12, 30, 27, 0.08);
+  --nz-shadow-soft: 0 8px 22px rgba(12, 30, 27, 0.06);
+  --nz-focus: 0 0 0 3px rgba(23, 123, 106, 0.24);
+  min-height: 100vh;
+  color: var(--nz-text);
+  background:
+    radial-gradient(circle at 14% -8%, rgba(23, 123, 106, 0.12), transparent 30rem),
+    linear-gradient(135deg, var(--nz-bg), var(--nz-bg-2) 54%, #fbf6e8);
+}
+
+.dark .namaz-root {
+  --nz-bg: #0d151a;
+  --nz-bg-2: #151614;
+  --nz-surface: rgba(21, 29, 33, 0.86);
+  --nz-surface-strong: rgba(24, 33, 37, 0.96);
+  --nz-card: rgba(23, 32, 36, 0.9);
+  --nz-card-hover: rgba(28, 40, 44, 0.96);
+  --nz-soft: rgba(32, 43, 45, 0.72);
+  --nz-border: rgba(132, 157, 154, 0.18);
+  --nz-border-strong: rgba(105, 177, 161, 0.32);
+  --nz-text: #edf5f2;
+  --nz-text-soft: #cbdad6;
+  --nz-muted: #9aada9;
+  --nz-accent: #54b9a5;
+  --nz-accent-strong: #68c7b4;
+  --nz-accent-soft: rgba(84, 185, 165, 0.16);
+  --nz-accent-softer: rgba(84, 185, 165, 0.1);
+  --nz-gold: #d0af63;
+  --nz-gold-soft: rgba(208, 175, 99, 0.14);
+  --nz-danger: #e08181;
+  --nz-danger-soft: rgba(224, 129, 129, 0.14);
+  --nz-info: #79b4c5;
+  --nz-info-soft: rgba(121, 180, 197, 0.14);
+  --nz-shadow: 0 20px 48px rgba(1, 5, 8, 0.5);
+  --nz-shadow-soft: 0 12px 30px rgba(1, 5, 8, 0.36);
+  --nz-focus: 0 0 0 3px rgba(84, 185, 165, 0.26);
+  background:
+    radial-gradient(circle at 13% -8%, rgba(84, 185, 165, 0.13), transparent 28rem),
+    radial-gradient(circle at 90% 2%, rgba(208, 175, 99, 0.055), transparent 24rem),
+    linear-gradient(135deg, var(--nz-bg), #101a1f 52%, var(--nz-bg-2));
+}
+
+.namaz-root .nz-surface,
+.namaz-root .nz-card {
+  border: 1px solid var(--nz-border);
+  box-shadow: var(--nz-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.namaz-root .nz-surface { background: var(--nz-surface); }
+.namaz-root .nz-card { background: var(--nz-card); }
+.namaz-root .nz-soft {
+  background: var(--nz-soft);
+  border: 1px solid var(--nz-border);
+}
+
+.namaz-root .nz-text { color: var(--nz-text); }
+.namaz-root .nz-muted { color: var(--nz-muted); }
+.namaz-root .nz-accent { color: var(--nz-accent); }
+.namaz-root .nz-accent-bg { background: var(--nz-accent-soft); }
+.namaz-root .nz-gold { color: var(--nz-gold); }
+.namaz-root .nz-divider { border-color: var(--nz-border); }
+.namaz-root .nz-chip {
+  background: var(--nz-accent-soft);
+  color: var(--nz-accent-strong);
+  border: 1px solid var(--nz-border-strong);
+}
+.namaz-root .nz-elevated-panel {
+  background:
+    linear-gradient(180deg, var(--nz-surface-strong), var(--nz-card));
+  border: 1px solid var(--nz-border);
+  box-shadow: var(--nz-shadow);
+  backdrop-filter: blur(14px);
+}
+.namaz-root .nz-streak-card {
+  background:
+    radial-gradient(circle at 82% 0%, rgba(176, 138, 53, 0.14), transparent 18rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 245, 240, 0.9));
+}
+.dark .namaz-root .nz-streak-card {
+  background:
+    radial-gradient(circle at 82% 0%, rgba(208, 175, 99, 0.13), transparent 18rem),
+    linear-gradient(180deg, rgba(25, 36, 39, 0.96), rgba(16, 25, 29, 0.94));
+}
+.namaz-root .nz-quran-hero {
+  background:
+    radial-gradient(circle at 92% 0%, var(--nz-gold-soft), transparent 18rem),
+    linear-gradient(135deg, var(--nz-surface-strong), var(--nz-card));
+}
+.dark .namaz-root .nz-quran-hero {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(208, 175, 99, 0.16), transparent 18rem),
+    linear-gradient(135deg, rgba(25, 35, 39, 0.98), rgba(18, 27, 31, 0.94));
+}
+.namaz-root .nz-pill {
+  background: var(--nz-soft);
+  color: var(--nz-text);
+  border: 1px solid var(--nz-border);
+}
+
+.namaz-root .nz-primary {
+  background: linear-gradient(135deg, var(--nz-accent-strong), var(--nz-accent));
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(7, 87, 76, 0.24);
+}
+
+.namaz-root .nz-primary:hover {
+  filter: brightness(1.04);
+}
+
+.namaz-root .nz-control {
+  background: var(--nz-soft);
+  border: 1px solid var(--nz-border);
+  color: var(--nz-text);
+}
+
+.namaz-root .nz-control:hover {
+  background: var(--nz-card-hover);
+  border-color: var(--nz-border-strong);
+}
+
+.namaz-root .nz-nav-idle:hover {
+  background: var(--nz-accent-softer);
+  color: var(--nz-accent-strong);
+}
+
+.namaz-root .nz-action-accent,
+.namaz-root .nz-action-gold,
+.namaz-root .nz-action-calm,
+.namaz-root .nz-action-info {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.namaz-root .nz-action-accent {
+  background: linear-gradient(135deg, #0f6b5c, #2b947f);
+}
+
+.namaz-root .nz-action-gold {
+  background: linear-gradient(135deg, #8a6a2c, #b08a35);
+}
+
+.namaz-root .nz-action-calm {
+  background: linear-gradient(135deg, #315f5d, #47766f);
+}
+
+.namaz-root .nz-action-info {
+  background: linear-gradient(135deg, #295d69, #3c7d88);
+}
+
+.dark .namaz-root .nz-action-accent {
+  background: linear-gradient(135deg, #276f65, #3c9a89);
+}
+
+.dark .namaz-root .nz-action-gold {
+  background: linear-gradient(135deg, #735d32, #a88a4d);
+}
+
+.dark .namaz-root .nz-action-calm {
+  background: linear-gradient(135deg, #273f42, #41655f);
+}
+
+.dark .namaz-root .nz-action-info {
+  background: linear-gradient(135deg, #284d58, #3a6972);
+}
+
+.namaz-root :is(button, a, input, select):focus-visible {
+  outline: none;
+  box-shadow: var(--nz-focus);
+}
+
+.namaz-root :is(.text-emerald-900, .text-emerald-950, .text-slate-800, .text-slate-700) {
+  color: var(--nz-text);
+}
+
+.namaz-root :is(.text-emerald-700, .text-emerald-800, .text-emerald-600, .text-emerald-500) {
+  color: var(--nz-accent-strong);
+}
+
+.namaz-root :is(.bg-white, .bg-white\/60, .bg-white\/70, .bg-white\/80, .bg-white\/90) {
+  background-color: var(--nz-card);
+}
+
+.namaz-root :is(.bg-emerald-50, .bg-emerald-100) {
+  background-color: var(--nz-accent-soft);
+}
+
+.namaz-root :is(.bg-amber-50, .bg-amber-100) {
+  background-color: var(--nz-gold-soft);
+}
+
+.namaz-root :is(.text-amber-700, .text-amber-800, .text-amber-900, .text-amber-950) {
+  color: var(--nz-gold);
+}
+
+.namaz-root :is(.border-emerald-100, .border-emerald-200, .border-amber-100, .border-amber-200, .border-slate-100) {
+  border-color: var(--nz-border);
+}
+
+.namaz-root :is(.shadow-emerald-900\/5, .shadow-emerald-900\/10) {
+  --tw-shadow-color: rgba(1, 5, 8, 0.16);
+}
+
+.dark .namaz-root :is(input, select, textarea) {
+  background-color: var(--nz-surface-strong);
+  border-color: var(--nz-border);
+  color: var(--nz-text);
+  color-scheme: dark;
+}
+
+.dark .namaz-root :is(input::placeholder, textarea::placeholder) {
+  color: var(--nz-muted);
+}
+
+.dark .namaz-root :is(select option) {
+  background: #182125;
+  color: var(--nz-text);
+}
+
+.dark .namaz-root :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--nz-accent);
+}
+
+.dark .namaz-root :is(.bg-white, .bg-white\/60, .bg-white\/70, .bg-white\/75, .bg-white\/80, .bg-white\/90) {
+  background-color: var(--nz-card);
+}
+
+.dark .namaz-root :is(.bg-emerald-50, .bg-emerald-50\/70, .bg-emerald-100, .bg-emerald-100\/60, .bg-emerald-100\/70, .bg-emerald-100\/80) {
+  background-color: var(--nz-accent-soft);
+}
+
+.dark .namaz-root :is(.bg-amber-50, .bg-amber-50\/70, .bg-amber-100, .bg-amber-100\/70) {
+  background-color: var(--nz-gold-soft);
+}
+
+.dark .namaz-root :is(.bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-gray-100, .bg-gray-300) {
+  background-color: var(--nz-soft);
+}
+
+.dark .namaz-root :is(.bg-blue-50, .bg-blue-100, .bg-cyan-50, .bg-teal-50, .bg-indigo-50) {
+  background-color: var(--nz-info-soft);
+}
+
+.dark .namaz-root :is(.bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100) {
+  background-color: var(--nz-danger-soft);
+}
+
+.dark .namaz-root :is(.bg-emerald-500, .bg-emerald-600, .bg-emerald-700) {
+  background-color: var(--nz-accent);
+}
+
+.dark .namaz-root :is(.bg-blue-600, .bg-blue-700) {
+  background-color: var(--nz-info);
+}
+
+.dark .namaz-root :is(.bg-amber-400, .bg-amber-500, .bg-orange-500) {
+  background-color: var(--nz-gold);
+}
+
+.dark .namaz-root :is(.border-emerald-100, .border-emerald-100\/50, .border-emerald-100\/70, .border-emerald-100\/80, .border-emerald-200, .border-emerald-300, .border-slate-100, .border-slate-200, .border-gray-100) {
+  border-color: var(--nz-border);
+}
+
+.dark .namaz-root :is(.border-blue-100, .border-blue-200, .border-cyan-100, .border-teal-100, .border-indigo-100) {
+  border-color: rgba(121, 180, 197, 0.24);
+}
+
+.dark .namaz-root :is(.border-amber-100, .border-amber-200, .border-orange-100) {
+  border-color: rgba(208, 175, 99, 0.24);
+}
+
+.dark .namaz-root :is(.text-emerald-900, .text-emerald-950, .text-slate-800, .text-slate-900, .text-slate-950, .text-blue-950, .text-teal-950, .text-amber-950) {
+  color: var(--nz-text);
+}
+
+.dark .namaz-root :is(.text-emerald-500, .text-emerald-600, .text-emerald-700, .text-emerald-800, .text-teal-700, .text-teal-800) {
+  color: var(--nz-accent-strong);
+}
+
+.dark .namaz-root :is(.text-slate-500, .text-slate-600, .text-slate-700, .text-gray-400, .text-gray-500, .text-gray-600) {
+  color: var(--nz-muted);
+}
+
+.dark .namaz-root :is(.text-amber-500, .text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900) {
+  color: var(--nz-gold);
+}
+
+.dark .namaz-root :is(.text-blue-500, .text-blue-600, .text-blue-700, .text-cyan-600, .text-indigo-500) {
+  color: var(--nz-info);
+}
+
+.dark .namaz-root :is(.text-red-500, .text-red-600, .text-red-700, .text-rose-500, .text-rose-700) {
+  color: var(--nz-danger);
+}
+
+.dark .namaz-root :is(.hover\:bg-emerald-50:hover, .hover\:bg-emerald-100\/20:hover, .hover\:bg-emerald-100\/60:hover, .hover\:bg-white:hover) {
+  background-color: var(--nz-card-hover);
+}
+
+.dark .namaz-root :is(.hover\:bg-slate-100:hover, .hover\:bg-blue-50:hover, .hover\:bg-red-50:hover, .hover\:bg-amber-50:hover, .hover\:bg-amber-200:hover) {
+  background-color: var(--nz-soft);
+}
+
+.dark .namaz-root :is(.focus\:ring-emerald-200:focus, .focus\:ring-emerald-300:focus) {
+  --tw-ring-color: rgba(84, 185, 165, 0.28);
+}
+
+.dark .namaz-root :is(button:disabled, .disabled\:bg-slate-200:disabled) {
+  background-color: rgba(32, 43, 45, 0.72);
+  color: rgba(154, 173, 169, 0.72);
+  border-color: var(--nz-border);
+}
+
+.dark .namaz-root section,
+.dark .namaz-root article,
+.dark .namaz-root .rounded-2xl,
+.dark .namaz-root .rounded-3xl {
+  border-color: var(--nz-border);
+}
+
+.dark .namaz-root .shadow-sm,
+.dark .namaz-root .shadow-lg,
+.dark .namaz-root .shadow-xl,
+.dark .namaz-root .shadow-2xl {
+  --tw-shadow-color: rgba(1, 5, 8, 0.42);
+}
+
+.dark .namaz-root .divide-emerald-900\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--nz-border);
+}

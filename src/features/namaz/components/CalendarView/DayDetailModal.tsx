@@ -64,28 +64,28 @@ export default function DayDetailModal({ date, onClose }: DayDetailModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl w-full max-w-md shadow-2xl transform transition-all"
+        className="rounded-2xl w-full max-w-md shadow-2xl transform transition-all nz-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
+        <div className="flex justify-between items-center p-4 border-b nz-divider rounded-t-2xl nz-soft">
           <div>
-            <h3 className="text-xl font-bold text-emerald-900">
+            <h3 className="text-xl font-bold nz-text">
               {date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })}
             </h3>
-            <p className="text-sm text-emerald-600">{date.toLocaleDateString('en-US', { weekday: 'long' })}</p>
+            <p className="text-sm nz-muted">{date.toLocaleDateString('en-US', { weekday: 'long' })}</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-emerald-100 transition">
-            <X size={20} className="text-emerald-700" />
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-emerald-100/10 transition">
+            <X size={20} className="nz-text" />
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 p-4 bg-emerald-50/40">
-          <div className="text-center"><p className="text-xs text-emerald-500">সম্পন্ন</p><p className="font-bold text-emerald-800">{completedCount}/৫</p></div>
-          <div className="text-center"><p className="text-xs text-emerald-500">সময়মত</p><p className="font-bold text-emerald-600">{statusCounts.onTime}</p></div>
-          <div className="text-center"><p className="text-xs text-emerald-500">দেরি</p><p className="font-bold text-amber-600">{statusCounts.late}</p></div>
-          <div className="text-center"><p className="text-xs text-emerald-500">জামাত</p><p className="font-bold text-blue-600">{statusCounts.jamaat}</p></div>
+        <div className="grid grid-cols-4 gap-2 p-4 nz-soft">
+          <div className="text-center"><p className="text-xs nz-muted">সম্পন্ন</p><p className="font-bold nz-text">{completedCount}/৫</p></div>
+          <div className="text-center"><p className="text-xs nz-muted">সময়মত</p><p className="font-bold nz-accent">{statusCounts.onTime}</p></div>
+          <div className="text-center"><p className="text-xs nz-muted">দেরি</p><p className="font-bold text-amber-500">{statusCounts.late}</p></div>
+          <div className="text-center"><p className="text-xs nz-muted">জামাত</p><p className="font-bold text-blue-500">{statusCounts.jamaat}</p></div>
         </div>
 
         <div className="p-4 max-h-96 overflow-y-auto">
@@ -93,13 +93,13 @@ export default function DayDetailModal({ date, onClose }: DayDetailModalProps) {
             {TRACKED_PRAYERS.map((prayer) => {
               const currentStatus = getStatus(prayer);
               return (
-                <div key={prayer} className="flex justify-between items-center border-b border-gray-100 pb-2">
-                  <span className="font-medium text-gray-800">{prayerNames[prayer]}</span>
+                <div key={prayer} className="flex justify-between items-center border-b nz-divider pb-2">
+                  <span className="font-medium nz-text">{prayerNames[prayer]}</span>
                   {isEditing ? (
                     <select
                       value={currentStatus}
                       onChange={(e) => updatePrayer(dateKey, prayer, e.target.value as PrayerStatus)}
-                      className="px-2 py-1 rounded-lg border border-emerald-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      className="px-2 py-1 rounded-lg border text-sm nz-soft nz-text focus:outline-none focus:ring-2 focus:ring-emerald-300"
                     >
                       {statusOptions.map((value) => (
                         <option key={value} value={value}>{statusLabels[value]}</option>
@@ -108,7 +108,7 @@ export default function DayDetailModal({ date, onClose }: DayDetailModalProps) {
                   ) : (
                     <div className="flex items-center gap-2">
                       {statusIcons[currentStatus]}
-                      <span className="text-sm text-gray-600">{statusLabels[currentStatus]}</span>
+                      <span className="text-sm nz-muted">{statusLabels[currentStatus]}</span>
                     </div>
                   )}
                 </div>
@@ -117,10 +117,10 @@ export default function DayDetailModal({ date, onClose }: DayDetailModalProps) {
           </div>
         </div>
 
-        <div className="p-4 border-t border-emerald-100 flex gap-3">
+        <div className="p-4 border-t nz-divider flex gap-3">
           <button
             onClick={() => setIsEditing((value) => !value)}
-            className="w-full py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium hover:bg-emerald-200 transition"
+            className="w-full py-2 rounded-xl font-medium transition nz-chip"
           >
             {isEditing ? 'দেখুন' : 'সম্পাদনা করুন'}
           </button>

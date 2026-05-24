@@ -3,13 +3,13 @@ import './globals.css'
 
 
 export const metadata: Metadata = {
-  title: 'Amar Zone',
+  title: 'SelfSync',
   description: 'Your personal life management app',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Amar Zone',
+    title: 'SelfSync',
   },
 }
 

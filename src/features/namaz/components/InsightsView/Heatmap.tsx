@@ -8,12 +8,12 @@ import type { DailyPrayerLog } from '../../types/prayer.types';
 const DAY_LABELS_BN = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি'];
 
 const HM_COLOR: Record<number, { bg: string; border: string }> = {
-  0: { bg: 'rgba(6,87,66,0.04)', border: 'rgba(6,87,66,0.08)' },
-  1: { bg: '#ddf4ea', border: '#c4e9d8' },
-  2: { bg: '#9fdec4', border: '#7dcbaa' },
-  3: { bg: '#3cb88a', border: '#2ea070' },
-  4: { bg: '#1d9e75', border: '#168057' },
-  5: { bg: '#065742', border: '#044033' },
+  0: { bg: 'var(--nz-accent-softer)', border: 'var(--nz-border)' },
+  1: { bg: 'rgba(84,185,165,0.18)', border: 'rgba(84,185,165,0.24)' },
+  2: { bg: 'rgba(84,185,165,0.34)', border: 'rgba(84,185,165,0.38)' },
+  3: { bg: 'rgba(84,185,165,0.56)', border: 'rgba(84,185,165,0.62)' },
+  4: { bg: 'rgba(23,123,106,0.78)', border: 'rgba(23,123,106,0.84)' },
+  5: { bg: 'var(--nz-accent-strong)', border: 'var(--nz-accent-strong)' },
 };
 
 function Tooltip({ text }: { text: string }) {
@@ -24,18 +24,18 @@ function Tooltip({ text }: { text: string }) {
         bottom: 'calc(100% + 6px)',
         left: '50%',
         transform: 'translateX(-50%)',
-        background: 'rgba(255,255,255,0.97)',
+        background: 'var(--nz-surface-strong)',
         backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(6,87,66,0.12)',
+        border: '1px solid var(--nz-border)',
         borderRadius: 8,
         padding: '4px 9px',
         fontSize: 11,
         fontWeight: 500,
-        color: '#065742',
+        color: 'var(--nz-text)',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
         zIndex: 20,
-        boxShadow: '0 4px 12px rgba(5,150,105,0.10)',
+        boxShadow: 'var(--nz-shadow-soft)',
       }}
     >
       {text}
@@ -71,20 +71,20 @@ export default function Heatmap({ logs, month = new Date() }: { logs: Record<str
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.72)',
+        background: 'var(--nz-card)',
         backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(16,185,129,0.12)',
+        border: '1px solid var(--nz-border)',
         borderRadius: 18,
         padding: '18px 18px 14px',
-        boxShadow: '0 2px 16px rgba(5,150,105,0.06)',
+        boxShadow: 'var(--nz-shadow-soft)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
         <div>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#4b7a66', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--nz-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>
             মাসিক সম্পূর্ণতা
           </p>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#065742' }}>{monthName}</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--nz-text)' }}>{monthName}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {[
@@ -95,14 +95,14 @@ export default function Heatmap({ logs, month = new Date() }: { logs: Record<str
               key={item.label}
               style={{
                 textAlign: 'center',
-                background: 'rgba(5,150,105,0.06)',
-                border: '1px solid rgba(5,150,105,0.12)',
+                background: 'var(--nz-soft)',
+                border: '1px solid var(--nz-border)',
                 borderRadius: 10,
                 padding: '6px 10px',
               }}
             >
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#065742' }}>{item.value}</p>
-              <p style={{ fontSize: 9, color: '#6b8f7a', marginTop: 1 }}>{item.label}</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--nz-text)' }}>{item.value}</p>
+              <p style={{ fontSize: 9, color: 'var(--nz-muted)', marginTop: 1 }}>{item.label}</p>
             </div>
           ))}
         </div>
@@ -110,7 +110,7 @@ export default function Heatmap({ logs, month = new Date() }: { logs: Record<str
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
         {DAY_LABELS_BN.map((day) => (
-          <div key={day} style={{ fontSize: 10, color: '#9ca3af', textAlign: 'center' }}>{day}</div>
+          <div key={day} style={{ fontSize: 10, color: 'var(--nz-muted)', textAlign: 'center' }}>{day}</div>
         ))}
       </div>
 
@@ -136,8 +136,8 @@ export default function Heatmap({ logs, month = new Date() }: { logs: Record<str
               style={{
                 aspectRatio: '1',
                 borderRadius: 5,
-                background: isFuture ? 'rgba(6,87,66,0.03)' : color.bg,
-                border: isToday ? '2px solid #059669' : `1px solid ${isFuture ? 'rgba(6,87,66,0.06)' : color.border}`,
+                background: isFuture ? 'var(--nz-accent-softer)' : color.bg,
+                border: isToday ? '2px solid var(--nz-accent-strong)' : `1px solid ${isFuture ? 'var(--nz-border)' : color.border}`,
                 position: 'relative',
                 cursor: 'default',
                 transition: 'transform 0.1s',
@@ -154,11 +154,11 @@ export default function Heatmap({ logs, month = new Date() }: { logs: Record<str
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 14, justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: 10, color: '#9ca3af' }}>কম</span>
+        <span style={{ fontSize: 10, color: 'var(--nz-muted)' }}>কম</span>
         {[0, 1, 2, 3, 4, 5].map((value) => (
           <div key={value} style={{ width: 11, height: 11, borderRadius: 2, background: HM_COLOR[value].bg, border: `1px solid ${HM_COLOR[value].border}` }} />
         ))}
-        <span style={{ fontSize: 10, color: '#9ca3af' }}>বেশি</span>
+        <span style={{ fontSize: 10, color: 'var(--nz-muted)' }}>বেশি</span>
       </div>
     </div>
   );

@@ -410,7 +410,7 @@ export const useTaskStore = create<TaskState>()(
       },
     }),
     {
-      name: 'amar-zone-tasks',
+      name: 'selfsync-tasks',
       partialize: (state) => ({
         tasks: state.tasks,
         focusedTask: state.focusedTask,

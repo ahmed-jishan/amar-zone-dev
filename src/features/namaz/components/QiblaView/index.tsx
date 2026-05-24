@@ -318,14 +318,14 @@ export default function QiblaView() {
           <p className="text-xs tracking-[0.2em] text-amber-600/80" style={{ fontFamily: 'Georgia, serif' }}>
             اتجاه القبلة
           </p>
-          <h2 className="text-2xl font-bold text-emerald-900 tracking-tight">কিবলা দিক</h2>
-          <p className="text-emerald-600 text-sm">মক্কার কাবার দিকে মুখ করুন</p>
+          <h2 className="text-2xl font-bold nz-text tracking-tight">কিবলা দিক</h2>
+          <p className="nz-muted text-sm">মক্কার কাবার দিকে মুখ করুন</p>
         </div>
 
         <button
           onClick={getLocationAndQibla}
           disabled={locationState === 'loading'}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/70 border border-emerald-200 text-emerald-700 text-sm shadow-sm hover:bg-white transition active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm shadow-sm transition active:scale-95 disabled:opacity-50 nz-surface nz-text"
         >
           <svg className={`w-3.5 h-3.5 ${locationState === 'loading' ? 'animate-spin' : ''}`}
             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -336,9 +336,9 @@ export default function QiblaView() {
       </div>
 
       {/* ── Location card ────────────────────────────────────────────────── */}
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-emerald-100 shadow-sm p-4">
+      <div className="rounded-2xl shadow-sm p-4 nz-card">
         {locationState === 'loading' && (
-          <div className="flex items-center gap-3 text-emerald-600">
+          <div className="flex items-center gap-3 nz-muted">
             <div className="w-4 h-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin flex-shrink-0" />
             <span className="text-sm">অবস্থান নির্ধারণ হচ্ছে...</span>
           </div>
@@ -353,7 +353,7 @@ export default function QiblaView() {
             </div>
             <div>
               <p className="text-rose-700 text-sm">{locationError}</p>
-              <button onClick={getLocationAndQibla} className="mt-1.5 text-xs text-emerald-600 underline underline-offset-2">
+              <button onClick={getLocationAndQibla} className="mt-1.5 text-xs nz-accent underline underline-offset-2">
                 পুনরায় চেষ্টা
               </button>
             </div>
@@ -367,22 +367,22 @@ export default function QiblaView() {
               <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
               </svg>
-              <span className="text-emerald-800 text-sm font-medium">{location.city}</span>
-              <span className="text-emerald-400 text-xs font-mono">
+              <span className="nz-text text-sm font-medium">{location.city}</span>
+              <span className="nz-muted text-xs font-mono">
                 {location.lat.toFixed(3)}°, {location.lng.toFixed(3)}°
               </span>
             </div>
 
             {/* Stats row */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-emerald-100">
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t nz-divider">
               {[
                 { label: 'কিবলা কোণ', value: `${Math.round(qiblaAngle)}°`, mono: true },
                 { label: 'দিক',       value: getCardinalBangla(qiblaAngle), mono: false },
                 { label: 'কাবা থেকে', value: `${distanceKm?.toLocaleString()} km`, mono: true },
               ].map(({ label, value, mono }) => (
-                <div key={label} className="text-center bg-emerald-50/60 rounded-xl py-2 border border-emerald-100">
-                  <p className="text-emerald-500 text-[10px] mb-0.5">{label}</p>
-                  <p className={`text-emerald-900 text-base font-bold ${mono ? 'font-mono' : ''}`}>{value}</p>
+                <div key={label} className="text-center rounded-xl py-2 nz-soft">
+                  <p className="nz-muted text-[10px] mb-0.5">{label}</p>
+                  <p className={`nz-text text-base font-bold ${mono ? 'font-mono' : ''}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -394,12 +394,12 @@ export default function QiblaView() {
       {locationState === 'success' && qiblaAngle !== null && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Compass card — 2/3 */}
-          <div className="lg:col-span-2 bg-white/60 backdrop-blur-sm rounded-2xl border border-emerald-100 shadow-sm p-5">
+          <div className="lg:col-span-2 rounded-2xl shadow-sm p-5 nz-card">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-1 h-5 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-300" />
-              <span className="text-emerald-800 text-sm font-semibold">কম্পাস</span>
+              <span className="nz-text text-sm font-semibold">কম্পাস</span>
               {orientationPermissionGranted && (
-                <span className="ml-auto flex items-center gap-1 text-xs text-emerald-500">
+                <span className="ml-auto flex items-center gap-1 text-xs nz-muted">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   লাইভ
                 </span>
@@ -420,7 +420,7 @@ export default function QiblaView() {
       )}
 
       {/* ── How-to guide ─────────────────────────────────────────────────── */}
-      <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-emerald-100 shadow-sm p-5 space-y-3">
+      <div className="rounded-2xl shadow-sm p-5 space-y-3 nz-card">
         {/* Decorative divider heading */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent to-amber-200" />
@@ -435,9 +435,9 @@ export default function QiblaView() {
             { icon: '🧲', text: 'ধাতব বস্তু থেকে দূরে থাকলে নির্ভুলতা বাড়ে' },
             { icon: '∞',  text: 'কম্পাস ক্যালিব্রেট করতে ৮ আকারে ঘোরান' },
           ].map((item, i) => (
-            <div key={i} className="flex items-start gap-2.5 bg-emerald-50/40 rounded-xl px-3 py-2.5 border border-emerald-100/60">
+            <div key={i} className="flex items-start gap-2.5 rounded-xl px-3 py-2.5 nz-soft">
               <span className="text-base leading-none mt-0.5 flex-shrink-0">{item.icon}</span>
-              <span className="text-emerald-700 text-xs leading-relaxed">{item.text}</span>
+              <span className="nz-muted text-xs leading-relaxed">{item.text}</span>
             </div>
           ))}
         </div>
@@ -463,7 +463,7 @@ export default function QiblaView() {
         >
           وَمِنْ حَيْثُ خَرَجْتَ فَوَلِّ وَجْهَكَ شَطْرَ الْمَسْجِدِ الْحَرَامِ
         </p>
-        <p className="text-emerald-600/70 text-xs">
+        <p className="nz-muted text-xs">
           "যেখান থেকেই বেরিয়ে যাও, মসজিদুল হারামের দিকে মুখ কর।" — সূরা বাকারা: ১৫০
         </p>
       </div>

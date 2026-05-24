@@ -19,17 +19,17 @@ export default function ReminderSettings() {
   };
 
   return (
-    <section className="bg-white/70 border border-emerald-100 rounded-2xl p-5 space-y-4">
+    <section className="rounded-2xl p-5 space-y-4 nz-card">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-emerald-950">Prayer Reminders</h3>
-          <p className="text-sm text-emerald-700">Browser notifications before each prayer time.</p>
+          <h3 className="text-lg font-semibold nz-text">Prayer Reminders</h3>
+          <p className="text-sm nz-muted">Browser notifications before each prayer time.</p>
         </div>
         <button
           type="button"
           onClick={toggle}
           className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold ${
-            remindersEnabled ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+            remindersEnabled ? 'nz-primary' : 'nz-control'
           }`}
         >
           {remindersEnabled ? <Bell size={16} /> : <BellOff size={16} />}
@@ -38,18 +38,18 @@ export default function ReminderSettings() {
       </div>
 
       <label className="block">
-        <span className="text-sm font-medium text-emerald-900">Minutes before prayer</span>
+        <span className="text-sm font-medium nz-text">Minutes before prayer</span>
         <input
           type="number"
           min={0}
           max={60}
           value={reminderMinutesBefore}
           onChange={(event) => setReminderPrefs(remindersEnabled, Number(event.target.value))}
-          className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-emerald-950 outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 w-full rounded-xl px-3 py-2 outline-none nz-control"
         />
       </label>
 
-      <p className="text-xs text-emerald-600">Permission: {permission}</p>
+      <p className="text-xs nz-muted">Permission: {permission}</p>
     </section>
   );
 }

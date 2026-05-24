@@ -14,12 +14,54 @@ interface ActionItem {
   id: string;
   name: string;
   icon: React.ReactNode;
-  color: string;
+  tone: string;
   description: string;
   action: () => void;
 }
 
-export default function QuickActions() {
+const COPY = {
+  bn: {
+    quickActions: 'দ্রুত অ্যাকশন',
+    qibla: 'কিবলা দিক',
+    qiblaDesc: 'কাবা শরীফের দিক নির্ণয়',
+    tasbih: 'তাসবিহ',
+    tasbihDesc: 'ডিজিটাল তাসবিহ কাউন্টার',
+    dua: 'দোয়া ও যিকির',
+    duaDesc: 'দৈনন্দিন দোয়া সমূহ',
+    nearby: 'নিকটস্থ মসজিদ',
+    nearbyDesc: 'মসজিদ খুঁজুন',
+    digitalTasbih: 'ডিজিটাল তাসবিহ',
+    target: 'লক্ষ্য',
+    increment: '+১',
+    reset: 'রিসেট',
+    nearbyMosque: 'নিকটস্থ মসজিদ',
+    searching: 'কাছের মসজিদ খোঁজা হচ্ছে...',
+    empty: 'এই এলাকার জন্য কাছাকাছি মসজিদের তথ্য পাওয়া যায়নি। মানচিত্রে খোঁজার চেষ্টা করুন।',
+    direction: 'দিক',
+  },
+  en: {
+    quickActions: 'Quick actions',
+    qibla: 'Qibla direction',
+    qiblaDesc: 'Find the direction of the Kaaba',
+    tasbih: 'Tasbih',
+    tasbihDesc: 'Digital tasbih counter',
+    dua: 'Duas & Zikr',
+    duaDesc: 'Daily duas collection',
+    nearby: 'Nearby mosques',
+    nearbyDesc: 'Find a mosque',
+    digitalTasbih: 'Digital Tasbih',
+    target: 'Target',
+    increment: '+1',
+    reset: 'Reset',
+    nearbyMosque: 'Nearby mosques',
+    searching: 'Searching nearby mosques...',
+    empty: 'No nearby mosque data found for this area. Try searching on the map.',
+    direction: 'Direction',
+  },
+};
+
+export default function QuickActions({ language }: { language: 'bn' | 'en' }) {
+  const t = COPY[language];
   const [showTasbih, setShowTasbih] = useState(false);
   const [showMosques, setShowMosques] = useState(false);
   const [tasbihCount, setTasbihCount] = useState(0);
@@ -35,34 +77,34 @@ export default function QuickActions() {
   const actions: ActionItem[] = [
     {
       id: 'qibla',
-      name: 'কিবলা দিক',
+      name: t.qibla,
       icon: <Compass size={24} />,
-      color: 'from-emerald-600 to-teal-600',
-      description: 'কাবা শরীফের দিক নির্ণয়',
+      tone: 'nz-action-accent',
+      description: t.qiblaDesc,
       action: () => window.dispatchEvent(new CustomEvent('namaz:open-qibla')),
     },
     {
       id: 'tasbih',
-      name: 'তাসবিহ',
+      name: t.tasbih,
       icon: <Sparkles size={24} />,
-      color: 'from-amber-500 to-orange-500',
-      description: 'ডিজিটাল তাসবিহ কাউন্টার',
+      tone: 'nz-action-gold',
+      description: t.tasbihDesc,
       action: () => setShowTasbih((value) => !value),
     },
     {
       id: 'dua',
-      name: 'দোয়া ও যিকির',
+      name: t.dua,
       icon: <BookOpen size={24} />,
-      color: 'from-purple-500 to-pink-500',
-      description: 'দৈনন্দিন দোয়া সমূহ',
+      tone: 'nz-action-calm',
+      description: t.duaDesc,
       action: () => window.dispatchEvent(new CustomEvent('namaz:open-dua')),
     },
     {
       id: 'nearby',
-      name: 'নিকটস্থ মসজিদ',
+      name: t.nearby,
       icon: <MapPin size={24} />,
-      color: 'from-blue-500 to-cyan-500',
-      description: 'মসজিদ খুঁজুন',
+      tone: 'nz-action-info',
+      description: t.nearbyDesc,
       action: openMosques,
     },
   ];
@@ -78,9 +120,9 @@ export default function QuickActions() {
 
   return (
     <div className="space-y-4">
-      <h3 className="flex items-center gap-2 text-lg font-semibold text-emerald-900">
+      <h3 className="flex items-center gap-2 text-lg font-semibold nz-text">
         <span className="h-6 w-1 rounded-full bg-emerald-500" />
-        দ্রুত অ্যাকশন
+        {t.quickActions}
       </h3>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -89,7 +131,7 @@ export default function QuickActions() {
             key={action.id}
             type="button"
             onClick={action.action}
-            className={`group relative overflow-hidden rounded-xl bg-gradient-to-br ${action.color} p-4 text-left text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl`}
+            className={`group relative overflow-hidden rounded-xl p-4 text-left text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${action.tone}`}
           >
             <div className="relative z-10">
               <div className="mb-2">{action.icon}</div>
@@ -101,9 +143,9 @@ export default function QuickActions() {
       </div>
 
       {showTasbih && (
-        <div className="rounded-xl border border-emerald-100 bg-white p-5 shadow-lg animate-[az-slide-up_250ms_ease-out]">
+        <div className="rounded-xl p-5 shadow-lg animate-[az-slide-up_250ms_ease-out] nz-card">
           <div className="mb-4 flex items-center justify-between">
-            <h4 className="font-bold text-emerald-800">ডিজিটাল তাসবিহ</h4>
+            <h4 className="font-bold nz-text">{t.digitalTasbih}</h4>
             <button type="button" onClick={() => setShowTasbih(false)} className="rounded-lg p-1 text-emerald-500 hover:bg-emerald-50">
               <X size={18} />
             </button>
@@ -126,16 +168,16 @@ export default function QuickActions() {
             ))}
           </div>
           <div className="mb-4 text-center">
-            <p className="mb-1 text-2xl text-emerald-800">{selectedPreset.arabic}</p>
-            <div className="my-3 text-6xl font-bold text-emerald-700">{tasbihCount}</div>
-            <p className="text-sm text-emerald-500">লক্ষ্য: {selectedPreset.target}</p>
+            <p className="mb-1 text-2xl nz-text">{selectedPreset.arabic}</p>
+            <div className="my-3 text-6xl font-bold nz-accent">{tasbihCount}</div>
+            <p className="text-sm nz-muted">{t.target}: {selectedPreset.target}</p>
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={() => setTasbihCount((value) => value + 1)} className="flex-1 rounded-xl bg-emerald-600 py-3 text-lg font-bold text-white transition hover:bg-emerald-700">
-              +১
+              {t.increment}
             </button>
             <button type="button" onClick={() => setTasbihCount(0)} className="rounded-xl bg-amber-100 px-4 text-amber-700 transition hover:bg-amber-200">
-              রিসেট
+              {t.reset}
             </button>
           </div>
           <div className="mt-4 h-2 rounded-full bg-emerald-100">
@@ -145,11 +187,11 @@ export default function QuickActions() {
       )}
 
       {showMosques && (
-        <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-lg animate-[az-slide-up_250ms_ease-out]">
+        <div className="rounded-xl p-5 shadow-lg animate-[az-slide-up_250ms_ease-out] nz-card">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h4 className="font-bold text-slate-900">নিকটস্থ মসজিদ</h4>
-              <p className="mt-1 text-sm text-slate-500">{formatLocation(location)}</p>
+              <h4 className="font-bold nz-text">{t.nearbyMosque}</h4>
+              <p className="mt-1 text-sm nz-muted">{formatLocation(location)}</p>
             </div>
             <button type="button" onClick={() => setShowMosques(false)} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
               <X size={18} />
@@ -157,15 +199,15 @@ export default function QuickActions() {
           </div>
 
           {nearbyMosques.status === 'loading' && (
-            <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-3 text-sm font-semibold text-blue-700">
+            <div className="flex items-center gap-2 rounded-lg p-3 text-sm font-semibold nz-soft nz-text">
               <Loader2 size={16} className="animate-spin" />
-              কাছের মসজিদ খোঁজা হচ্ছে...
+              {t.searching}
             </div>
           )}
 
           {nearbyMosques.status === 'empty' && (
-            <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-              এই এলাকার জন্য কাছাকাছি মসজিদের তথ্য পাওয়া যায়নি। মানচিত্রে খোঁজার চেষ্টা করুন।
+            <div className="rounded-lg p-3 text-sm nz-soft nz-muted">
+              {t.empty}
             </div>
           )}
 
@@ -177,11 +219,11 @@ export default function QuickActions() {
 
           {nearbyMosques.nearest && (
             <div className="space-y-3">
-              <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+              <div className="rounded-xl p-4 nz-soft">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-slate-950">{nearbyMosques.nearest.name}</p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="text-sm font-bold nz-text">{nearbyMosques.nearest.name}</p>
+                    <p className="mt-1 text-sm nz-muted">
                       {formatMosqueDistance(nearbyMosques.nearest.distanceMeters)}
                       {nearbyMosques.nearest.address ? ` • ${nearbyMosques.nearest.address}` : ''}
                     </p>
@@ -193,7 +235,7 @@ export default function QuickActions() {
                     className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
                   >
                     <Navigation size={14} />
-                    Direction
+                    {t.direction}
                   </a>
                 </div>
               </div>

@@ -53,7 +53,7 @@ export default function DatePicker({ selectedDate, onDateChange }: Props) {
           className={`h-8 w-8 rounded-full text-sm transition ${
             isSelected ? 'bg-emerald-600 text-white' : 
             isToday ? 'bg-emerald-100 text-emerald-800 font-semibold' : 
-            'hover:bg-emerald-50 text-gray-700'
+            'hover:bg-emerald-100/20 nz-text'
           }`}
         >
           {d}
@@ -73,22 +73,22 @@ export default function DatePicker({ selectedDate, onDateChange }: Props) {
     <div className="relative" ref={pickerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-white/70 rounded-xl border border-emerald-200 text-emerald-700 hover:bg-white transition"
+        className="flex items-center gap-2 px-4 py-2 rounded-xl nz-surface nz-text hover:bg-emerald-100/10 transition"
       >
         <CalendarIcon size={18} />
         <span>{selectedDate.toLocaleDateString('bn-BD')}</span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 p-4">
+        <div className="absolute right-0 mt-2 w-64 rounded-xl z-50 p-4 nz-card">
           <div className="flex justify-between items-center mb-4">
-            <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded">‹</button>
-            <span className="font-medium">
+            <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-emerald-100/20 rounded nz-text">‹</button>
+            <span className="font-medium nz-text">
               {tempDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </span>
-            <button onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-100 rounded">›</button>
+            <button onClick={() => changeMonth(1)} className="p-1 hover:bg-emerald-100/20 rounded nz-text">›</button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs nz-muted mb-2">
             {['স', 'ম', 'ঙ', 'ব', 'বৃ', 'শু', 'শ'].map(day => <div key={day}>{day}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">

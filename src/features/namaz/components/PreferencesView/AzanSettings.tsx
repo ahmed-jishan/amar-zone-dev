@@ -24,14 +24,14 @@ export default function AzanSettings() {
   };
 
   return (
-    <section className="bg-white/75 border border-emerald-100 rounded-2xl p-5 space-y-5 shadow-sm shadow-emerald-900/5">
+    <section className="rounded-2xl p-5 space-y-5 nz-card">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-emerald-950">
+          <div className="flex items-center gap-2 nz-text">
             <BellRing size={18} />
             <h3 className="text-lg font-semibold">Azan System</h3>
           </div>
-          <p className="mt-1 text-sm text-emerald-700">
+          <p className="mt-1 text-sm nz-muted">
             Automatic prayer-time audio with device permission awareness.
           </p>
         </div>
@@ -41,7 +41,7 @@ export default function AzanSettings() {
           onClick={toggleAzan}
           aria-pressed={azanEnabled}
           className={`relative h-9 w-16 shrink-0 rounded-full p-1 transition ${
-            azanEnabled ? 'bg-emerald-600' : 'bg-slate-200'
+            azanEnabled ? 'nz-primary' : 'nz-soft border border-[var(--nz-border)]'
           }`}
         >
           <span
@@ -55,24 +55,24 @@ export default function AzanSettings() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Status</p>
-          <p className={`mt-1 text-lg font-bold ${azanEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
+        <div className="rounded-xl p-3 nz-soft">
+          <p className="text-xs font-semibold uppercase tracking-wide nz-muted">Status</p>
+          <p className={`mt-1 text-lg font-bold ${azanEnabled ? 'nz-accent' : 'nz-muted'}`}>
             {azanEnabled ? 'ON' : 'OFF'}
           </p>
         </div>
-        <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Mode</p>
-          <p className="mt-1 text-sm font-semibold text-amber-900">Non-blocking audio</p>
+        <div className="rounded-xl p-3 nz-soft">
+          <p className="text-xs font-semibold uppercase tracking-wide nz-gold">Mode</p>
+          <p className="mt-1 text-sm font-semibold nz-text">Non-blocking audio</p>
         </div>
       </div>
 
       <label className="block">
-        <span className="text-sm font-semibold text-emerald-950">Quran reciter</span>
+        <span className="text-sm font-semibold nz-text">Quran reciter</span>
         <select
           value={quranReciter}
           onChange={(event) => setQuranReciter(event.target.value as typeof quranReciter)}
-          className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-3 py-3 text-sm text-emerald-950 outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 w-full rounded-xl px-3 py-3 text-sm outline-none nz-control"
         >
           {RECITERS.map((reciter) => (
             <option key={reciter.id} value={reciter.id}>

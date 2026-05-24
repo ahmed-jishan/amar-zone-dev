@@ -6,47 +6,48 @@
 
 // interface QiblaCompassProps {
 //   qiblaAngle: number;
-//   orientationGranted: boolean;
-// }
+/*
+    if (!orientationGranted) {
+    return (
+      <div className="rounded-2xl p-6 text-center nz-card">
+        <Compass size={48} className="text-emerald-400 mx-auto mb-3" />
+        <p className="nz-muted">কম্পাস সক্রিয় করতে ওরিয়েন্টেশন পারমিশন দিন</p>
+      </div>
+    );
+  }
 
-// export default function QiblaCompass({ qiblaAngle, orientationGranted }: QiblaCompassProps) {
-//   const canvasRef = useRef<HTMLCanvasElement>(null);
-//   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
-//   const [error, setError] = useState<string | null>(null);
-//   const [manualMode, setManualMode] = useState(false);
-//   const [manualHeading, setManualHeading] = useState(0);
-//   const [noDataTimeout, setNoDataTimeout] = useState<NodeJS.Timeout | null>(null);
+  return (
+    <div className="rounded-2xl p-4 nz-card">
+      <div className="flex justify-center">
+        <canvas ref={canvasRef} width={400} height={400} className="w-full max-w-[400px] h-auto" />
+      </div>
+      
+      {error && (
+        <div className="mt-3 text-center text-sm text-amber-700 bg-amber-50 p-2 rounded-lg">
+          ⚠️ {error}
+        </div>
+      )}
 
-//   // Draw compass (same drawing logic)
-//   const drawCompass = () => {
-//     const canvas = canvasRef.current;
-//     if (!canvas) return;
-//     const ctx = canvas.getContext('2d');
-//     if (!ctx) return;
-
-//     const size = canvas.width;
-//     const centerX = size / 2;
-//     const centerY = size / 2;
-//     const radius = size * 0.4;
-
-//     ctx.clearRect(0, 0, size, size);
-
-//     // Outer circle
-//     ctx.beginPath();
-//     ctx.arc(centerX, centerY, radius + 10, 0, 2 * Math.PI);
-//     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-//     ctx.fill();
-//     ctx.strokeStyle = '#065f46';
-//     ctx.lineWidth = 2;
-//     ctx.stroke();
-
-//     // Degree marks
-//     for (let i = 0; i < 360; i += 15) {
-//       const rad = (i * Math.PI) / 180;
-//       const x1 = centerX + (radius - 5) * Math.cos(rad);
-//       const y1 = centerY + (radius - 5) * Math.sin(rad);
-//       const x2 = centerX + radius * Math.cos(rad);
-//       const y2 = centerY + radius * Math.sin(rad);
+      {manualMode && (
+        <div className="mt-3 flex flex-col items-center gap-3">
+          <div className="flex items-center gap-4">
+            <button onClick={decreaseHeading} className="p-2 rounded-full nz-soft hover:opacity-95 transition">
+              <RotateCcw size={20} className="nz-accent" />
+            </button>
+            <div className="text-center">
+              <p className="text-xs nz-muted">ম্যানুয়াল হেডিং</p>
+              <p className="text-xl font-bold nz-text">{Math.round(manualHeading)}°</p>
+            </div>
+            <button onClick={increaseHeading} className="p-2 rounded-full nz-soft hover:opacity-95 transition">
+              <RotateCw size={20} className="nz-accent" />
+            </button>
+          </div>
+          <div className="mt-2 text-sm nz-muted">স্ক্রিনে টাচ করে স্লাইড করে কিবলা নির্ধারণ করুন</div>
+        </div>
+      )}
+    </div>
+  );
+}
 //       ctx.beginPath();
 //       ctx.moveTo(x1, y1);
 //       ctx.lineTo(x2, y2);
@@ -243,6 +244,7 @@
 //     </div>
 //   );
 // }
+*/
 
 'use client';
 

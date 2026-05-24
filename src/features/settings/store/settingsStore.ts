@@ -14,6 +14,7 @@ export interface AppSettings {
   pinHash?: string
   onboardingComplete: boolean
   notificationsEnabled: boolean
+  calculatorEnabled: boolean
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   pinEnabled: false,
   onboardingComplete: true,
   notificationsEnabled: true,
+  calculatorEnabled: true,
 }
 
 // Helper to apply theme to document root
@@ -63,7 +65,7 @@ export const useSettingsStore = create<SettingsStore>()(
       },
     }),
     {
-      name: 'amar-zone-settings',
+      name: 'selfsync-settings',
       onRehydrateStorage: () => (state) => {
         if (state) {
           applyThemeToDOM(state.theme)

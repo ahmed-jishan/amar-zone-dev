@@ -29,6 +29,8 @@ const translations = {
     notifications: 'নোটিফিকেশন',
     namazReminder: 'নামাজের রিমাইন্ডার',
     namazSub: 'সময় হলে জানাবে',
+    calculatorToggle: 'ফ্লোটিং ক্যালকুলেটর',
+    calculatorSub: 'স্ক্রিনে ক্যালকুলেটর আইকন দেখাবে',
     security: 'নিরাপত্তা',
     pinLock: 'PIN লক',
     pinActive: 'সক্রিয় আছে ✓',
@@ -91,6 +93,8 @@ const translations = {
     notifications: 'Notifications',
     namazReminder: 'Prayer Reminders',
     namazSub: 'Notify at prayer times',
+    calculatorToggle: 'Floating Calculator',
+    calculatorSub: 'Show calculator icon on screen',
     security: 'Security',
     pinLock: 'PIN Lock',
     pinActive: 'Active ✓',
@@ -170,6 +174,7 @@ export default function SettingsPage() {
     pinEnabled,
     pinHash,
     notificationsEnabled,
+    calculatorEnabled,
     update
   } = useSettingsStore()
 
@@ -188,7 +193,7 @@ export default function SettingsPage() {
   }
 
   const handleBackup = () => {
-    const allKeys = ['money_transactions', 'money_loans', 'amar-zone-tasks', 'amar-zone-namaz', 'amar-zone-settings']
+    const allKeys = ['money_transactions', 'money_loans', 'selfsync-tasks', 'selfsync-namaz', 'selfsync-settings', 'selfsync-money-v2']
     const backup: Record<string, any> = { _version: 1, _date: new Date().toISOString() }
     allKeys.forEach(k => {
       const v = localStorage.getItem(k)
@@ -198,7 +203,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `amar-zone-backup-${new Date().toISOString().split('T')[0]}.json`
+    a.download = `selfsync-backup-${new Date().toISOString().split('T')[0]}.json`
     a.click()
     URL.revokeObjectURL(url)
     showToast(t.toastBackup)
@@ -224,7 +229,7 @@ export default function SettingsPage() {
   }
 
   const handleClearData = () => {
-    const keys = ['money_transactions', 'money_loans', 'amar-zone-tasks', 'amar-zone-namaz']
+    const keys = ['money_transactions', 'money_loans', 'selfsync-tasks', 'selfsync-namaz', 'selfsync-money-v2']
     keys.forEach(k => localStorage.removeItem(k))
     showToast(t.toastDataCleared)
     setShowClearModal(false)
@@ -292,6 +297,13 @@ export default function SettingsPage() {
             value={notificationsEnabled}
             onChange={v => update({ notificationsEnabled: v })}
           />
+          <div className="st-divider" />
+          <RowSwitch
+            label={t.calculatorToggle}
+            sub={t.calculatorSub}
+            value={calculatorEnabled}
+            onChange={v => update({ calculatorEnabled: v })}
+          />
         </Section>
 
         {/* Security */}
@@ -316,9 +328,9 @@ export default function SettingsPage() {
         {/* About */}
         <Section icon={<Info size={15} />} title={t.about}>
           <div className="st-about-card">
-            <div className="st-about-logo">AZ</div>
+            <div className="st-about-logo">SS</div>
             <div>
-              <p className="st-about-name">Amar Zone</p>
+              <p className="st-about-name">SelfSync</p>
               <p className="st-about-ver">{t.version}</p>
             </div>
           </div>
@@ -730,25 +742,27 @@ html:not(.dark) .mo-submit--neu {
 }
 
 .st-body {
-  padding: 8px 16px;
+  padding: 12px 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .st-section {
-  background: var(--bg-secondary, #0f1520);
+  background: color-mix(in srgb, var(--bg-secondary, #0f1520) 92%, white 8%);
   border: 1px solid var(--border, #1a2535);
   border-radius: 20px;
   overflow: hidden;
+  box-shadow: 0 12px 28px rgba(8, 12, 20, 0.2);
   animation: stFade 0.35s ease-out both;
 }
 .st-section-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 13px 16px 11px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid var(--border, #1a2535);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
 }
 .st-section-icon {
   color: var(--accent, #4ade80);
@@ -758,7 +772,7 @@ html:not(.dark) .mo-submit--neu {
 .st-section-title {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--text-muted, #556677);
 }
@@ -767,7 +781,7 @@ html:not(.dark) .mo-submit--neu {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -776,10 +790,13 @@ html:not(.dark) .mo-submit--neu {
 }
 .st-row-btn {
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.2s, transform 0.2s;
 }
 .st-row-btn:active {
   background: var(--surface, #0a1018);
+}
+.st-row-btn:hover {
+  background: color-mix(in srgb, var(--surface, #0a1018) 80%, white 20%);
 }
 .st-row--danger:active {
   background: #1a0810;
@@ -791,11 +808,11 @@ html:not(.dark) .mo-submit--neu {
 }
 .st-row-label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-secondary, #b8c8d8);
 }
 .st-row-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted, #556677);
 }
 .st-label--danger {
@@ -811,14 +828,14 @@ html:not(.dark) .mo-submit--neu {
 
 .st-divider {
   height: 1px;
-  background: var(--border, #1a2535);
+  background: color-mix(in srgb, var(--border, #1a2535) 70%, transparent 30%);
   margin: 0 16px;
 }
 
 .st-theme-grid {
   display: flex;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 16px;
 }
 .st-theme-btn {
   flex: 1;
@@ -828,16 +845,20 @@ html:not(.dark) .mo-submit--neu {
   gap: 6px;
   padding: 14px 8px;
   border-radius: 14px;
-  border: 1.5px solid var(--border, #1a2535);
-  background: var(--bg-primary, #080c14);
+  border: 1px solid var(--border, #1a2535);
+  background: color-mix(in srgb, var(--bg-primary, #080c14) 92%, white 8%);
   color: var(--text-muted, #556677);
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
 }
+.st-theme-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--border, #1a2535) 70%, var(--accent, #4ade80) 30%);
+}
 .st-theme-btn--on {
   border-color: var(--accent-glow, #4ade8060);
-  background: var(--accent-glow, #0f2018);
+  background: color-mix(in srgb, var(--accent-glow, #0f2018) 60%, transparent 40%);
   color: var(--accent, #4ade80);
 }
 .st-theme-icon {
@@ -865,7 +886,7 @@ html:not(.dark) .mo-submit--neu {
 
 .st-toggle {
   display: flex;
-  background: var(--bg-primary, #080c14);
+  background: color-mix(in srgb, var(--bg-primary, #080c14) 92%, white 8%);
   border: 1px solid var(--border, #1a2535);
   border-radius: 10px;
   overflow: hidden;
@@ -889,7 +910,7 @@ html:not(.dark) .mo-submit--neu {
   width: 44px;
   height: 26px;
   border-radius: 999px;
-  background: var(--border, #1a2535);
+  background: color-mix(in srgb, var(--border, #1a2535) 80%, transparent 20%);
   border: none;
   cursor: pointer;
   position: relative;
@@ -919,6 +940,7 @@ html:not(.dark) .mo-submit--neu {
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
+  background: color-mix(in srgb, var(--bg-secondary, #0f1520) 90%, white 10%);
 }
 .st-about-logo {
   width: 44px;
@@ -952,6 +974,8 @@ html:not(.dark) .mo-submit--neu {
   font-size: 12px;
   color: var(--text-muted, #556677);
   line-height: 1.5;
+  background: color-mix(in srgb, var(--bg-secondary, #0f1520) 85%, white 15%);
+  border-top: 1px solid var(--border, #1a2535);
 }
 
 .st-toast {

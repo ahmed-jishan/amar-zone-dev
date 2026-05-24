@@ -17,28 +17,28 @@ export default function WeaknessInsightsCard({ logs, month, insights }: {
     : 'ডেটা নেই';
 
   return (
-    <section className="bg-white/70 border border-emerald-100 rounded-2xl p-5">
-      <h3 className="text-lg font-semibold text-emerald-950">Prayer Insights</h3>
+    <section className="rounded-2xl p-5 nz-card">
+      <h3 className="text-lg font-semibold nz-text">Prayer Insights</h3>
       <div className="mt-4 grid gap-3 sm:grid-cols-4">
-        <div className="rounded-xl bg-emerald-50 p-4">
-          <p className="text-xs uppercase tracking-wide text-emerald-700">Current streak</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-950">{insights.currentStreak} days</p>
+        <div className="rounded-xl p-4 nz-soft">
+          <p className="text-xs uppercase tracking-wide nz-muted">Current streak</p>
+          <p className="mt-2 text-2xl font-bold nz-text">{insights.currentStreak} days</p>
         </div>
-        <div className="rounded-xl bg-amber-50 p-4">
-          <p className="text-xs uppercase tracking-wide text-amber-700">Most missed</p>
-          <p className="mt-2 text-2xl font-bold text-amber-950">
+        <div className="rounded-xl p-4 nz-soft">
+          <p className="text-xs uppercase tracking-wide nz-gold">Most missed</p>
+          <p className="mt-2 text-2xl font-bold nz-text">
             {mostMissed}
           </p>
         </div>
-        <div className="rounded-xl bg-blue-50 p-4">
-          <p className="text-xs uppercase tracking-wide text-blue-700">Best consistency</p>
-          <p className="mt-2 text-2xl font-bold text-blue-950">
+        <div className="rounded-xl p-4 nz-soft">
+          <p className="text-xs uppercase tracking-wide nz-muted">Best consistency</p>
+          <p className="mt-2 text-2xl font-bold nz-text">
             {bestConsistency}
           </p>
         </div>
-        <div className="rounded-xl bg-teal-50 p-4">
-          <p className="text-xs uppercase tracking-wide text-teal-700">Monthly completion</p>
-          <p className="mt-2 text-2xl font-bold text-teal-950">{insights.completionRate}%</p>
+        <div className="rounded-xl p-4 nz-soft">
+          <p className="text-xs uppercase tracking-wide nz-accent">Monthly completion</p>
+          <p className="mt-2 text-2xl font-bold nz-text">{insights.completionRate}%</p>
         </div>
       </div>
     </section>

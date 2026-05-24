@@ -6,6 +6,7 @@ import { CheckSquare, Moon, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
 import CalculatorModal from '@/components/ui/CalculatorModal'
+import { useSettingsStore } from '@/features/settings/store/settingsStore'
 
 const TABS = [
   { href: '/tasks',     icon: CheckSquare, label: 'Tasks'     },
@@ -16,6 +17,7 @@ const TABS = [
 
 export default function TabsLayout({ children }: { children: React.ReactNode }) {
   useTheme()
+  const { calculatorEnabled } = useSettingsStore()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
 
@@ -86,7 +88,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
         </nav>
       </div>
 
-      <CalculatorModal />
+      {calculatorEnabled && <CalculatorModal />}
 
       <style>{`
         .bottom-nav {

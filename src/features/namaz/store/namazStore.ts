@@ -49,6 +49,6 @@ export const useNamazStore = create<NamazState>()(
         settings: { ...state.settings, ...s },
       })),
     }),
-    { name: 'amar-zone-namaz' }
+    { name: 'selfsync-namaz' }
   )
 )

@@ -1,14 +1,14 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.amarzone.app',
-  appName: 'Amar Zone',
+  appId: 'com.selfsync.app',
+  appName: 'SelfSync',
   webDir: 'out',
   server: { androidScheme: 'https' },
   plugins: {
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
-      iconColor: '#6366f1',
+      iconColor: '#63f18b',
     },
   },
 };

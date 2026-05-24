@@ -23,14 +23,14 @@ export default function InsightsView() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3 mb-2">
-        <label htmlFor="month-picker" className="font-medium text-emerald-900 text-sm">মাস নির্বাচন করুন:</label>
+      <div className="mb-2 flex items-center gap-3 rounded-2xl p-3 nz-card sm:w-fit">
+        <label htmlFor="month-picker" className="text-sm font-medium nz-text">মাস নির্বাচন করুন:</label>
         <input
           id="month-picker"
           type="month"
           value={selectedMonth}
           onChange={e => setSelectedMonth(e.target.value)}
-          className="border rounded px-2 py-1 text-emerald-900"
+          className="rounded-lg px-3 py-2 text-sm nz-control"
           style={{ maxWidth: 160 }}
         />
       </div>

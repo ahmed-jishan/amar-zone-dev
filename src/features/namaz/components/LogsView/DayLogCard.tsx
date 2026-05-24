@@ -38,18 +38,18 @@ export default function DayLogCard({ date, getPrayerStatus, onPrayerUpdate }: Pr
   const isToday = date.toDateString() === new Date().toDateString();
 
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-emerald-100">
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-3 border-b border-emerald-100">
-        <h3 className="font-semibold text-emerald-900 flex items-center gap-2">
+    <div className="rounded-2xl nz-card">
+      <div className="px-5 py-3 border-b nz-divider nz-soft">
+        <h3 className="font-semibold nz-text flex items-center gap-2">
           <span>{isToday ? '🌟 আজকের' : ''} দিনের নামাজের বিস্তারিত</span>
         </h3>
       </div>
-      <div className="divide-y divide-emerald-50">
+      <div className="divide-y nz-divider">
         {prayerOrder.map((prayer) => (
-          <div key={prayer} className="flex justify-between items-center p-4 hover:bg-emerald-50/30 transition">
+          <div key={prayer} className="flex justify-between items-center p-4 hover:bg-emerald-100/10 transition">
             <div>
-              <p className="font-medium text-emerald-900">{prayerNamesBn[prayer]}</p>
-              <p className="text-xs text-emerald-500">
+              <p className="font-medium nz-text">{prayerNamesBn[prayer]}</p>
+              <p className="text-xs nz-muted">
                 {getPrayerStatus(dateKey, prayer) !== 'pending' ? 'মার্ক করা হয়েছে' : 'মার্ক করা হয়নি'}
               </p>
             </div>

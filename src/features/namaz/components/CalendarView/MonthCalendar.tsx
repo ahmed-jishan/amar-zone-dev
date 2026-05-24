@@ -71,12 +71,12 @@ export default function MonthCalendar({ currentDate, logs, onDayClick }: MonthCa
   const weekdays = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি'];
 
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-emerald-100 p-4 shadow-sm overflow-x-auto">
+    <div className="rounded-2xl p-4 shadow-sm overflow-x-auto nz-card">
       <div className="min-w-[280px]">
         {/* Weekday headers */}
         <div className="grid grid-cols-7 gap-1 mb-2 text-center">
           {weekdays.map((day, idx) => (
-            <div key={idx} className="text-xs font-medium text-emerald-600 py-2">
+            <div key={idx} className="text-xs font-medium nz-muted py-2">
               {day}
             </div>
           ))}
@@ -98,12 +98,12 @@ export default function MonthCalendar({ currentDate, logs, onDayClick }: MonthCa
                 onClick={() => onDayClick(day.date!)}
                 className={`
                   aspect-square p-1 rounded-xl transition-all duration-200
-                  hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300
+                  hover:bg-emerald-100/10 focus:outline-none focus:ring-2 focus:ring-emerald-300
                   flex flex-col items-center justify-center
                   ${isToday ? 'ring-2 ring-emerald-400 ring-offset-1' : ''}
                 `}
               >
-                <span className={`text-sm font-medium ${isToday ? 'text-emerald-800 font-bold' : 'text-gray-700'}`}>
+                <span className={`text-sm font-medium ${isToday ? 'nz-text font-bold' : 'nz-muted'}`}>
                   {day.date.getDate()}
                 </span>
                 <div className={`w-2 h-2 rounded-full mt-1 ${config.dot}`} />
@@ -114,11 +114,11 @@ export default function MonthCalendar({ currentDate, logs, onDayClick }: MonthCa
       </div>
       
       {/* Legend */}
-      <div className="flex justify-center gap-4 mt-4 pt-2 border-t border-emerald-100 text-xs">
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div><span className="text-emerald-700">সম্পূর্ণ</span></div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div><span className="text-amber-700">আংশিক</span></div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div><span className="text-rose-700">বেশিরভাগ কাজা</span></div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div><span className="text-slate-600">ডেটা নেই</span></div>
+      <div className="flex justify-center gap-4 mt-4 pt-2 border-t nz-divider text-xs">
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div><span className="nz-muted">সম্পূর্ণ</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div><span className="nz-muted">আংশিক</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div><span className="nz-muted">বেশিরভাগ কাজা</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div><span className="nz-muted">ডেটা নেই</span></div>
       </div>
     </div>
   );

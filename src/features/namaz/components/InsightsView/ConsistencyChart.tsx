@@ -18,18 +18,18 @@ function Tooltip({ text }: { text: string }) {
         bottom: 'calc(100% + 6px)',
         left: '50%',
         transform: 'translateX(-50%)',
-        background: 'rgba(255,255,255,0.97)',
+        background: 'var(--nz-surface-strong)',
         backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(6,87,66,0.12)',
+        border: '1px solid var(--nz-border)',
         borderRadius: 8,
         padding: '4px 9px',
         fontSize: 11,
         fontWeight: 500,
-        color: '#065742',
+        color: 'var(--nz-text)',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
         zIndex: 20,
-        boxShadow: '0 4px 12px rgba(5,150,105,0.10)',
+        boxShadow: 'var(--nz-shadow-soft)',
       }}
     >
       {text}
@@ -73,26 +73,27 @@ export default function ConsistencyChart({ logs }: { logs: Record<string, DailyP
   const consistencyData = useMemo(() => generateConsistencyChartData(logs), [logs]);
 
   const maxPct = weekData.length ? Math.max(...weekData.map((week) => week.pct), 1) : 100;
-  const barColor = (pct: number) => pct >= 80 ? '#059669' : pct >= 60 ? '#3cb88a' : pct >= 40 ? '#9fdec4' : '#d1fae5';
+  const barColor = (pct: number) =>
+    pct >= 80 ? 'var(--nz-accent-strong)' : pct >= 60 ? 'var(--nz-accent)' : pct >= 40 ? 'rgba(84,185,165,0.42)' : 'var(--nz-accent-soft)';
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 12 }}>
       <div
         style={{
-          background: 'rgba(255,255,255,0.72)',
+          background: 'var(--nz-card)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(16,185,129,0.12)',
+          border: '1px solid var(--nz-border)',
           borderRadius: 18,
           padding: '18px 18px 14px',
-          boxShadow: '0 2px 16px rgba(5,150,105,0.06)',
+          boxShadow: 'var(--nz-shadow-soft)',
         }}
       >
-        <p style={{ fontSize: 11, fontWeight: 600, color: '#4b7a66', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--nz-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>
           সাপ্তাহিক ধারাবাহিকতা
         </p>
 
         {weekData.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', padding: '24px 0' }}>পর্যাপ্ত ডেটা নেই</p>
+          <p style={{ fontSize: 13, color: 'var(--nz-muted)', textAlign: 'center', padding: '24px 0' }}>পর্যাপ্ত ডেটা নেই</p>
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 130 }}>
@@ -105,7 +106,7 @@ export default function ConsistencyChart({ logs }: { logs: Record<string, DailyP
                     onMouseEnter={() => setHoveredWeek(index)}
                     onMouseLeave={() => setHoveredWeek(null)}
                   >
-                    <span style={{ fontSize: 10, fontWeight: 600, color: '#4b7a66', opacity: hoveredWeek === index ? 1 : 0.6 }}>{week.pct}%</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--nz-muted)', opacity: hoveredWeek === index ? 1 : 0.6 }}>{week.pct}%</span>
                     <div
                       style={{
                         position: 'relative',
@@ -123,10 +124,10 @@ export default function ConsistencyChart({ logs }: { logs: Record<string, DailyP
                 );
               })}
             </div>
-            <div style={{ height: 1, background: 'rgba(6,87,66,0.08)', margin: '4px 0 5px' }} />
+            <div style={{ height: 1, background: 'var(--nz-border)', margin: '4px 0 5px' }} />
             <div style={{ display: 'flex', gap: 6 }}>
               {weekData.map((week) => (
-                <div key={week.weekStart} style={{ flex: 1, textAlign: 'center', fontSize: 9, color: '#9ca3af' }}>{week.label}</div>
+                <div key={week.weekStart} style={{ flex: 1, textAlign: 'center', fontSize: 9, color: 'var(--nz-muted)' }}>{week.label}</div>
               ))}
             </div>
           </>
@@ -135,23 +136,23 @@ export default function ConsistencyChart({ logs }: { logs: Record<string, DailyP
 
       <div
         style={{
-          background: 'rgba(255,255,255,0.72)',
+          background: 'var(--nz-card)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(16,185,129,0.12)',
+          border: '1px solid var(--nz-border)',
           borderRadius: 18,
           padding: '18px 18px 14px',
-          boxShadow: '0 2px 16px rgba(5,150,105,0.06)',
+          boxShadow: 'var(--nz-shadow-soft)',
         }}
       >
-        <p style={{ fontSize: 11, fontWeight: 600, color: '#4b7a66', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--nz-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12 }}>
           ওয়াক্তভিত্তিক সময়মত আদায়
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {consistencyData.map((point) => (
             <div key={point.prayer}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#065742' }}>{point.label}</span>
-                <span style={{ fontSize: 11, color: '#6b8f7a' }}>{point.percentage}%</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--nz-text)' }}>{point.label}</span>
+                <span style={{ fontSize: 11, color: 'var(--nz-muted)' }}>{point.percentage}%</span>
               </div>
               <div
                 style={{
@@ -159,8 +160,8 @@ export default function ConsistencyChart({ logs }: { logs: Record<string, DailyP
                   height: 9,
                   borderRadius: 99,
                   overflow: 'hidden',
-                  background: 'rgba(6,87,66,0.07)',
-                  border: '1px solid rgba(6,87,66,0.08)'
+                  background: 'var(--nz-accent-softer)',
+                  border: '1px solid var(--nz-border)'
                 }}
               >
                 <div
@@ -168,7 +169,7 @@ export default function ConsistencyChart({ logs }: { logs: Record<string, DailyP
                     width: `${point.percentage}%`,
                     height: '100%',
                     borderRadius: 99,
-                    background: point.percentage >= 80 ? '#059669' : point.percentage >= 50 ? '#3cb88a' : '#f59e0b',
+                    background: point.percentage >= 80 ? 'var(--nz-accent-strong)' : point.percentage >= 50 ? 'var(--nz-accent)' : 'var(--nz-gold)',
                     transition: 'width 0.3s ease',
                   }}
                 />

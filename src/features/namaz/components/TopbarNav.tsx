@@ -27,23 +27,49 @@ export type ActiveTab =
 interface TopbarNavProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
+  language: 'bn' | 'en';
 }
 
-const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { id: 'logs', label: 'Logs', icon: <ListChecks size={18} /> },
-  { id: 'calendar', label: 'Calendar', icon: <CalendarDays size={18} /> },
-  { id: 'qibla', label: 'Qibla', icon: <Compass size={18} /> },
-  { id: 'tasbih', label: 'Tasbih', icon: <Sparkles size={18} /> },
-  { id: 'dua', label: 'Duas', icon: <BookOpen size={18} /> },
-  { id: 'quran', label: 'Quran', icon: <Library size={18} /> },
-  { id: 'insights', label: 'Insights', icon: <TrendingUp size={18} /> },
-  { id: 'preferences', label: 'Prefs', icon: <Settings2 size={18} /> },
+const tabs: { id: ActiveTab; labelKey: ActiveTab; icon: React.ReactNode }[] = [
+  { id: 'dashboard', labelKey: 'dashboard', icon: <LayoutDashboard size={18} /> },
+  { id: 'logs', labelKey: 'logs', icon: <ListChecks size={18} /> },
+  { id: 'calendar', labelKey: 'calendar', icon: <CalendarDays size={18} /> },
+  { id: 'qibla', labelKey: 'qibla', icon: <Compass size={18} /> },
+  { id: 'tasbih', labelKey: 'tasbih', icon: <Sparkles size={18} /> },
+  { id: 'dua', labelKey: 'dua', icon: <BookOpen size={18} /> },
+  { id: 'quran', labelKey: 'quran', icon: <Library size={18} /> },
+  { id: 'insights', labelKey: 'insights', icon: <TrendingUp size={18} /> },
+  { id: 'preferences', labelKey: 'preferences', icon: <Settings2 size={18} /> },
 ];
 
-export default function TopbarNav({ activeTab, onTabChange }: TopbarNavProps) {
+const TAB_LABELS: Record<'bn' | 'en', Record<ActiveTab, string>> = {
+  bn: {
+    dashboard: 'ড্যাশবোর্ড',
+    logs: 'লগস',
+    calendar: 'ক্যালেন্ডার',
+    qibla: 'কিবলা',
+    tasbih: 'তাসবিহ',
+    dua: 'দোয়া',
+    quran: 'কুরআন',
+    insights: 'ইনসাইটস',
+    preferences: 'পছন্দ',
+  },
+  en: {
+    dashboard: 'Dashboard',
+    logs: 'Logs',
+    calendar: 'Calendar',
+    qibla: 'Qibla',
+    tasbih: 'Tasbih',
+    dua: 'Duas',
+    quran: 'Quran',
+    insights: 'Insights',
+    preferences: 'Prefs',
+  },
+};
+
+export default function TopbarNav({ activeTab, onTabChange, language }: TopbarNavProps) {
   return (
-    <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-sm border border-emerald-100/50 p-1">
+    <div className="rounded-2xl p-1 nz-surface">
       <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
         {tabs.map((tab) => (
           <button
@@ -52,13 +78,13 @@ export default function TopbarNav({ activeTab, onTabChange }: TopbarNavProps) {
             className={`
               flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
               ${activeTab === tab.id 
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
-                : 'text-emerald-800 hover:bg-emerald-100/60 hover:text-emerald-900'
+                ? 'nz-primary' 
+                : 'nz-nav-idle nz-text'
               }
             `}
           >
             {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="hidden sm:inline">{TAB_LABELS[language][tab.labelKey]}</span>
           </button>
         ))}
       </div>

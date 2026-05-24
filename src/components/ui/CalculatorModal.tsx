@@ -134,7 +134,7 @@ const useCalculatorStore = create<CalculatorStore>()(
       memoryClear: () => set({ memory: 0 }),
     }),
     {
-      name: "amar-zone-calculator-v2",
+      name: "selfsync-calculator-v2",
       partialize: (state) => ({
         position: state.position,
         history: state.history,

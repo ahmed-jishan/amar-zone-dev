@@ -38,10 +38,10 @@ export default function LocationPicker() {
   };
 
   return (
-    <section className="bg-white/70 border border-emerald-100 rounded-2xl p-5 space-y-4">
+    <section className="rounded-2xl p-5 space-y-4 nz-card">
       <div>
-        <h3 className="text-lg font-semibold text-emerald-950">Location</h3>
-        <p className="text-sm text-emerald-700">Prayer times are calculated from your saved coordinates.</p>
+        <h3 className="text-lg font-semibold nz-text">Location</h3>
+        <p className="text-sm nz-muted">Prayer times are calculated from your saved coordinates.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -49,12 +49,12 @@ export default function LocationPicker() {
           value={city}
           onChange={(event) => setCity(event.target.value)}
           placeholder="City name"
-          className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-emerald-950 outline-none focus:ring-2 focus:ring-emerald-200"
+          className="rounded-xl px-3 py-2 outline-none nz-control"
         />
         <button
           type="button"
           onClick={saveManual}
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-xl px-4 py-2 text-sm font-semibold nz-primary"
         >
           Save
         </button>
@@ -63,13 +63,13 @@ export default function LocationPicker() {
       <button
         type="button"
         onClick={detectLocation}
-        className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800"
+        className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold nz-control"
       >
         <MapPin size={16} />
         Auto-detect location
       </button>
 
-      <div className="text-xs text-emerald-700">
+      <div className="text-xs nz-muted">
         {autoDetectLocation ? 'Auto detection enabled' : 'Manual mode'} · {location.latitude.toFixed(4)},{' '}
         {location.longitude.toFixed(4)}
       </div>

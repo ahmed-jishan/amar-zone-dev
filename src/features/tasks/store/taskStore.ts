@@ -83,6 +83,6 @@ export const useTaskStore = create<TaskState>()(
         );
       },
     }),
-    { name: 'amar-zone-tasks' }
+    { name: 'selfsync-tasks' }
   )
 );
