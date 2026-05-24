@@ -133,11 +133,25 @@ export const useMoneyStore = create<MoneyState>()(
         }),
 
       updateTransaction: (id, updates) =>
-        set((s) => ({
-          transactions: s.transactions.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
-          ),
-        })),
+        set((s) => {
+          const previous = s.transactions.find((t) => t.id === id)
+          if (!previous) return s
+          const next = { ...previous, ...updates }
+          const previousWalletId = previous.walletId || s.selectedWalletId || 'default'
+          const nextWalletId = next.walletId || s.selectedWalletId || 'default'
+          const reversePrevious = previous.type === 'income' ? -previous.amount : previous.amount
+          const applyNext = next.type === 'income' ? next.amount : -next.amount
+          const wallets = s.wallets.map((w) => {
+            let balance = w.balance
+            if (w.id === previousWalletId) balance += reversePrevious
+            if (w.id === nextWalletId) balance += applyNext
+            return balance === w.balance ? w : { ...w, balance }
+          })
+          return {
+            transactions: s.transactions.map((t) => (t.id === id ? next : t)),
+            wallets,
+          }
+        }),
 
       deleteTransaction: (id) =>
         set((s) => {

@@ -4,7 +4,7 @@ import { CATEGORY_META } from '../constants'
 import { formatCurrency } from '../utils'
 import type { Transaction } from '@/lib/types'
 
-export default function TransactionsTab({ t, monthTxns, searchQuery, filterType, currency_symbol, language, onSearch, onFilter, onDelete }: any) {
+export default function TransactionsTab({ t, monthTxns, searchQuery, filterType, currency_symbol, language, onSearch, onFilter, onDelete, onEdit }: any) {
   return (
     <div className="space-y-4 animate-[mon-slide-up_400ms_ease-out]">
       <div className="flex items-center gap-2">
@@ -58,6 +58,9 @@ export default function TransactionsTab({ t, monthTxns, searchQuery, filterType,
                     {isIncome ? '+' : '-'}{formatCurrency(txn.amount, currency_symbol)}
                   </p>
                 </div>
+                <button onClick={() => onEdit(txn)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--mon-text-3)] hover:text-[var(--mon-gold)] hover:bg-[var(--mon-gold-bg)] transition-all" aria-label="Edit transaction">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-9.5a2.1 2.1 0 113 3L12 15l-4 1 1-4 8.5-8.5z" /></svg>
+                </button>
                 <button onClick={() => onDelete(txn.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--mon-text-3)] hover:text-[var(--mon-expense)] hover:bg-[var(--mon-expense-bg)] transition-all">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>

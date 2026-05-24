@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useMoneyStore } from '../store/moneyStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
@@ -14,7 +15,9 @@ import AddSubscriptionModal from './AddSubscriptionModal'
 import AddTransactionModal from './AddTransactionModal'
 import AnalyticsTab from './AnalyticsTab'
 import BudgetTab from './BudgetTab'
+import BudgetCoach from './BudgetCoach'
 import CashflowForecast from './CashflowForecast'
+import DailyBrief from './DailyBrief'
 import EditLoanModal from './EditLoanModal'
 import GoalsTab from './GoalsTab'
 import LoanEntryModal from './LoanEntryModal'
@@ -29,6 +32,7 @@ import WalletToolsModal from './WalletToolsModal'
 export default function MoneyPage() {
   const [tab, setTab] = useState<'overview' | 'transactions' | 'loans' | 'analytics' | 'budget' | 'goals'>('overview')
   const [showAddTxn, setShowAddTxn] = useState(false)
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null)
   const [showLoanModal, setShowLoanModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
@@ -42,15 +46,18 @@ export default function MoneyPage() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month')
 
   const { language, currency_symbol } = useSettingsStore()
+  const router = useRouter()
   const t = TRANSLATIONS[language] || TRANSLATIONS.en
 
   const store = useMoneyStore()
   const addTask = useTaskStore((s) => s.addTask)
+  const tasks = useTaskStore((s) => s.tasks)
   const { transactions, loans, budgets, savingsGoals, wallets, insights } = store
 
   const month = getCurrentMonth()
   const summary = store.getMonthSummary(month)
   const spendingByCategory = store.getCategoryBreakdown(month)
+  const currentBudget = store.getBudgetForMonth(month)
 
   const activeLoans = loans.filter((l) => !l.settled)
   const completedLoans = loans.filter((l) => l.settled)
@@ -110,6 +117,21 @@ export default function MoneyPage() {
       dueDate,
       timeEstimate: 15,
       tags: ['money', 'goal'],
+    })
+  }, [addTask])
+
+  const createBudgetTask = useCallback((title: string, dueDate?: string) => {
+    addTask({
+      title,
+      description: 'Budget coaching task from Money tab',
+      priority: 'medium',
+      category: 'finance',
+      status: 'today',
+      completed: false,
+      recurring: 'none',
+      dueDate: dueDate || new Date().toISOString().split('T')[0],
+      timeEstimate: 15,
+      tags: ['money', 'budget'],
     })
   }, [addTask])
 
@@ -207,6 +229,17 @@ export default function MoneyPage() {
           onOpenTools={() => setShowWalletTools(true)}
         />
 
+        <DailyBrief
+          tasks={tasks}
+          transactions={transactions}
+          budget={currentBudget}
+          subscriptions={store.subscriptions}
+          loans={loans}
+          month={month}
+          currencySymbol={currency_symbol}
+          onOpenTasks={() => router.push('/tasks')}
+        />
+
         {/* TABS */}
         <div className="sticky top-0 z-20 mb-4 flex gap-0 overflow-x-auto pb-1" style={{ borderBottom: '1px solid var(--mon-border)' }}>
           {(['overview', 'transactions', 'loans', 'analytics', 'budget', 'goals'] as const).map((tabKey) => (
@@ -240,6 +273,13 @@ export default function MoneyPage() {
               month={month}
               currencySymbol={currency_symbol}
             />
+            <BudgetCoach
+              budget={currentBudget}
+              transactions={transactions}
+              month={month}
+              currencySymbol={currency_symbol}
+              onCreateTask={createBudgetTask}
+            />
             <SubscriptionsPanel
               subscriptions={store.subscriptions}
               currencySymbol={currency_symbol}
@@ -268,6 +308,7 @@ export default function MoneyPage() {
             currency_symbol={currency_symbol} language={language}
             onSearch={setSearchQuery} onFilter={setFilterType}
             onDelete={store.deleteTransaction}
+            onEdit={setEditingTxn}
           />
         )}
 
@@ -307,6 +348,7 @@ export default function MoneyPage() {
 
       {/* MODALS */}
       {showAddTxn && <AddTransactionModal onClose={() => setShowAddTxn(false)} onAdd={store.addTransaction} translations={t} currencySymbol={currency_symbol} />}
+      {editingTxn && <AddTransactionModal onClose={() => setEditingTxn(null)} onAdd={(updates: Partial<Transaction>) => store.updateTransaction(editingTxn.id, updates)} translations={t} currencySymbol={currency_symbol} wallets={wallets} selectedWalletId={store.selectedWalletId} transaction={editingTxn} />}
       {showLoanModal && <AddLoanModal onClose={() => setShowLoanModal(false)} onAdd={store.addLoan} translations={t} currencySymbol={currency_symbol} />}
       {showGoalModal && <AddGoalModal onClose={() => setShowGoalModal(false)} onAdd={store.addSavingsGoal} translations={t} currencySymbol={currency_symbol} />}
       {showSubscriptionModal && <AddSubscriptionModal onClose={() => setShowSubscriptionModal(false)} onAdd={store.addSubscription} currencySymbol={currency_symbol} />}

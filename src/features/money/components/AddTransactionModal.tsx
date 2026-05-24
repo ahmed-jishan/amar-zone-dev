@@ -2,14 +2,19 @@
 
 import { useState } from 'react'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_META } from '../constants'
-import type { TransactionType } from '@/lib/types'
+import type { ExpenseCategory, IncomeCategory, Transaction, TransactionType, Wallet } from '@/lib/types'
 
-export default function AddTransactionModal({ onClose, onAdd, translations: t, currencySymbol }: any) {
-  const [type, setType] = useState<TransactionType>('expense')
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('food')
-  const [note, setNote] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+type TransactionCategory = ExpenseCategory | IncomeCategory
+
+export default function AddTransactionModal({ onClose, onAdd, translations: t, currencySymbol, wallets = [], selectedWalletId, transaction }: any) {
+  const editing = !!transaction
+  const initialTransaction = transaction as Transaction | undefined
+  const [type, setType] = useState<TransactionType>(initialTransaction?.type || 'expense')
+  const [amount, setAmount] = useState(initialTransaction?.amount ? String(initialTransaction.amount) : '')
+  const [category, setCategory] = useState<TransactionCategory>(initialTransaction?.category || 'food')
+  const [note, setNote] = useState(initialTransaction?.note || '')
+  const [date, setDate] = useState(initialTransaction?.date || new Date().toISOString().split('T')[0])
+  const [walletId, setWalletId] = useState(initialTransaction?.walletId || selectedWalletId || wallets[0]?.id || 'default')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,7 +26,7 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
       note: note || undefined,
       date,
       isRecurring: false,
-      walletId: 'default',
+      walletId,
     })
     onClose()
   }
@@ -47,7 +52,7 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--mon-border)' }}>
-          <h3 className="text-[16px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{t.addTransaction}</h3>
+          <h3 className="text-[16px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{editing ? 'Edit Transaction' : t.addTransaction}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-[var(--mon-text-3)] hover:text-[var(--mon-text-1)] hover:bg-[var(--mon-surface-hover)] transition-all">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -75,7 +80,7 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
                   key={preset.label}
                   type="button"
                   onClick={() => {
-                    setCategory(preset.category);
+                    setCategory(preset.category as TransactionCategory);
                     setNote((current) => current || preset.note);
                     if (preset.amount) setAmount(preset.amount);
                   }}
@@ -136,11 +141,27 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
             </div>
           </div>
 
+          {wallets.length > 0 && (
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1.5" style={{ color: 'var(--mon-text-3)' }}>{t.wallet}</label>
+              <select
+                value={walletId}
+                onChange={(e) => setWalletId(e.target.value)}
+                className="w-full px-3 py-2 rounded-[var(--mon-radius-lg)] text-[14px] outline-none"
+                style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', color: 'var(--mon-text-1)' }}
+              >
+                {wallets.map((wallet: Wallet) => (
+                  <option key={wallet.id} value={wallet.id}>{wallet.icon} {wallet.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button type="submit" disabled={!amount}
             className="w-full py-3 rounded-[var(--mon-radius-xl)] text-[15px] font-bold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'linear-gradient(135deg, var(--mon-gold), var(--mon-gold-2))', boxShadow: '0 4px 20px var(--mon-gold-glow)' }}
           >
-            {t.save}
+            {editing ? 'Save Changes' : t.save}
           </button>
         </form>
       </div>
