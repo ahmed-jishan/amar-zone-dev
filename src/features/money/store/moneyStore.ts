@@ -62,6 +62,8 @@ interface MoneyState {
   updateWallet: (id: string, updates: Partial<Wallet>) => void
   deleteWallet: (id: string) => void
   setDefaultWallet: (id: string) => void
+  transferWalletBalance: (fromWalletId: string, toWalletId: string, amount: number) => void
+  reconcileWalletBalance: (walletId: string, balance: number) => void
 
   // ── Actions: Subscriptions ──
   addSubscription: (s: Omit<Subscription, 'id'>) => void
@@ -330,6 +332,23 @@ export const useMoneyStore = create<MoneyState>()(
       setDefaultWallet: (id) =>
         set((s) => ({
           wallets: s.wallets.map((w) => ({ ...w, isDefault: w.id === id })),
+        })),
+
+      transferWalletBalance: (fromWalletId, toWalletId, amount) =>
+        set((s) => {
+          if (fromWalletId === toWalletId || amount <= 0) return s
+          return {
+            wallets: s.wallets.map((w) => {
+              if (w.id === fromWalletId) return { ...w, balance: w.balance - amount }
+              if (w.id === toWalletId) return { ...w, balance: w.balance + amount }
+              return w
+            }),
+          }
+        }),
+
+      reconcileWalletBalance: (walletId, balance) =>
+        set((s) => ({
+          wallets: s.wallets.map((w) => (w.id === walletId ? { ...w, balance } : w)),
         })),
 
       // ── Subscriptions ──

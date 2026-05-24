@@ -27,6 +27,18 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
   }
 
   const cats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
+  const presets = type === 'income'
+    ? [
+        { label: 'Salary', amount: '0', category: 'salary', note: 'Salary' },
+        { label: 'Freelance', amount: '0', category: 'freelance', note: 'Freelance payment' },
+        { label: 'Gift', amount: '0', category: 'gift', note: 'Gift' },
+      ]
+    : [
+        { label: 'Food 120', amount: '120', category: 'food', note: 'Food' },
+        { label: 'Transport 40', amount: '40', category: 'transport', note: 'Transport' },
+        { label: 'Snacks 30', amount: '30', category: 'food', note: 'Snacks' },
+        { label: 'Bill', amount: '', category: 'utilities', note: 'Bill payment' },
+      ]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
@@ -52,6 +64,28 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
                 {(t as any)[tType + '_type']}
               </button>
             ))}
+          </div>
+
+          {/* Quick Presets */}
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1.5" style={{ color: 'var(--mon-text-3)' }}>Quick add</label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {presets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setCategory(preset.category);
+                    setNote((current) => current || preset.note);
+                    if (preset.amount) setAmount(preset.amount);
+                  }}
+                  className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all active:scale-95"
+                  style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', color: 'var(--mon-text-2)' }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Amount */}

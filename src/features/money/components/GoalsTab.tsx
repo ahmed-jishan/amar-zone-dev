@@ -6,7 +6,7 @@ import { getDaysLeft, formatCurrency } from '../utils';
 import type { SavingsGoal } from '@/lib/types';
 import ContributeModal from './ContributeModal';
 
-export default function GoalsTab({ goals, currency_symbol, language, t, onAdd, onContribute, onDelete }: any) {
+export default function GoalsTab({ goals, currency_symbol, language, t, onAdd, onContribute, onDelete, onCreateTask }: any) {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
 
@@ -78,13 +78,22 @@ export default function GoalsTab({ goals, currency_symbol, language, t, onAdd, o
 
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold" style={{ color: 'var(--mon-text-2)' }}>{Math.round(pct)}% {t.goalProgress}</span>
-                  <button
-                    onClick={() => handleOpenModal(goal)}
-                    className="px-3 py-1.5 rounded-[var(--mon-radius-md)] text-[12px] font-semibold transition-all active:scale-[0.97]"
-                    style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)', border: '1px solid var(--mon-gold-glow)' }}
-                  >
-                    + Add
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => onCreateTask?.(goal.title, goal.deadline)}
+                      className="px-3 py-1.5 rounded-[var(--mon-radius-md)] text-[12px] font-semibold transition-all active:scale-[0.97]"
+                      style={{ background: 'var(--mon-surface-2)', color: 'var(--mon-text-2)', border: '1px solid var(--mon-border)' }}
+                    >
+                      Task
+                    </button>
+                    <button
+                      onClick={() => handleOpenModal(goal)}
+                      className="px-3 py-1.5 rounded-[var(--mon-radius-md)] text-[12px] font-semibold transition-all active:scale-[0.97]"
+                      style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)', border: '1px solid var(--mon-gold-glow)' }}
+                    >
+                      + Add
+                    </button>
+                  </div>
                 </div>
               </div>
             )

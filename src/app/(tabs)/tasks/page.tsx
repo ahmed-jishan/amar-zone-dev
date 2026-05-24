@@ -5,6 +5,8 @@ import TaskHeader from './components/TaskList/TaskHeader';
 import QuickAdd from './components/QuickAdd/QuickAdd';
 import TaskFilters from './components/TaskFilters/TaskFilters';
 import FocusCard from './components/FocusCard/FocusCard';
+import TodayPlan from './components/TodayPlan/TodayPlan';
+import WeeklyReview from './components/WeeklyReview/WeeklyReview';
 import TaskList from './components/TaskList/TaskList';
 import TaskDetailsModal from './components/TaskDetailsModal/TaskDetailsModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
@@ -22,6 +24,8 @@ import './tasks.css';
 export default function TasksPage() {
   const tasks = useTaskStore((s) => s.tasks);
   const toggleTask = useTaskStore((s) => s.toggleTask);
+  const updateTask = useTaskStore((s) => s.updateTask);
+  const archiveTask = useTaskStore((s) => s.archiveTask);
   const reorderTasks = useTaskStore((s) => s.reorderTasks);
   const searchQuery = useTaskStore((s) => s.searchQuery);
   const sortMode = useTaskStore((s) => s.sortMode);
@@ -109,6 +113,19 @@ export default function TasksPage() {
           onPause={pauseFocus}
           onResume={resumeFocus}
           onStop={stopFocus}
+        />
+
+        <TodayPlan
+          tasks={tasks}
+          onFocus={startFocus}
+          onOpenDetails={setDetailsTask}
+          onShowToday={() => setFilter('today')}
+        />
+
+        <WeeklyReview
+          tasks={tasks}
+          onCarryForward={(task) => updateTask(task.id, { status: 'today', dueDate: new Date().toISOString().split('T')[0] })}
+          onArchive={(task) => archiveTask(task.id)}
         />
 
         {/* Quick Add */}

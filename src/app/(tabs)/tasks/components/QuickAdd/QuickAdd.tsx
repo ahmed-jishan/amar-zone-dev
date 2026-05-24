@@ -6,6 +6,61 @@ import { useTaskStore } from '@/lib/store/taskStore';
 import { PRIORITIES } from '../../constants/priorities';
 import { CATEGORIES } from '../../constants/categories';
 
+function addDays(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+}
+
+function parseNaturalTaskInput(rawTitle: string) {
+  let title = rawTitle;
+  const parsed: Partial<Pick<CreateTaskInput, 'priority' | 'category' | 'dueDate' | 'timeEstimate' | 'tags'>> = {};
+
+  const tagMatches = Array.from(title.matchAll(/#([\w-]+)/g)).map((match) => match[1]);
+  if (tagMatches.length) {
+    parsed.tags = tagMatches;
+    title = title.replace(/#([\w-]+)/g, ' ');
+  }
+
+  const estimateMatch = title.match(/\b(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)\b/i);
+  if (estimateMatch) {
+    const amount = Number(estimateMatch[1]);
+    const unit = estimateMatch[2].toLowerCase();
+    parsed.timeEstimate = unit.startsWith('h') ? Math.round(amount * 60) : Math.round(amount);
+    title = title.replace(estimateMatch[0], ' ');
+  }
+
+  const lowerTitle = title.toLowerCase();
+  if (/\btomorrow\b/.test(lowerTitle)) {
+    parsed.dueDate = addDays(1);
+    title = title.replace(/\btomorrow\b/ig, ' ');
+  } else if (/\btoday\b/.test(lowerTitle)) {
+    parsed.dueDate = addDays(0);
+    title = title.replace(/\btoday\b/ig, ' ');
+  }
+
+  (['critical', 'high', 'medium', 'low'] as const).forEach((item) => {
+    const pattern = new RegExp(`\\b${item}\\b`, 'i');
+    if (!parsed.priority && pattern.test(title)) {
+      parsed.priority = item;
+      title = title.replace(pattern, ' ');
+    }
+  });
+
+  Object.entries(CATEGORIES).forEach(([key, item]) => {
+    const pattern = new RegExp(`\\b(${key}|${item.label})\\b`, 'i');
+    if (!parsed.category && pattern.test(title)) {
+      parsed.category = key as TaskCategory;
+      title = title.replace(pattern, ' ');
+    }
+  });
+
+  return {
+    title: title.replace(/\s+/g, ' ').trim() || rawTitle.trim(),
+    parsed,
+  };
+}
+
 export default function QuickAdd() {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -41,16 +96,25 @@ export default function QuickAdd() {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const natural = parseNaturalTaskInput(title.trim());
+    const finalDueDate = dueDate || natural.parsed.dueDate;
+    const finalPriority = natural.parsed.priority || priority;
+    const finalCategory = natural.parsed.category || category;
+    const finalTimeEstimate = timeEstimate ? parseInt(timeEstimate) : natural.parsed.timeEstimate;
+    const finalTags = tags
+      ? tags.split(',').map((t) => t.trim()).filter(Boolean)
+      : natural.parsed.tags;
+
     const input: CreateTaskInput = {
-      title: title.trim(),
-      priority,
-      category,
-      status: dueDate && dueDate <= new Date().toISOString().split('T')[0] ? 'today' : 'inbox',
+      title: natural.title,
+      priority: finalPriority,
+      category: finalCategory,
+      status: finalDueDate && finalDueDate <= new Date().toISOString().split('T')[0] ? 'today' : 'inbox',
       completed: false,
       recurring: 'none',
-      dueDate: dueDate || undefined,
-      timeEstimate: timeEstimate ? parseInt(timeEstimate) : undefined,
-      tags: tags ? tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
+      dueDate: finalDueDate || undefined,
+      timeEstimate: finalTimeEstimate,
+      tags: finalTags,
     };
 
     addTask(input);
@@ -93,7 +157,7 @@ export default function QuickAdd() {
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="What needs to be done?"
+          placeholder="What needs to be done? Try: Pay bill tomorrow #finance high 15m"
           className="w-full bg-transparent text-[16px] font-semibold text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none mb-3"
         />
 

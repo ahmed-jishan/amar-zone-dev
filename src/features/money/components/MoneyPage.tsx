@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useMoneyStore } from '../store/moneyStore'
+import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { CATEGORY_META, TRANSLATIONS } from '../constants'
 import { formatCurrency, getCurrentMonth, getMonthName, getWeekData, getHealthScore } from '../utils'
@@ -9,22 +10,29 @@ import type { Transaction, Loan } from '@/lib/types'
 import '../money.css'
 import AddGoalModal from './AddGoalModal'
 import AddLoanModal from './AddLoanModal'
+import AddSubscriptionModal from './AddSubscriptionModal'
 import AddTransactionModal from './AddTransactionModal'
 import AnalyticsTab from './AnalyticsTab'
 import BudgetTab from './BudgetTab'
+import CashflowForecast from './CashflowForecast'
 import EditLoanModal from './EditLoanModal'
 import GoalsTab from './GoalsTab'
 import LoanEntryModal from './LoanEntryModal'
 import LoanHistoryModal from './LoanHistoryModal'
 import LoansTab from './LoansTab'
 import OverviewTab from './OverviewTab'
+import SubscriptionsPanel from './SubscriptionsPanel'
 import TransactionsTab from './TransactionsTab'
+import WalletStrip from './WalletStrip'
+import WalletToolsModal from './WalletToolsModal'
 
 export default function MoneyPage() {
   const [tab, setTab] = useState<'overview' | 'transactions' | 'loans' | 'analytics' | 'budget' | 'goals'>('overview')
   const [showAddTxn, setShowAddTxn] = useState(false)
   const [showLoanModal, setShowLoanModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
+  const [showWalletTools, setShowWalletTools] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState<{ loan: Loan; type: 'repay' | 'add' } | null>(null)
   const [showEditModal, setShowEditModal] = useState<Loan | null>(null)
@@ -37,6 +45,7 @@ export default function MoneyPage() {
   const t = TRANSLATIONS[language] || TRANSLATIONS.en
 
   const store = useMoneyStore()
+  const addTask = useTaskStore((s) => s.addTask)
   const { transactions, loans, budgets, savingsGoals, wallets, insights } = store
 
   const month = getCurrentMonth()
@@ -73,6 +82,36 @@ export default function MoneyPage() {
   }, [summary, savingsGoals])
 
   useEffect(() => { store.generateInsights() }, [])
+
+  const createSubscriptionTask = useCallback((subscription: typeof store.subscriptions[number]) => {
+    addTask({
+      title: `Pay ${subscription.name}`,
+      description: `${subscription.billingCycle} bill · ${formatCurrency(subscription.amount, currency_symbol)}`,
+      priority: 'high',
+      category: 'finance',
+      status: subscription.nextBillingDate <= new Date().toISOString().split('T')[0] ? 'today' : 'upcoming',
+      completed: false,
+      recurring: 'none',
+      dueDate: subscription.nextBillingDate,
+      timeEstimate: 10,
+      tags: ['money', 'bill'],
+    })
+  }, [addTask, currency_symbol])
+
+  const createGoalTask = useCallback((goalTitle: string, dueDate?: string) => {
+    addTask({
+      title: `Save for ${goalTitle}`,
+      description: 'Savings goal from Money tab',
+      priority: 'medium',
+      category: 'finance',
+      status: dueDate && dueDate <= new Date().toISOString().split('T')[0] ? 'today' : 'upcoming',
+      completed: false,
+      recurring: 'none',
+      dueDate,
+      timeEstimate: 15,
+      tags: ['money', 'goal'],
+    })
+  }, [addTask])
 
   return (
     <div className="min-h-[100dvh] bg-[var(--mon-bg)] text-[var(--mon-text-1)]">
@@ -160,6 +199,14 @@ export default function MoneyPage() {
           </div>
         </div>
 
+        <WalletStrip
+          wallets={wallets}
+          selectedWalletId={store.selectedWalletId}
+          currencySymbol={currency_symbol}
+          onSelect={store.setSelectedWallet}
+          onOpenTools={() => setShowWalletTools(true)}
+        />
+
         {/* TABS */}
         <div className="sticky top-0 z-20 mb-4 flex gap-0 overflow-x-auto pb-1" style={{ borderBottom: '1px solid var(--mon-border)' }}>
           {(['overview', 'transactions', 'loans', 'analytics', 'budget', 'goals'] as const).map((tabKey) => (
@@ -182,15 +229,36 @@ export default function MoneyPage() {
 
         {/* OVERVIEW */}
         {tab === 'overview' && (
-          <OverviewTab
-            t={t} weekData={weekData} maxWeekVal={maxWeekVal} spendingByCategory={spendingByCategory}
-            summary={summary} healthScore={healthScore} insights={insights}
-            activeLoans={activeLoans} completedLoans={completedLoans}
-            totalLoanGiven={totalLoanGiven} totalLoanTaken={totalLoanTaken}
-            monthTxns={monthTxns} currency_symbol={currency_symbol} language={language}
-            onDismissInsight={store.dismissInsight} onSetTab={setTab}
-            onDeleteTxn={store.deleteTransaction}
-          />
+          <div className="space-y-5">
+            <CashflowForecast
+              transactions={transactions}
+              loans={loans}
+              budgets={budgets}
+              savingsGoals={savingsGoals}
+              subscriptions={store.subscriptions}
+              wallets={wallets}
+              month={month}
+              currencySymbol={currency_symbol}
+            />
+            <SubscriptionsPanel
+              subscriptions={store.subscriptions}
+              currencySymbol={currency_symbol}
+              onAdd={() => setShowSubscriptionModal(true)}
+              onPause={store.pauseSubscription}
+              onResume={store.resumeSubscription}
+              onDelete={store.deleteSubscription}
+              onCreateTask={createSubscriptionTask}
+            />
+            <OverviewTab
+              t={t} weekData={weekData} maxWeekVal={maxWeekVal} spendingByCategory={spendingByCategory}
+              summary={summary} healthScore={healthScore} insights={insights}
+              activeLoans={activeLoans} completedLoans={completedLoans}
+              totalLoanGiven={totalLoanGiven} totalLoanTaken={totalLoanTaken}
+              monthTxns={monthTxns} currency_symbol={currency_symbol} language={language}
+              onDismissInsight={store.dismissInsight} onSetTab={setTab}
+              onDeleteTxn={store.deleteTransaction}
+            />
+          </div>
         )}
 
         {/* TRANSACTIONS */}
@@ -232,7 +300,8 @@ export default function MoneyPage() {
         {/* GOALS */}
         {tab === 'goals' && (
           <GoalsTab goals={savingsGoals} currency_symbol={currency_symbol} language={language} t={t}
-            onAdd={() => setShowGoalModal(true)} onContribute={store.contributeToGoal} onDelete={store.deleteSavingsGoal} />
+            onAdd={() => setShowGoalModal(true)} onContribute={store.contributeToGoal} onDelete={store.deleteSavingsGoal}
+            onCreateTask={createGoalTask} />
         )}
       </div>
 
@@ -240,6 +309,8 @@ export default function MoneyPage() {
       {showAddTxn && <AddTransactionModal onClose={() => setShowAddTxn(false)} onAdd={store.addTransaction} translations={t} currencySymbol={currency_symbol} />}
       {showLoanModal && <AddLoanModal onClose={() => setShowLoanModal(false)} onAdd={store.addLoan} translations={t} currencySymbol={currency_symbol} />}
       {showGoalModal && <AddGoalModal onClose={() => setShowGoalModal(false)} onAdd={store.addSavingsGoal} translations={t} currencySymbol={currency_symbol} />}
+      {showSubscriptionModal && <AddSubscriptionModal onClose={() => setShowSubscriptionModal(false)} onAdd={store.addSubscription} currencySymbol={currency_symbol} />}
+      {showWalletTools && <WalletToolsModal wallets={wallets} selectedWalletId={store.selectedWalletId} onClose={() => setShowWalletTools(false)} onTransfer={store.transferWalletBalance} onReconcile={store.reconcileWalletBalance} onAddWallet={store.addWallet} currencySymbol={currency_symbol} />}
       {showHistoryModal && selectedLoan && <LoanHistoryModal loan={selectedLoan} onClose={() => setShowHistoryModal(false)} translations={t} currencySymbol={currency_symbol} />}
       {showPaymentModal && <LoanEntryModal loan={showPaymentModal.loan} type={showPaymentModal.type} onClose={() => setShowPaymentModal(null)} onSubmit={store.addLoanEntry} translations={t} currencySymbol={currency_symbol} />}
       {showEditModal && <EditLoanModal loan={showEditModal} onClose={() => setShowEditModal(null)} onSave={store.updateLoan} translations={t} />}

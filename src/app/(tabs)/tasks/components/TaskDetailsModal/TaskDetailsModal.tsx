@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Task, Subtask } from '../../types';
+import { Task, Subtask, TaskReminder } from '../../types';
 import { useTaskStore } from '@/lib/store/taskStore';
 import { PRIORITIES } from '../../constants/priorities';
 import { CATEGORIES } from '../../constants/categories';
@@ -30,8 +30,12 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
   const [notes, setNotes] = useState(task.notes || '');
   const [tags, setTags] = useState(task.tags?.join(', ') || '');
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks || []);
+  const [reminders, setReminders] = useState<TaskReminder[]>(task.reminders || []);
   const [newSubtask, setNewSubtask] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'sessions' | 'notes'>('details');
+  const [reminderDate, setReminderDate] = useState(task.dueDate || '');
+  const [reminderTime, setReminderTime] = useState('09:00');
+  const [reminderMessage, setReminderMessage] = useState('');
+  const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'reminders' | 'sessions' | 'notes'>('details');
 
   const syncSubtasks = useCallback((nextSubtasks: Subtask[]) => {
     setSubtasks(nextSubtasks);
@@ -88,6 +92,30 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
     syncSubtasks(subtasks.filter((s) => s.id !== id));
   };
 
+  const syncReminders = useCallback((nextReminders: TaskReminder[]) => {
+    setReminders(nextReminders);
+    updateTask(task.id, { reminders: nextReminders });
+  }, [task.id, updateTask]);
+
+  const addTaskReminder = () => {
+    if (!reminderDate || !reminderTime) return;
+    const nextReminders = [
+      ...reminders,
+      {
+        id: generateId(),
+        remindAt: new Date(`${reminderDate}T${reminderTime}:00`).toISOString(),
+        message: reminderMessage.trim() || undefined,
+        triggered: false,
+      },
+    ];
+    syncReminders(nextReminders);
+    setReminderMessage('');
+  };
+
+  const removeTaskReminder = (id: string) => {
+    syncReminders(reminders.filter((reminder) => reminder.id !== id));
+  };
+
   const pri = PRIORITIES[priority];
   const cat = CATEGORIES[category];
   const totalSessionTime = task.sessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
@@ -125,7 +153,7 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
 
         {/* Tabs */}
         <div className="flex items-center gap-0 px-5 border-b border-[var(--az-border)]">
-          {(['details', 'subtasks', 'sessions', 'notes'] as const).map((tab) => (
+          {(['details', 'subtasks', 'reminders', 'sessions', 'notes'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -437,6 +465,101 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
                 {task.sessions.length === 0 && (
                   <div className="text-center py-8 text-[14px] text-[var(--az-text-3)]">
                     No focus sessions recorded yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'reminders' && (
+            <div className="space-y-4 animate-[az-fade-in_200ms_ease-out]">
+              <div className="rounded-[var(--az-radius-lg)] border border-[var(--az-border)] bg-[var(--az-surface-2)] p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--az-text-3)]">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
+                      className="w-full rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-1)] px-3 py-2 text-[13px] text-[var(--az-text-1)] outline-none transition-all focus:border-[var(--az-accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--az-text-3)]">
+                      Time
+                    </label>
+                    <input
+                      type="time"
+                      value={reminderTime}
+                      onChange={(e) => setReminderTime(e.target.value)}
+                      className="w-full rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-1)] px-3 py-2 text-[13px] text-[var(--az-text-1)] outline-none transition-all focus:border-[var(--az-accent)]"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--az-text-3)]">
+                    Message
+                  </label>
+                  <input
+                    value={reminderMessage}
+                    onChange={(e) => setReminderMessage(e.target.value)}
+                    placeholder="Optional reminder note..."
+                    className="w-full rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-1)] px-3 py-2 text-[13px] text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none transition-all focus:border-[var(--az-accent)]"
+                  />
+                </div>
+                <button
+                  onClick={addTaskReminder}
+                  disabled={!reminderDate || !reminderTime}
+                  className="mt-3 w-full rounded-[var(--az-radius-md)] bg-[var(--az-accent)] px-3 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--az-accent-2)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Add Reminder
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {reminders
+                  .slice()
+                  .sort((a, b) => new Date(a.remindAt).getTime() - new Date(b.remindAt).getTime())
+                  .map((reminder) => (
+                    <div
+                      key={reminder.id}
+                      className="flex items-start gap-3 rounded-[var(--az-radius-lg)] border border-[var(--az-border)] bg-[var(--az-surface-2)] px-3 py-2.5"
+                    >
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-[var(--az-accent-border)] bg-[var(--az-accent-bg)]">
+                        <svg className="h-4 w-4 text-[var(--az-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+                          <path d="M9 17a3 3 0 006 0" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-[var(--az-text-1)]">
+                          {new Date(reminder.remindAt).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-[var(--az-text-3)]">
+                          {reminder.message || 'Task reminder'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeTaskReminder(reminder.id)}
+                        className="rounded-md p-1 text-[var(--az-text-3)] transition-colors hover:bg-[var(--az-danger-bg)] hover:text-[var(--az-danger)]"
+                        aria-label="Remove reminder"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                {reminders.length === 0 && (
+                  <div className="py-8 text-center text-[14px] text-[var(--az-text-3)]">
+                    No reminders yet. Add one above.
                   </div>
                 )}
               </div>
