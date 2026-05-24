@@ -66,6 +66,7 @@ export interface TaskState {
   // ── Premium: Reminders ──
   addReminder: (taskId: string, reminder: Omit<TaskReminder, 'id' | 'triggered'>) => void;
   removeReminder: (taskId: string, reminderId: string) => void;
+  markReminderTriggered: (taskId: string, reminderId: string) => void;
 
   // ── Premium: Dependencies ──
   canComplete: (taskId: string) => boolean;
@@ -388,6 +389,21 @@ export const useTaskStore = create<TaskState>()(
           tasks: state.tasks.map((t) =>
             t.id === taskId
               ? { ...t, reminders: t.reminders.filter((r) => r.id !== reminderId), updatedAt: new Date().toISOString() }
+              : t
+          ),
+        })),
+
+      markReminderTriggered: (taskId, reminderId) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  reminders: t.reminders.map((r) =>
+                    r.id === reminderId ? { ...r, triggered: true } : r
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
               : t
           ),
         })),

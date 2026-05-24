@@ -6,6 +6,7 @@ import { CheckSquare, Moon, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
 import CalculatorModal from '@/components/ui/CalculatorModal'
+import NotificationCenter from '@/components/ui/NotificationCenter'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 
 const TABS = [
@@ -89,6 +90,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {calculatorEnabled && <CalculatorModal />}
+      <NotificationCenter />
 
       <style>{`
         .bottom-nav {

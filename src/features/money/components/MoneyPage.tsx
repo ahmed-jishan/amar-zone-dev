@@ -26,6 +26,7 @@ import LoansTab from './LoansTab'
 import OverviewTab from './OverviewTab'
 import SubscriptionsPanel from './SubscriptionsPanel'
 import TransactionsTab from './TransactionsTab'
+import UpcomingMoneyTimeline from './UpcomingMoneyTimeline'
 import WalletStrip from './WalletStrip'
 import WalletToolsModal from './WalletToolsModal'
 
@@ -272,6 +273,15 @@ export default function MoneyPage() {
               wallets={wallets}
               month={month}
               currencySymbol={currency_symbol}
+            />
+            <UpcomingMoneyTimeline
+              transactions={transactions}
+              subscriptions={store.subscriptions}
+              wallets={wallets}
+              selectedWalletId={store.selectedWalletId}
+              currencySymbol={currency_symbol}
+              onPostTransaction={store.addTransaction}
+              onUpdateSubscription={store.updateSubscription}
             />
             <BudgetCoach
               budget={currentBudget}

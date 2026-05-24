@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { Loan, MonthlyBudget, SavingsGoal, Subscription, Transaction, Wallet } from '@/lib/types';
+import { getRecurringOccurrences } from '../recurring';
 import { formatCurrency } from '../utils';
 
 interface Props {
@@ -67,6 +68,14 @@ export default function CashflowForecast({
       .filter((subscription) => subscription.status === 'active' && isInMonth(subscription.nextBillingDate, month))
       .filter((subscription) => parseLocalDate(subscription.nextBillingDate) >= todayStart);
     const upcomingSubscriptionTotal = upcomingSubscriptions.reduce((sum, subscription) => sum + subscription.amount, 0);
+    const upcomingRecurring = getRecurringOccurrences(transactions, todayStart, daysLeft)
+      .filter((occurrence) => occurrence.date.startsWith(month));
+    const recurringIncome = upcomingRecurring
+      .filter((occurrence) => occurrence.source.type === 'income')
+      .reduce((sum, occurrence) => sum + occurrence.source.amount, 0);
+    const recurringExpense = upcomingRecurring
+      .filter((occurrence) => occurrence.source.type === 'expense')
+      .reduce((sum, occurrence) => sum + occurrence.source.amount, 0);
 
     const activeLoans = loans.filter((loan) => !loan.settled && loan.currentBalance > 0);
     const dueLoans = activeLoans.filter((loan) => isInMonth(loan.dueDate, month) && loan.dueDate && parseLocalDate(loan.dueDate) >= todayStart);
@@ -80,9 +89,11 @@ export default function CashflowForecast({
     const projectedEndBalance =
       currentBalance +
       expectedRemainingIncome +
+      recurringIncome +
       loanIn -
       projectedDailySpend -
       upcomingSubscriptionTotal -
+      recurringExpense -
       loanOut -
       goalPressure;
 
@@ -96,6 +107,8 @@ export default function CashflowForecast({
       projectedDailySpend,
       upcomingSubscriptionTotal,
       upcomingSubscriptionCount: upcomingSubscriptions.length,
+      recurringIncome,
+      recurringExpense,
       loanIn,
       loanOut,
       goalPressure,
@@ -144,12 +157,14 @@ export default function CashflowForecast({
       <div className="space-y-2">
         <ForecastRow label="Current wallet balance" value={forecast.currentBalance} currencySymbol={currencySymbol} positive />
         <ForecastRow label="Expected income left" value={forecast.expectedRemainingIncome} currencySymbol={currencySymbol} positive />
+        <ForecastRow label="Recurring income" value={forecast.recurringIncome} currencySymbol={currencySymbol} positive />
         <ForecastRow label="Projected daily spend" value={forecast.projectedDailySpend} currencySymbol={currencySymbol} />
         <ForecastRow
           label={`Subscriptions (${forecast.upcomingSubscriptionCount})`}
           value={forecast.upcomingSubscriptionTotal}
           currencySymbol={currencySymbol}
         />
+        <ForecastRow label="Recurring expenses" value={forecast.recurringExpense} currencySymbol={currencySymbol} />
         <ForecastRow label="Loan money expected" value={forecast.loanIn} currencySymbol={currencySymbol} positive />
         <ForecastRow label="Loan payments due" value={forecast.loanOut} currencySymbol={currencySymbol} />
         <ForecastRow label="Goal pressure" value={forecast.goalPressure} currencySymbol={currencySymbol} />

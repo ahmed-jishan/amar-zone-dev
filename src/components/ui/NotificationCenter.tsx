@@ -1,0 +1,287 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Bell, BellRing, CheckCircle2, X } from 'lucide-react'
+import { CATEGORY_META, EXPENSE_CATEGORIES } from '@/features/money/constants'
+import { getRecurringOccurrences } from '@/features/money/recurring'
+import { useMoneyStore } from '@/features/money/store/moneyStore'
+import { formatCurrency, getCurrentMonth } from '@/features/money/utils'
+import { useSettingsStore } from '@/features/settings/store/settingsStore'
+import { useTaskStore } from '@/lib/store/taskStore'
+
+type AlertSeverity = 'low' | 'medium' | 'high'
+type AlertKind = 'task' | 'subscription' | 'loan' | 'budget' | 'goal' | 'recurring'
+
+type AppAlert = {
+  id: string
+  kind: AlertKind
+  title: string
+  body: string
+  severity: AlertSeverity
+}
+
+const FIRED_KEY = 'selfsync-fired-alerts-v1'
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+const daysUntil = (dateString?: string) => {
+  if (!dateString) return Number.POSITIVE_INFINITY
+  return Math.ceil((startOfDay(new Date(dateString)).getTime() - startOfDay(new Date()).getTime()) / DAY_MS)
+}
+
+const readFiredAlerts = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(window.localStorage.getItem(FIRED_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+const markAlertFired = (id: string) => {
+  const today = new Date().toISOString().slice(0, 10)
+  const fired = readFiredAlerts()
+  window.localStorage.setItem(FIRED_KEY, JSON.stringify({ ...fired, [id]: today }))
+}
+
+export default function NotificationCenter() {
+  const tasks = useTaskStore((s) => s.tasks)
+  const markReminderTriggered = useTaskStore((s) => s.markReminderTriggered)
+  const transactions = useMoneyStore((s) => s.transactions)
+  const loans = useMoneyStore((s) => s.loans)
+  const budgets = useMoneyStore((s) => s.budgets)
+  const savingsGoals = useMoneyStore((s) => s.savingsGoals)
+  const subscriptions = useMoneyStore((s) => s.subscriptions)
+  const getCategoryBreakdown = useMoneyStore((s) => s.getCategoryBreakdown)
+  const { currency_symbol, notificationsEnabled, update } = useSettingsStore()
+  const [open, setOpen] = useState(false)
+  const [permission, setPermission] = useState<NotificationPermission>('default')
+
+  useEffect(() => {
+    setPermission('Notification' in window ? Notification.permission : 'denied')
+  }, [])
+
+  const alerts = useMemo<AppAlert[]>(() => {
+    const now = Date.now()
+    const month = getCurrentMonth()
+    const currentBudget = budgets.find((budget) => budget.month === month)
+    const categorySpend = getCategoryBreakdown(month)
+    const taskAlerts = tasks
+      .filter((task) => !task.completed && task.status !== 'archived')
+      .flatMap((task) =>
+        task.reminders
+          .filter((reminder) => !reminder.triggered && new Date(reminder.remindAt).getTime() <= now)
+          .map((reminder) => ({
+            id: `task-${task.id}-${reminder.id}`,
+            kind: 'task' as const,
+            title: task.title,
+            body: reminder.message || 'Task reminder is due now.',
+            severity: task.priority === 'critical' || task.priority === 'high' ? 'high' as const : 'medium' as const,
+          }))
+      )
+
+    const subscriptionAlerts = subscriptions
+      .filter((sub) => sub.status === 'active')
+      .map((sub) => ({ sub, days: daysUntil(sub.nextBillingDate) }))
+      .filter(({ days }) => days <= 3)
+      .map(({ sub, days }) => ({
+        id: `subscription-${sub.id}-${sub.nextBillingDate}`,
+        kind: 'subscription' as const,
+        title: `${sub.name} bill ${days < 0 ? 'overdue' : days === 0 ? 'due today' : `due in ${days} days`}`,
+        body: `${formatCurrency(sub.amount, currency_symbol)} upcoming ${sub.billingCycle} payment.`,
+        severity: days <= 0 ? 'high' as const : 'medium' as const,
+      }))
+
+    const recurringAlerts = getRecurringOccurrences(transactions, new Date(), 3).map((occurrence) => ({
+      id: occurrence.id,
+      kind: 'recurring' as const,
+      title: `${occurrence.source.note || occurrence.source.category} ${occurrence.source.type === 'income' ? 'income' : 'expense'} upcoming`,
+      body: `${formatCurrency(occurrence.source.amount, currency_symbol)} scheduled on ${occurrence.date}.`,
+      severity: 'medium' as const,
+    }))
+
+    const loanAlerts = loans
+      .filter((loan) => !loan.settled && loan.reminderEnabled && loan.dueDate)
+      .map((loan) => ({ loan, days: daysUntil(loan.dueDate) }))
+      .filter(({ days }) => days <= 3)
+      .map(({ loan, days }) => ({
+        id: `loan-${loan.id}-${loan.dueDate}`,
+        kind: 'loan' as const,
+        title: `${loan.personName} loan ${days < 0 ? 'overdue' : days === 0 ? 'due today' : `due in ${days} days`}`,
+        body: `${formatCurrency(loan.currentBalance, currency_symbol)} remaining balance.`,
+        severity: days <= 0 ? 'high' as const : 'medium' as const,
+      }))
+
+    const goalAlerts = savingsGoals
+      .filter((goal) => goal.deadline && goal.currentAmount < goal.targetAmount)
+      .map((goal) => ({ goal, days: daysUntil(goal.deadline) }))
+      .filter(({ days }) => days <= 7)
+      .map(({ goal, days }) => ({
+        id: `goal-${goal.id}-${goal.deadline}`,
+        kind: 'goal' as const,
+        title: `${goal.title} deadline ${days < 0 ? 'passed' : days === 0 ? 'today' : `in ${days} days`}`,
+        body: `${formatCurrency(goal.targetAmount - goal.currentAmount, currency_symbol)} still needed.`,
+        severity: days <= 1 ? 'high' as const : 'medium' as const,
+      }))
+
+    const budgetAlerts = currentBudget
+      ? EXPENSE_CATEGORIES.map((category) => {
+          const limit = currentBudget.budgets[category] || 0
+          const spent = categorySpend[category] || 0
+          const ratio = limit > 0 ? spent / limit : 0
+          return { category, limit, spent, ratio }
+        })
+          .filter((row) => row.limit > 0 && row.ratio >= 0.8)
+          .map((row) => {
+            const label = CATEGORY_META[row.category]?.labelEn || row.category
+            return {
+              id: `budget-${month}-${row.category}`,
+              kind: 'budget' as const,
+              title: `${label} budget ${row.ratio >= 1 ? 'exceeded' : 'near limit'}`,
+              body: `${formatCurrency(row.spent, currency_symbol)} of ${formatCurrency(row.limit, currency_symbol)} used.`,
+              severity: row.ratio >= 1 ? 'high' as const : 'medium' as const,
+            }
+          })
+      : []
+
+    return [...taskAlerts, ...subscriptionAlerts, ...recurringAlerts, ...loanAlerts, ...goalAlerts, ...budgetAlerts].slice(0, 12)
+  }, [budgets, currency_symbol, getCategoryBreakdown, loans, savingsGoals, subscriptions, tasks, transactions])
+
+  useEffect(() => {
+    if (!notificationsEnabled || permission !== 'granted') return
+    const now = Date.now()
+    tasks.forEach((task) => {
+      if (task.completed || task.status === 'archived') return
+      task.reminders.forEach((reminder) => {
+        if (reminder.triggered || new Date(reminder.remindAt).getTime() > now) return
+        new Notification(task.title, {
+          body: reminder.message || 'Task reminder is due now.',
+          tag: `task-${task.id}-${reminder.id}`,
+        })
+        markReminderTriggered(task.id, reminder.id)
+      })
+    })
+  }, [markReminderTriggered, notificationsEnabled, permission, tasks])
+
+  useEffect(() => {
+    if (!notificationsEnabled || permission !== 'granted') return
+    const today = new Date().toISOString().slice(0, 10)
+    const fired = readFiredAlerts()
+    alerts
+      .filter((alert) => alert.kind !== 'task' && alert.severity !== 'low')
+      .forEach((alert) => {
+        if (fired[alert.id] === today) return
+        new Notification(alert.title, { body: alert.body, tag: alert.id })
+        markAlertFired(alert.id)
+      })
+  }, [alerts, notificationsEnabled, permission])
+
+  const requestPermission = async () => {
+    if (!('Notification' in window)) return
+    const next = await Notification.requestPermission()
+    setPermission(next)
+    if (next === 'granted') update({ notificationsEnabled: true })
+  }
+
+  const severityClass = (severity: AlertSeverity) =>
+    severity === 'high'
+      ? 'border-red-500/35 bg-red-500/10 text-red-300'
+      : severity === 'medium'
+        ? 'border-amber-500/35 bg-amber-500/10 text-amber-300'
+        : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="fixed right-4 z-[80] flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(var(--border),0.65)] bg-[rgb(var(--bg))]/95 text-[rgb(var(--fg))] shadow-lg shadow-black/10 backdrop-blur-xl transition hover:border-indigo-400/50 hover:text-indigo-400"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+        aria-label="Open notifications"
+      >
+        {alerts.length ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+        {alerts.length > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {alerts.length}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="fixed right-4 z-[90] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
+          style={{ bottom: 'calc(8.75rem + env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex items-start justify-between border-b border-[rgba(var(--border),0.55)] p-4">
+            <div>
+              <p className="text-sm font-bold text-[rgb(var(--fg))]">Notification Center</p>
+              <p className="mt-0.5 text-xs text-[rgb(var(--muted))]">
+                Tasks, bills, loans, goals and budget signals.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-lg p-1.5 text-[rgb(var(--muted))] hover:bg-[rgba(var(--border),0.25)] hover:text-[rgb(var(--fg))]"
+              aria-label="Close notifications"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="max-h-[58vh] space-y-3 overflow-y-auto p-4">
+            {permission === 'default' && (
+              <button
+                type="button"
+                onClick={requestPermission}
+                className="flex w-full items-center justify-between rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-3 py-3 text-left text-sm font-semibold text-indigo-300"
+              >
+                Enable browser notifications
+                <Bell className="h-4 w-4" />
+              </button>
+            )}
+
+            {!notificationsEnabled && (
+              <button
+                type="button"
+                onClick={() => update({ notificationsEnabled: true })}
+                className="flex w-full items-center justify-between rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-3 text-left text-sm font-semibold text-amber-300"
+              >
+                App notifications are off
+                <AlertTriangle className="h-4 w-4" />
+              </button>
+            )}
+
+            {alerts.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-xl border border-[rgba(var(--border),0.55)] bg-[rgba(var(--border),0.14)] p-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                <div>
+                  <p className="text-sm font-semibold text-[rgb(var(--fg))]">All clear</p>
+                  <p className="text-xs text-[rgb(var(--muted))]">No urgent reminders right now.</p>
+                </div>
+              </div>
+            ) : (
+              alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="rounded-xl border border-[rgba(var(--border),0.55)] bg-[rgba(var(--border),0.12)] p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold leading-snug text-[rgb(var(--fg))]">{alert.title}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[rgb(var(--muted))]">{alert.body}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase ${severityClass(alert.severity)}`}>
+                      {alert.kind}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
