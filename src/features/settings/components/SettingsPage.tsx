@@ -1025,90 +1025,19 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
   }
 
   const checkDriveStatus = async () => {
-    try {
-      const res = await fetch('/api/drive/oauth/status')
-      const data = await res.json()
-      setDriveConnected(Boolean(data?.connected))
-    } catch {
-      setDriveConnected(false)
-    }
+    setDriveConnected(false)
   }
 
   const handleDriveConnect = async () => {
-    if (!driveReady || !clientId) return
-    setError('')
-    const codeClient = window.google.accounts.oauth2.initCodeClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.appdata',
-      ux_mode: 'popup',
-      prompt: 'consent',
-      callback: async (response: { code?: string }) => {
-        if (!response?.code) {
-          setError(t.backupDecryptError)
-          return
-        }
-        try {
-          const res = await fetch('/api/drive/oauth/exchange', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: response.code }),
-          })
-          if (!res.ok) throw new Error('exchange_failed')
-          await checkDriveStatus()
-        } catch {
-          setError(t.backupDecryptError)
-        }
-      },
-    })
-    codeClient.requestCode()
+    setError(t.driveMissing)
   }
 
   const handleDriveUpload = async () => {
-    setError('')
-    if (!driveConnected) {
-      setError(t.driveMissing)
-      return
-    }
-    if (!validatePassphrase()) return
-    setBusy(true)
-    try {
-      const payload = buildBackupPayload()
-      const encrypted = await encryptBackup(passphrase, payload)
-      const res = await fetch('/api/drive/backup/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encrypted }),
-      })
-      if (!res.ok) throw new Error('upload_failed')
-      onToast(t.backupMergeSuccess)
-    } catch {
-      setError(t.backupDecryptError)
-    } finally {
-      setBusy(false)
-    }
+    setError(t.driveMissing)
   }
 
   const handleDriveDownload = async () => {
-    setError('')
-    if (!driveConnected) {
-      setError(t.driveMissing)
-      return
-    }
-    if (!validatePassphrase()) return
-    setBusy(true)
-    try {
-      const res = await fetch('/api/drive/backup/download')
-      if (!res.ok) throw new Error('download_failed')
-      const data = await res.json()
-      const payload = await decryptBackup(passphrase, data.encrypted)
-      mergeBackupPayload(payload)
-      onToast(t.backupMergeSuccess)
-      setTimeout(() => window.location.reload(), 600)
-    } catch {
-      setError(t.backupDecryptError)
-    } finally {
-      setBusy(false)
-    }
+    setError(t.driveMissing)
   }
 
   return (
