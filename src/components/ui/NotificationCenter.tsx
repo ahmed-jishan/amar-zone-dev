@@ -54,7 +54,15 @@ export default function NotificationCenter() {
   const savingsGoals = useMoneyStore((s) => s.savingsGoals)
   const subscriptions = useMoneyStore((s) => s.subscriptions)
   const getCategoryBreakdown = useMoneyStore((s) => s.getCategoryBreakdown)
-  const { currency_symbol, notificationsEnabled, update } = useSettingsStore()
+  const {
+    currency_symbol,
+    notificationsEnabled,
+    notificationCategories,
+    quietHoursEnabled,
+    quietHoursStart,
+    quietHoursEnd,
+    update,
+  } = useSettingsStore()
   const [open, setOpen] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
 
@@ -67,7 +75,10 @@ export default function NotificationCenter() {
     const month = getCurrentMonth()
     const currentBudget = budgets.find((budget) => budget.month === month)
     const categorySpend = getCategoryBreakdown(month)
+    const tasksEnabled = notificationCategories.tasks
+    const moneyEnabled = notificationCategories.money
     const taskAlerts = tasks
+      .filter(() => tasksEnabled)
       .filter((task) => !task.completed && task.status !== 'archived')
       .flatMap((task) =>
         task.reminders
@@ -82,6 +93,7 @@ export default function NotificationCenter() {
       )
 
     const subscriptionAlerts = subscriptions
+      .filter(() => moneyEnabled)
       .filter((sub) => sub.status === 'active')
       .map((sub) => ({ sub, days: daysUntil(sub.nextBillingDate) }))
       .filter(({ days }) => days <= 3)
@@ -93,15 +105,18 @@ export default function NotificationCenter() {
         severity: days <= 0 ? 'high' as const : 'medium' as const,
       }))
 
-    const recurringAlerts = getRecurringOccurrences(transactions, new Date(), 3).map((occurrence) => ({
-      id: occurrence.id,
-      kind: 'recurring' as const,
-      title: `${occurrence.source.note || occurrence.source.category} ${occurrence.source.type === 'income' ? 'income' : 'expense'} upcoming`,
-      body: `${formatCurrency(occurrence.source.amount, currency_symbol)} scheduled on ${occurrence.date}.`,
-      severity: 'medium' as const,
-    }))
+    const recurringAlerts = moneyEnabled
+      ? getRecurringOccurrences(transactions, new Date(), 3).map((occurrence) => ({
+          id: occurrence.id,
+          kind: 'recurring' as const,
+          title: `${occurrence.source.note || occurrence.source.category} ${occurrence.source.type === 'income' ? 'income' : 'expense'} upcoming`,
+          body: `${formatCurrency(occurrence.source.amount, currency_symbol)} scheduled on ${occurrence.date}.`,
+          severity: 'medium' as const,
+        }))
+      : []
 
     const loanAlerts = loans
+      .filter(() => moneyEnabled)
       .filter((loan) => !loan.settled && loan.reminderEnabled && loan.dueDate)
       .map((loan) => ({ loan, days: daysUntil(loan.dueDate) }))
       .filter(({ days }) => days <= 3)
@@ -114,6 +129,7 @@ export default function NotificationCenter() {
       }))
 
     const goalAlerts = savingsGoals
+      .filter(() => moneyEnabled)
       .filter((goal) => goal.deadline && goal.currentAmount < goal.targetAmount)
       .map((goal) => ({ goal, days: daysUntil(goal.deadline) }))
       .filter(({ days }) => days <= 7)
@@ -125,7 +141,7 @@ export default function NotificationCenter() {
         severity: days <= 1 ? 'high' as const : 'medium' as const,
       }))
 
-    const budgetAlerts = currentBudget
+    const budgetAlerts = currentBudget && moneyEnabled
       ? EXPENSE_CATEGORIES.map((category) => {
           const limit = currentBudget.budgets[category] || 0
           const spent = categorySpend[category] || 0
@@ -146,10 +162,24 @@ export default function NotificationCenter() {
       : []
 
     return [...taskAlerts, ...subscriptionAlerts, ...recurringAlerts, ...loanAlerts, ...goalAlerts, ...budgetAlerts].slice(0, 12)
-  }, [budgets, currency_symbol, getCategoryBreakdown, loans, savingsGoals, subscriptions, tasks, transactions])
+  }, [budgets, currency_symbol, getCategoryBreakdown, loans, notificationCategories.money, notificationCategories.tasks, savingsGoals, subscriptions, tasks, transactions])
+
+  const isWithinQuietHours = (date: Date) => {
+    if (!quietHoursEnabled) return false
+    const [startH, startM] = quietHoursStart.split(':').map((v) => Number(v))
+    const [endH, endM] = quietHoursEnd.split(':').map((v) => Number(v))
+    if (Number.isNaN(startH) || Number.isNaN(startM) || Number.isNaN(endH) || Number.isNaN(endM)) return false
+    const start = new Date(date)
+    start.setHours(startH, startM, 0, 0)
+    const end = new Date(date)
+    end.setHours(endH, endM, 0, 0)
+    if (start.getTime() === end.getTime()) return true
+    if (start < end) return date >= start && date <= end
+    return date >= start || date <= end
+  }
 
   useEffect(() => {
-    if (!notificationsEnabled || permission !== 'granted') return
+    if (!notificationsEnabled || permission !== 'granted' || isWithinQuietHours(new Date()) || !notificationCategories.tasks) return
     const now = Date.now()
     tasks.forEach((task) => {
       if (task.completed || task.status === 'archived') return
@@ -162,10 +192,10 @@ export default function NotificationCenter() {
         markReminderTriggered(task.id, reminder.id)
       })
     })
-  }, [markReminderTriggered, notificationsEnabled, permission, tasks])
+  }, [markReminderTriggered, notificationCategories.tasks, notificationsEnabled, permission, quietHoursEnabled, quietHoursEnd, quietHoursStart, tasks])
 
   useEffect(() => {
-    if (!notificationsEnabled || permission !== 'granted') return
+    if (!notificationsEnabled || permission !== 'granted' || isWithinQuietHours(new Date()) || !notificationCategories.money) return
     const today = new Date().toISOString().slice(0, 10)
     const fired = readFiredAlerts()
     alerts
@@ -175,7 +205,7 @@ export default function NotificationCenter() {
         new Notification(alert.title, { body: alert.body, tag: alert.id })
         markAlertFired(alert.id)
       })
-  }, [alerts, notificationsEnabled, permission])
+  }, [alerts, notificationCategories.money, notificationsEnabled, permission, quietHoursEnabled, quietHoursEnd, quietHoursStart])
 
   const requestPermission = async () => {
     if (!('Notification' in window)) return
@@ -197,7 +227,7 @@ export default function NotificationCenter() {
         type="button"
         onClick={() => setOpen((value) => !value)}
         className="fixed right-4 z-[80] flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(var(--border),0.65)] bg-[rgb(var(--bg))]/95 text-[rgb(var(--fg))] shadow-lg shadow-black/10 backdrop-blur-xl transition hover:border-indigo-400/50 hover:text-indigo-400"
-        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom) + 4.5rem)' }}
         aria-label="Open notifications"
       >
         {alerts.length ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
@@ -211,7 +241,7 @@ export default function NotificationCenter() {
       {open && (
         <div
           className="fixed right-4 z-[90] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
-          style={{ bottom: 'calc(8.75rem + env(safe-area-inset-bottom))' }}
+          style={{ bottom: 'calc(8.75rem + env(safe-area-inset-bottom) + 4.5rem)' }}
         >
           <div className="flex items-start justify-between border-b border-[rgba(var(--border),0.55)] p-4">
             <div>

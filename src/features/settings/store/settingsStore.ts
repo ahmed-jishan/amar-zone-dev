@@ -15,6 +15,16 @@ export interface AppSettings {
   onboardingComplete: boolean
   notificationsEnabled: boolean
   calculatorEnabled: boolean
+  notificationCategories: {
+    tasks: boolean
+    money: boolean
+    prayer: boolean
+  }
+  quietHoursEnabled: boolean
+  quietHoursStart: string
+  quietHoursEnd: string
+  autoLockEnabled: boolean
+  autoLockMinutes: number
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -26,6 +36,16 @@ const DEFAULT_SETTINGS: AppSettings = {
   onboardingComplete: true,
   notificationsEnabled: true,
   calculatorEnabled: true,
+  notificationCategories: {
+    tasks: true,
+    money: true,
+    prayer: true,
+  },
+  quietHoursEnabled: false,
+  quietHoursStart: '22:00',
+  quietHoursEnd: '07:00',
+  autoLockEnabled: false,
+  autoLockMinutes: 10,
 }
 
 // Helper to apply theme to document root

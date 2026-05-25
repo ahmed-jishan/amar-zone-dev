@@ -1,13 +1,18 @@
 // src/app/(tabs)/settings/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Sun, Moon, Monitor, Globe, Lock, Download,
   Upload, Trash2, ChevronRight, Check, Shield,
   Info, Palette, Bell, Eye, EyeOff, X
 } from 'lucide-react'
 import { useSettingsStore, type Theme, type Language } from '@/features/settings/store/settingsStore'
+import { usePrefsStore } from '@/features/namaz/store/prefsStore'
+import { useNamazStore } from '@/features/namaz/store/namazStore'
+import { useTaskStore } from '@/lib/store/taskStore'
+import { useMoneyStore } from '@/features/money/store/moneyStore'
+import { NAMAZ_STORAGE_KEYS } from '@/features/namaz/constants/storageKeys'
 
 // ==================== Translations ====================
 const translations = {
@@ -27,17 +32,31 @@ const translations = {
     bdtLabel: '৳ BDT',
     usdLabel: '$ USD',
     notifications: 'নোটিফিকেশন',
+    appNotifications: 'অ্যাপ নোটিফিকেশন',
+    appNotificationsSub: 'টাস্ক ও মানি অ্যালার্ট দেখাবে',
     namazReminder: 'নামাজের রিমাইন্ডার',
     namazSub: 'সময় হলে জানাবে',
+    taskAlerts: 'টাস্ক রিমাইন্ডার',
+    taskAlertsSub: 'ডেডলাইন হলে জানাবে',
+    moneyAlerts: 'মানি অ্যালার্ট',
+    moneyAlertsSub: 'বাজেট, লোন, সাবস্ক্রিপশন',
+    quietHours: 'কুইয়েট আওয়ার্স',
+    quietHoursSub: 'এই সময়ে নোটিফিকেশন নীরব থাকবে',
+    quietStart: 'শুরু',
+    quietEnd: 'শেষ',
     calculatorToggle: 'ফ্লোটিং ক্যালকুলেটর',
     calculatorSub: 'স্ক্রিনে ক্যালকুলেটর আইকন দেখাবে',
     security: 'নিরাপত্তা',
     pinLock: 'PIN লক',
     pinActive: 'সক্রিয় আছে ✓',
     pinInactive: 'নিষ্ক্রিয়',
+    autoLock: 'অটো লক',
+    autoLockSub: 'নির্দিষ্ট সময় নিষ্ক্রিয় থাকলে লক হবে',
     dataManage: 'ডেটা ব্যবস্থাপনা',
     backup: 'ব্যাকআপ করুন',
     backupSub: 'JSON ফাইলে সংরক্ষণ করুন',
+    exportCsv: 'CSV এক্সপোর্ট',
+    exportCsvSub: 'টাস্ক ও মানি ডেটা বের করুন',
     restore: 'ডেটা পুনরুদ্ধার করুন',
     restoreSub: 'JSON ফাইল থেকে লোড করুন',
     clearData: 'সব ডেটা মুছুন',
@@ -45,9 +64,14 @@ const translations = {
     about: 'অ্যাপ সম্পর্কে',
     version: 'সংস্করণ ১.০.০ · লোকাল-ফার্স্ট',
     storageUsed: 'স্টোরেজ ব্যবহার',
+    dataSummary: 'ডেটা সারাংশ',
     localNote: 'সমস্ত ডেটা শুধু আপনার ডিভাইসে সংরক্ষিত। কোনো সার্ভারে পাঠানো হয় না।',
     backupTitle: 'ব্যাকআপ করুন',
     backupBody: 'সমস্ত ডেটা একটি JSON ফাইলে সংরক্ষিত হবে।',
+    backupIncludes: 'যা যা সংরক্ষিত হবে',
+    exportTitle: 'CSV এক্সপোর্ট',
+    exportTasks: 'টাস্ক CSV ডাউনলোড',
+    exportMoney: 'মানি CSV ডাউনলোড',
     backupConfirm: 'ডাউনলোড করুন',
     restoreTitle: 'ডেটা পুনরুদ্ধার করুন',
     restoreBody: 'ব্যাকআপ JSON ফাইল নির্বাচন করুন',
@@ -74,6 +98,7 @@ const translations = {
     toastDataCleared: 'সব ডেটা মুছে ফেলা হয়েছে',
     toastRestore: 'ডেটা পুনরুদ্ধার হয়েছে। রিফ্রেশ করুন।',
     toastRestoreError: 'ফাইল পড়তে সমস্যা হয়েছে',
+    toastNotifBlocked: 'ব্রাউজার নোটিফিকেশন অনুমতি দেয়নি',
   },
   en: {
     customize: 'Customize',
@@ -91,17 +116,31 @@ const translations = {
     bdtLabel: '৳ BDT',
     usdLabel: '$ USD',
     notifications: 'Notifications',
+    appNotifications: 'App notifications',
+    appNotificationsSub: 'Task & money alerts',
     namazReminder: 'Prayer Reminders',
     namazSub: 'Notify at prayer times',
+    taskAlerts: 'Task reminders',
+    taskAlertsSub: 'Notify when tasks are due',
+    moneyAlerts: 'Money alerts',
+    moneyAlertsSub: 'Budget, loans, subscriptions',
+    quietHours: 'Quiet hours',
+    quietHoursSub: 'Silence notifications during this window',
+    quietStart: 'Start',
+    quietEnd: 'End',
     calculatorToggle: 'Floating Calculator',
     calculatorSub: 'Show calculator icon on screen',
     security: 'Security',
     pinLock: 'PIN Lock',
     pinActive: 'Active ✓',
     pinInactive: 'Disabled',
+    autoLock: 'Auto lock',
+    autoLockSub: 'Lock after inactivity',
     dataManage: 'Data Management',
     backup: 'Backup',
     backupSub: 'Save to JSON file',
+    exportCsv: 'Export CSV',
+    exportCsvSub: 'Download tasks & money data',
     restore: 'Restore Data',
     restoreSub: 'Load from JSON file',
     clearData: 'Clear All Data',
@@ -109,9 +148,14 @@ const translations = {
     about: 'About',
     version: 'Version 1.0.0 · Local-first',
     storageUsed: 'Storage used',
+    dataSummary: 'Data summary',
     localNote: 'All data is stored only on your device. No data is sent to any server.',
     backupTitle: 'Backup',
     backupBody: 'All data will be saved as a JSON file.',
+    backupIncludes: 'What will be included',
+    exportTitle: 'Export CSV',
+    exportTasks: 'Download tasks CSV',
+    exportMoney: 'Download money CSV',
     backupConfirm: 'Download',
     restoreTitle: 'Restore Data',
     restoreBody: 'Select a backup JSON file',
@@ -138,6 +182,7 @@ const translations = {
     toastDataCleared: 'All data cleared',
     toastRestore: 'Data restored. Refresh the page.',
     toastRestoreError: 'Failed to read file',
+    toastNotifBlocked: 'Browser notification permission denied',
   }
 }
 
@@ -156,12 +201,31 @@ function getStorageSize(): string {
   let total = 0
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
-    if (key && (key.startsWith('amar') || key.startsWith('money'))) {
+    if (key && (key.startsWith('selfsync') || key.startsWith('namaz') || key.startsWith('money_') || key.startsWith('amar'))) {
       total += (localStorage.getItem(key) || '').length
     }
   }
   const kb = (total / 1024).toFixed(1)
   return `${kb} KB`
+}
+
+const csvEscape = (value: string) => {
+  if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
+const buildCsv = (rows: string[][]) => rows.map((row) => row.map(csvEscape).join(',')).join('\n')
+
+const downloadCsv = (filename: string, rows: string[][]) => {
+  const blob = new Blob([buildCsv(rows)], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ==================== Main Page ====================
@@ -175,8 +239,25 @@ export default function SettingsPage() {
     pinHash,
     notificationsEnabled,
     calculatorEnabled,
+    notificationCategories,
+    quietHoursEnabled,
+    quietHoursStart,
+    quietHoursEnd,
+    autoLockEnabled,
+    autoLockMinutes,
     update
   } = useSettingsStore()
+
+  const remindersEnabled = usePrefsStore((s) => s.remindersEnabled)
+  const setReminderPrefs = usePrefsStore((s) => s.setReminderPrefs)
+
+  const tasks = useTaskStore((s) => s.tasks)
+  const transactions = useMoneyStore((s) => s.transactions)
+  const loans = useMoneyStore((s) => s.loans)
+  const budgets = useMoneyStore((s) => s.budgets)
+  const savingsGoals = useMoneyStore((s) => s.savingsGoals)
+  const subscriptions = useMoneyStore((s) => s.subscriptions)
+  const namazRecords = useNamazStore((s) => s.records)
 
   const t = translations[language]
 
@@ -185,6 +266,7 @@ export default function SettingsPage() {
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
@@ -193,7 +275,15 @@ export default function SettingsPage() {
   }
 
   const handleBackup = () => {
-    const allKeys = ['money_transactions', 'money_loans', 'selfsync-tasks', 'selfsync-namaz', 'selfsync-settings', 'selfsync-money-v2']
+    const allKeys = [
+      'money_transactions',
+      'money_loans',
+      'selfsync-tasks',
+      'selfsync-namaz',
+      'selfsync-settings',
+      'selfsync-money-v2',
+      NAMAZ_STORAGE_KEYS.settings,
+    ]
     const backup: Record<string, any> = { _version: 1, _date: new Date().toISOString() }
     allKeys.forEach(k => {
       const v = localStorage.getItem(k)
@@ -233,6 +323,77 @@ export default function SettingsPage() {
     keys.forEach(k => localStorage.removeItem(k))
     showToast(t.toastDataCleared)
     setShowClearModal(false)
+  }
+
+  const dataSummary = useMemo(() => {
+    const taskCount = tasks.length
+    const moneyCount = transactions.length + loans.length + budgets.length + savingsGoals.length + subscriptions.length
+    const namazCount = namazRecords.length
+    return language === 'bn'
+      ? `টাস্ক ${taskCount} · মানি ${moneyCount} · নামাজ লগ ${namazCount}`
+      : `Tasks ${taskCount} · Money ${moneyCount} · Namaz logs ${namazCount}`
+  }, [budgets.length, language, loans.length, namazRecords.length, savingsGoals.length, subscriptions.length, tasks.length, transactions.length])
+
+  const backupItems = useMemo(() => (
+    [
+      { label: language === 'bn' ? 'টাস্ক' : 'Tasks', value: tasks.length },
+      { label: language === 'bn' ? 'ট্রান্স্যাকশন' : 'Transactions', value: transactions.length },
+      { label: language === 'bn' ? 'লোন' : 'Loans', value: loans.length },
+      { label: language === 'bn' ? 'বাজেট' : 'Budgets', value: budgets.length },
+      { label: language === 'bn' ? 'সেভিংস গোল' : 'Goals', value: savingsGoals.length },
+      { label: language === 'bn' ? 'সাবস্ক্রিপশন' : 'Subscriptions', value: subscriptions.length },
+      { label: language === 'bn' ? 'নামাজ লগ' : 'Namaz logs', value: namazRecords.length },
+    ]
+  ), [budgets.length, language, loans.length, namazRecords.length, savingsGoals.length, subscriptions.length, tasks.length, transactions.length])
+
+  const handleExportTasksCsv = () => {
+    const rows: string[][] = [
+      ['title', 'priority', 'status', 'completed', 'dueDate', 'createdAt', 'updatedAt'],
+      ...tasks.map((task) => [
+        task.title,
+        task.priority,
+        task.status,
+        String(task.completed),
+        task.dueDate || '',
+        task.createdAt,
+        task.updatedAt,
+      ]),
+    ]
+    downloadCsv(`selfsync-tasks-${new Date().toISOString().split('T')[0]}.csv`, rows)
+    setShowExportModal(false)
+  }
+
+  const handleExportMoneyCsv = () => {
+    const rows: string[][] = [
+      ['date', 'type', 'amount', 'category', 'note', 'walletId'],
+      ...transactions.map((txn) => [
+        txn.date,
+        txn.type,
+        String(txn.amount),
+        txn.category,
+        txn.note || '',
+        txn.walletId || '',
+      ]),
+    ]
+    downloadCsv(`selfsync-money-${new Date().toISOString().split('T')[0]}.csv`, rows)
+    setShowExportModal(false)
+  }
+
+  const handlePrayerReminderToggle = async (next: boolean) => {
+    if (!next) {
+      setReminderPrefs(false)
+      return
+    }
+    if (!('Notification' in window)) {
+      showToast(t.toastNotifBlocked)
+      return
+    }
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      showToast(t.toastNotifBlocked)
+      return
+    }
+    setReminderPrefs(true)
   }
 
   return (
@@ -292,11 +453,57 @@ export default function SettingsPage() {
         {/* Notifications */}
         <Section icon={<Bell size={15} />} title={t.notifications}>
           <RowSwitch
-            label={t.namazReminder}
-            sub={t.namazSub}
+            label={t.appNotifications}
+            sub={t.appNotificationsSub}
             value={notificationsEnabled}
             onChange={v => update({ notificationsEnabled: v })}
           />
+          <div className="st-divider" />
+          <RowSwitch
+            label={t.taskAlerts}
+            sub={t.taskAlertsSub}
+            value={notificationCategories.tasks}
+            onChange={v => update({ notificationCategories: { ...notificationCategories, tasks: v } })}
+          />
+          <div className="st-divider" />
+          <RowSwitch
+            label={t.moneyAlerts}
+            sub={t.moneyAlertsSub}
+            value={notificationCategories.money}
+            onChange={v => update({ notificationCategories: { ...notificationCategories, money: v } })}
+          />
+          <div className="st-divider" />
+          <RowSwitch
+            label={t.namazReminder}
+            sub={t.namazSub}
+            value={remindersEnabled}
+            onChange={handlePrayerReminderToggle}
+          />
+          <div className="st-divider" />
+          <RowSwitch
+            label={t.quietHours}
+            sub={t.quietHoursSub}
+            value={quietHoursEnabled}
+            onChange={v => update({ quietHoursEnabled: v })}
+          />
+          {quietHoursEnabled && (
+            <div className="st-time-row">
+              <div className="st-time-label">{t.quietStart}</div>
+              <input
+                className="st-time-input"
+                type="time"
+                value={quietHoursStart}
+                onChange={(e) => update({ quietHoursStart: e.target.value })}
+              />
+              <div className="st-time-label">{t.quietEnd}</div>
+              <input
+                className="st-time-input"
+                type="time"
+                value={quietHoursEnd}
+                onChange={(e) => update({ quietHoursEnd: e.target.value })}
+              />
+            </div>
+          )}
           <div className="st-divider" />
           <RowSwitch
             label={t.calculatorToggle}
@@ -314,11 +521,28 @@ export default function SettingsPage() {
             accent={pinEnabled}
             onClick={() => pinEnabled ? setShowPinDisable(true) : setShowPinSetup(true)}
           />
+          <div className="st-divider" />
+          <RowSwitch
+            label={t.autoLock}
+            sub={t.autoLockSub}
+            value={autoLockEnabled}
+            onChange={v => update({ autoLockEnabled: v })}
+          />
+          {autoLockEnabled && (
+            <RowChoice
+              label=""
+              options={[5, 10, 15, 30]}
+              value={autoLockMinutes}
+              onChange={(value) => update({ autoLockMinutes: value })}
+            />
+          )}
         </Section>
 
         {/* Data Management */}
         <Section icon={<Download size={15} />} title={t.dataManage}>
           <RowArrow label={t.backup} sub={t.backupSub} onClick={() => setShowBackupModal(true)} />
+          <div className="st-divider" />
+          <RowArrow label={t.exportCsv} sub={t.exportCsvSub} onClick={() => setShowExportModal(true)} />
           <div className="st-divider" />
           <RowArrow label={t.restore} sub={t.restoreSub} onClick={() => setShowRestoreModal(true)} />
           <div className="st-divider" />
@@ -336,6 +560,8 @@ export default function SettingsPage() {
           </div>
           <div className="st-divider" />
           <RowArrow label={t.storageUsed} sub={getStorageSize()} onClick={() => {}} noArrow />
+          <div className="st-divider" />
+          <RowArrow label={t.dataSummary} sub={dataSummary} onClick={() => {}} noArrow />
           <div className="st-divider" />
           <div className="st-local-note">
             <Lock size={11} />
@@ -371,15 +597,15 @@ export default function SettingsPage() {
         />
       )}
       {showBackupModal && (
-        <ConfirmModal
+        <BackupModal
           language={language}
           title={t.backupTitle}
           body={t.backupBody}
+          summaryTitle={t.backupIncludes}
+          items={backupItems}
           confirmLabel={t.backupConfirm}
-          confirmClass="mo-submit--neu"
           onConfirm={handleBackup}
           onClose={() => setShowBackupModal(false)}
-          icon={<Download size={22} />}
         />
       )}
       {showRestoreModal && (
@@ -400,6 +626,15 @@ export default function SettingsPage() {
           onClose={() => setShowClearModal(false)}
           icon={<Trash2 size={22} />}
           danger
+        />
+      )}
+
+      {showExportModal && (
+        <ExportCsvModal
+          language={language}
+          onClose={() => setShowExportModal(false)}
+          onExportTasks={handleExportTasksCsv}
+          onExportMoney={handleExportMoneyCsv}
         />
       )}
 
@@ -444,6 +679,26 @@ function RowToggle({ label, left, right, active, onLeft, onRight }: { label: str
       <div className="st-toggle">
         <button className={`st-toggle-opt ${active ? 'st-toggle-opt--on' : ''}`} onClick={onLeft}>{left}</button>
         <button className={`st-toggle-opt ${!active ? 'st-toggle-opt--on' : ''}`} onClick={onRight}>{right}</button>
+      </div>
+    </div>
+  )
+}
+
+function RowChoice({ label, options, value, onChange }: { label: string; options: number[]; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="st-row">
+      <span className="st-row-label">{label}</span>
+      <div className="st-toggle">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            className={`st-toggle-opt ${value === opt ? 'st-toggle-opt--on' : ''}`}
+            onClick={() => onChange(opt)}
+            aria-pressed={value === opt}
+          >
+            {opt}m
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -548,6 +803,64 @@ function ConfirmModal({ language, title, body, confirmLabel, confirmClass, onCon
       </div>
       <button className={`mo-submit ${confirmClass}`} onClick={onConfirm}>{confirmLabel}</button>
       <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>{t.cancel}</button>
+    </ModalShell>
+  )
+}
+
+function BackupModal({
+  language,
+  title,
+  body,
+  summaryTitle,
+  items,
+  confirmLabel,
+  onConfirm,
+  onClose,
+}: {
+  language: Language
+  title: string
+  body: string
+  summaryTitle: string
+  items: Array<{ label: string; value: number }>
+  confirmLabel: string
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const t = translations[language]
+  return (
+    <ModalShell title={title} onClose={onClose}>
+      <div className="st-confirm-body">
+        <div className="st-confirm-icon st-confirm-icon--gold">
+          <Download size={22} />
+        </div>
+        <p className="st-confirm-text">{body}</p>
+      </div>
+      <div className="st-backup-block">
+        <p className="st-backup-title">{summaryTitle}</p>
+        <div className="st-backup-list">
+          {items.map((item) => (
+            <div key={item.label} className="st-backup-row">
+              <span>{item.label}</span>
+              <span className="st-backup-value">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button className="mo-submit mo-submit--neu" onClick={onConfirm}>{confirmLabel}</button>
+      <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>{t.cancel}</button>
+    </ModalShell>
+  )
+}
+
+function ExportCsvModal({ language, onClose, onExportTasks, onExportMoney }: { language: Language; onClose: () => void; onExportTasks: () => void; onExportMoney: () => void }) {
+  const t = translations[language]
+  return (
+    <ModalShell title={t.exportTitle} onClose={onClose}>
+      <div className="st-export-body">
+        <button className="st-export-btn" onClick={onExportTasks}>{t.exportTasks}</button>
+        <button className="st-export-btn" onClick={onExportMoney}>{t.exportMoney}</button>
+      </div>
+      <button className="mo-submit mo-submit--cancel" onClick={onClose}>{t.cancel}</button>
     </ModalShell>
   )
 }
@@ -832,6 +1145,30 @@ html:not(.dark) .mo-submit--neu {
   margin: 0 16px;
 }
 
+.st-time-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  align-items: center;
+}
+.st-time-label {
+  font-size: 11px;
+  color: var(--text-muted, #556677);
+}
+.st-time-input {
+  background: color-mix(in srgb, var(--bg-primary, #080c14) 90%, white 10%);
+  border: 1px solid var(--border, #1a2535);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--text-secondary, #c8d4e0);
+  outline: none;
+}
+.st-time-input:focus {
+  border-color: var(--accent-glow, #4ade8060);
+}
+
 .st-theme-grid {
   display: flex;
   gap: 12px;
@@ -1066,6 +1403,36 @@ html:not(.dark) .mo-submit--neu {
   line-height: 1.6;
 }
 
+.st-backup-block {
+  border: 1px solid var(--border, #1a2535);
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--bg-secondary, #0f1520) 86%, white 14%);
+}
+.st-backup-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary, #b8c8d8);
+  margin-bottom: 10px;
+  letter-spacing: 0.4px;
+}
+.st-backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.st-backup-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted, #556677);
+}
+.st-backup-value {
+  font-weight: 700;
+  color: var(--text-secondary, #c8d4e0);
+}
+
 .st-restore-body {
   display: flex;
   flex-direction: column;
@@ -1097,6 +1464,33 @@ html:not(.dark) .mo-submit--neu {
 .st-restore-warn {
   font-size: 12px;
   color: var(--danger, #f87171);
+}
+
+.st-export-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.st-export-btn {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #1a2535);
+  background: color-mix(in srgb, var(--bg-secondary, #0f1520) 85%, white 15%);
+  color: var(--text-secondary, #c8d4e0);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
+}
+.st-export-btn:active {
+  transform: scale(0.98);
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-export-btn:hover {
+    border-color: color-mix(in srgb, var(--border, #1a2535) 60%, var(--accent, #4ade80) 40%);
+    background: color-mix(in srgb, var(--bg-secondary, #0f1520) 70%, white 30%);
+  }
 }
 
 .mo-backdrop {
