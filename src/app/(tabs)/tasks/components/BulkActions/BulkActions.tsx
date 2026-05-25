@@ -1,7 +1,7 @@
 'use client';
 
 import { useTaskStore } from '@/lib/store/taskStore';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function BulkActions() {
   const selectedIds = useTaskStore((s) => s.selectedIds);
@@ -13,6 +13,7 @@ export default function BulkActions() {
   const bulkSetPriority = useTaskStore((s) => s.bulkSetPriority);
   const canUndo = useTaskStore((s) => s.canUndo);
   const undo = useTaskStore((s) => s.undo);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const count = selectedIds.length;
   if (!isSelectionMode || count === 0) return null;
@@ -76,7 +77,7 @@ export default function BulkActions() {
           </div>
 
           <button
-            onClick={() => bulkDelete()}
+            onClick={() => setConfirmDelete(true)}
             className={`${btnClass} text-[var(--az-danger)] border-[var(--az-danger-border)] bg-[var(--az-danger-bg)] hover:bg-[var(--az-danger)]/20`}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -110,6 +111,19 @@ export default function BulkActions() {
           </button>
         </div>
       </div>
+
+      {confirmDelete && (
+        <div className="az-confirm-backdrop" onClick={() => setConfirmDelete(false)}>
+          <div className="az-confirm-card" onClick={(e) => e.stopPropagation()}>
+            <div className="az-confirm-title">Delete forever? This cannot be undone.</div>
+            <div className="az-confirm-actions">
+              <button className="az-ghost-btn" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="az-ghost-btn" onClick={() => { bulkArchive(); setConfirmDelete(false); }}>Archive instead</button>
+              <button className="az-delete-btn" onClick={() => { bulkDelete(); setConfirmDelete(false); }}>Delete Forever</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ import ContextMenu from './components/ContextMenu/ContextMenu';
 import Dashboard from './components/Dashboard/Dashboard';
 import ProductivityHeatmap from './components/ProductivityHeatmap/ProductivityHeatmap';
 import Timeline from './components/Timeline/Timeline';
+import ArchivedTasks from './components/Archived/ArchivedTasks';
+import TaskBoard from './components/TaskBoard/TaskBoard';
 import { useTaskFocus } from './hooks/useTaskFocus';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { useTaskAnalytics } from './hooks/useTaskAnalytics';
@@ -100,7 +102,7 @@ export default function TasksPage() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-[var(--az-bg)]">
+    <div className="az-root min-h-[100dvh] bg-[var(--az-bg)]">
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32 pt-4">
         {/* Header */}
         <TaskHeader stats={stats} onToggleDashboard={() => setShowDashboard((s) => !s)} showDashboard={showDashboard} />
@@ -145,10 +147,19 @@ export default function TasksPage() {
         )}
 
         {/* Task Views */}
-        {viewMode === 'timeline' ? (
+        {filter === 'archived' ? (
+          <ArchivedTasks tasks={displayTasks} />
+        ) : viewMode === 'timeline' ? (
           <Timeline
             tasks={displayTasks}
             onToggle={toggleTask}
+            onOpenDetails={setDetailsTask}
+          />
+        ) : viewMode === 'board' ? (
+          <TaskBoard
+            tasks={displayTasks}
+            onToggle={toggleTask}
+            onFocus={startFocus}
             onOpenDetails={setDetailsTask}
           />
         ) : (
@@ -180,18 +191,6 @@ export default function TasksPage() {
 
       <CommandPalette />
 
-      {/* Keyboard shortcut hint */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center gap-3 px-4 py-2 rounded-full az-glass border border-[var(--az-glass-border)] shadow-[var(--az-shadow-md)]">
-        <span className="text-[11px] text-[var(--az-text-3)] flex items-center gap-1">
-          <kbd className="px-1 rounded border border-[var(--az-border)] text-[10px]">⌘K</kbd> Command
-        </span>
-        <span className="text-[11px] text-[var(--az-text-3)] flex items-center gap-1">
-          <kbd className="px-1 rounded border border-[var(--az-border)] text-[10px]">⌘N</kbd> New Task
-        </span>
-        <span className="text-[11px] text-[var(--az-text-3)] flex items-center gap-1">
-          <kbd className="px-1 rounded border border-[var(--az-border)] text-[10px]">⌘Z</kbd> Undo
-        </span>
-      </div>
     </div>
   );
 }

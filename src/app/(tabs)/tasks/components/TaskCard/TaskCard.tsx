@@ -134,7 +134,9 @@ function TaskCardComponent({
   const toggleSelect = useTaskStore((s) => s.toggleSelect);
   const selectedIds = useTaskStore((s) => s.selectedIds);
   const isSelectionMode = useTaskStore((s) => s.isSelectionMode);
+  const archiveTask = useTaskStore((s) => s.archiveTask);
   const isSelected = selectedIds.includes(task.id);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const pri = PRIORITIES[task.priority];
   const cat = CATEGORIES[task.category];
@@ -173,6 +175,25 @@ function TaskCardComponent({
     setTimeout(() => setRipple(null), 600);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isSelectionMode || task.status === 'archived') return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || isSelectionMode || task.status === 'archived') return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+    if (dx > 80 && Math.abs(dy) < 40) {
+      archiveTask(task.id);
+    }
+  };
+
   return (
     <div
       ref={cardRef}
@@ -181,6 +202,8 @@ function TaskCardComponent({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onMouseDown={createRipple}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {

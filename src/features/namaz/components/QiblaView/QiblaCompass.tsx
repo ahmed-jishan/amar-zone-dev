@@ -632,12 +632,12 @@ export default function QiblaCompass({ qiblaAngle, orientationGranted }: QiblaCo
           <p className="text-xs font-semibold text-emerald-600 tracking-widest uppercase">ম্যানুয়াল মোড</p>
           <div className="flex items-center gap-5 w-full max-w-xs">
             <button onClick={() => setManualHeading(h => (h - 15 + 360) % 360)}
-              className="w-10 h-10 rounded-full bg-white border border-emerald-200 shadow-sm text-emerald-700 text-lg flex items-center justify-center hover:bg-emerald-50 transition active:scale-95">‹</button>
+              className="w-10 h-10 rounded-lg bg-white border border-emerald-200 shadow-sm text-emerald-700 text-lg flex items-center justify-center hover:bg-emerald-50 transition active:scale-95">‹</button>
             <div className="flex-1 text-center">
               <p className="text-2xl font-bold text-emerald-800 font-mono">{Math.round(manualHeading)}°</p>
             </div>
             <button onClick={() => setManualHeading(h => (h + 15) % 360)}
-              className="w-10 h-10 rounded-full bg-white border border-emerald-200 shadow-sm text-emerald-700 text-lg flex items-center justify-center hover:bg-emerald-50 transition active:scale-95">›</button>
+              className="w-10 h-10 rounded-lg bg-white border border-emerald-200 shadow-sm text-emerald-700 text-lg flex items-center justify-center hover:bg-emerald-50 transition active:scale-95">›</button>
           </div>
           <input type="range" min={0} max={359} value={manualHeading}
             onChange={e => setManualHeading(parseInt(e.target.value))}

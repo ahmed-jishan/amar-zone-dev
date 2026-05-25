@@ -11,7 +11,11 @@ export interface Task {
   priority: Priority
   completed: boolean
   createdAt: string
+  updatedAt?: string
+  completedAt?: string
   dueDate?: string
+  status?: string
+  archivedAt?: string
   recurring: RecurringType
   timerMinutes: number
   timerSeconds?: number
@@ -51,5 +55,6 @@ export interface AppSettings {
   currency_symbol: string
   pinEnabled: boolean
   pinHash?: string
+  biometricLockEnabled: boolean
   onboardingComplete: boolean
 }

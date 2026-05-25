@@ -13,6 +13,7 @@ const FILTER_CONFIG: { key: FilterKey; label: string; icon: React.ReactNode }[] 
   { key: 'inbox', label: 'Inbox', icon: <InboxIcon /> },
   { key: 'completed', label: 'Done', icon: <DoneIcon /> },
   { key: 'overdue', label: 'Overdue', icon: <OverdueIcon /> },
+  { key: 'archived', label: 'Archived', icon: <ArchivedIcon /> },
 ];
 
 interface Props {
@@ -32,6 +33,7 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
   const searchQuery = useTaskStore((s) => s.searchQuery);
   const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
   const setSelectionMode = useTaskStore((s) => s.setSelectionMode);
+  const archiveCompletedOlderThan = useTaskStore((s) => s.archiveCompletedOlderThan);
 
   useEffect(() => {
     if (!showSort) return;
@@ -80,21 +82,23 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
     <div className="mb-4 space-y-3 animate-[az-slide-up_300ms_ease-out]">
       {/* Search + View controls */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--az-text-3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex-1 relative az-search">
+          <span className="az-search-icon">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+            </svg>
+          </span>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tasks..."
-            className="w-full pl-9 pr-4 py-2 rounded-[var(--az-radius-xl)] bg-[var(--az-surface-1)] border border-[var(--az-border)] text-[14px] text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none focus:border-[var(--az-accent)] transition-all"
+            className="az-search-input"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--az-text-3)] hover:text-[var(--az-text-1)]"
+              className="az-search-clear"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path d="M6 18L18 6M6 6l12 12" />
@@ -110,8 +114,8 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
               key={v}
               onClick={() => setViewMode(v)}
               className={`
-                p-1.5 rounded-md transition-all
-                ${viewMode === v ? 'bg-[var(--az-surface-1)] text-[var(--az-accent)] shadow-sm' : 'text-[var(--az-text-3)] hover:text-[var(--az-text-2)]'}
+                az-view-btn
+                ${viewMode === v ? 'az-view-btn--active' : ''}
               `}
               title={`${v} view`}
             >
@@ -130,25 +134,50 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
         </button>
+
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('az:open-command'))}
+          className="az-cmd-btn"
+          title="Command palette (⌘K)"
+          aria-label="Open command palette"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h8M8 12h8M8 18h5" />
+          </svg>
+          <span className="hidden md:inline">Command</span>
+          <kbd className="az-kbd az-kbd-inline">⌘K</kbd>
+        </button>
       </div>
 
+
       {/* Filter pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 az-scrollbar">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 az-scrollbar az-scrollbar-x">
         {FILTER_CONFIG.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => onFilterChange(f.key)}
-            className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all duration-200
-              ${activeFilter === f.key
-                ? 'bg-[var(--az-accent)] text-white shadow-[0_0_12px_var(--az-accent-glow)]'
-                : 'bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] hover:text-[var(--az-text-1)]'
-              }
-            `}
-          >
-            <span className={activeFilter === f.key ? 'text-white' : ''}>{f.icon}</span>
-            {f.label}
-          </button>
+          <div key={f.key} className="flex items-center gap-1">
+            <button
+              onClick={() => onFilterChange(f.key)}
+              className={`
+                flex items-center gap-1.5 px-3 py-2 rounded-[var(--az-radius-md)] text-[12px] font-semibold whitespace-nowrap transition-all duration-200
+                ${activeFilter === f.key
+                  ? 'bg-[var(--az-accent)] text-white shadow-[0_0_12px_var(--az-accent-glow)]'
+                  : 'bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] hover:text-[var(--az-text-1)]'
+                }
+              `}
+            >
+              <span className={activeFilter === f.key ? 'text-white' : ''}>{f.icon}</span>
+              {f.label}
+            </button>
+            {f.key === 'archived' && (
+              <button
+                onClick={() => archiveCompletedOlderThan(30)}
+                className="az-filter-action"
+                title="Archive completed tasks older than 30 days"
+                aria-label="Archive completed tasks older than 30 days"
+              >
+                <ArchiveBoxIcon />
+              </button>
+            )}
+          </div>
         ))}
 
         <div className="w-px h-5 bg-[var(--az-border)] mx-1" />
@@ -160,7 +189,7 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
             onClick={() => setShowSort((s) => !s)}
             aria-haspopup="menu"
             aria-expanded={showSort}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--az-radius-md)] text-[12px] font-semibold bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] transition-all"
           >
             <SortIcon />
             <span className="capitalize">{sortMode}</span>
@@ -192,6 +221,7 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
           )}
         </div>
       </div>
+
     </div>
   );
 }
@@ -245,6 +275,22 @@ function OverdueIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
       <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function ArchivedIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
+      <path d="M10 12h4" />
+    </svg>
+  );
+}
+function ArchiveBoxIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
+      <path d="M10 12h4" />
     </svg>
   );
 }

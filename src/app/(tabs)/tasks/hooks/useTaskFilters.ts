@@ -18,6 +18,8 @@ export const useTaskFilters = (tasks: Task[]) => {
         return tasks.filter((t) => t.status === 'inbox');
       case 'in-progress':
         return tasks.filter((t) => t.status === 'in-progress');
+      case 'archived':
+        return tasks.filter((t) => t.status === 'archived');
       default:
         return tasks.filter((t) => t.status !== 'archived');
     }

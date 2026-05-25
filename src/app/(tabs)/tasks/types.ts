@@ -63,6 +63,7 @@ export type Task = {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  completedAt?: string;
   completedDates: string[];
   recurring: "none" | "daily" | "weekly" | "monthly";
   // ── Premium additions ──
@@ -82,6 +83,7 @@ export type CreateTaskInput = Omit<
   | "id"
   | "createdAt"
   | "updatedAt"
+  | "completedAt"
   | "completedDates"
   | "streak"
   | "position"
@@ -104,4 +106,4 @@ export type SortMode =
 
 export type ViewMode = "list" | "board" | "timeline";
 
-export type FilterKey = "all" | "today" | "high" | "completed" | "overdue" | "inbox" | "in-progress";
+export type FilterKey = "all" | "today" | "high" | "completed" | "overdue" | "inbox" | "in-progress" | "archived";

@@ -137,7 +137,7 @@ export default function MoneyPage() {
   }, [addTask])
 
   return (
-    <div className="min-h-[100dvh] bg-[var(--mon-bg)] text-[var(--mon-text-1)]">
+    <div className="mon-root min-h-[100dvh] bg-[var(--mon-bg)] text-[var(--mon-text-1)]">
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32">
         {/* HERO */}
         <div className="relative overflow-hidden pt-6 pb-4">

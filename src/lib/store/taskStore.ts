@@ -54,6 +54,7 @@ export interface TaskState {
   bulkSetPriority: (priority: Task['priority']) => void;
   bulkSetStatus: (status: Task['status']) => void;
   bulkSetDueDate: (dueDate: string | undefined) => void;
+  archiveCompletedOlderThan: (days: number) => void;
 
   // ── Premium: Archive ──
   archiveTask: (id: string) => void;
@@ -315,6 +316,21 @@ export const useTaskStore = create<TaskState>()(
           selectedIds: [],
           isSelectionMode: false,
         })),
+
+      archiveCompletedOlderThan: (days) =>
+        set((state) => {
+          const now = Date.now()
+          const cutoff = now - days * 24 * 60 * 60 * 1000
+          return {
+            tasks: state.tasks.map((t) => {
+              if (t.status === 'archived' || !t.completed) return t
+              const completedAt = t.completedAt || t.updatedAt || t.createdAt
+              const completedTime = Date.parse(completedAt)
+              if (!Number.isFinite(completedTime) || completedTime > cutoff) return t
+              return { ...t, status: 'archived' as const, archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+            }),
+          }
+        }),
 
       // ── Archive ──
       archiveTask: (id) =>

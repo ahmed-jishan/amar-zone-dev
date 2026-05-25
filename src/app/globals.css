@@ -138,6 +138,28 @@ html, body {
   background:
     radial-gradient(circle at 14% -8%, rgba(23, 123, 106, 0.12), transparent 30rem),
     linear-gradient(135deg, var(--nz-bg), var(--nz-bg-2) 54%, #fbf6e8);
+  position: relative;
+  overflow: hidden;
+}
+
+.namaz-root::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  z-index: 0;
+}
+
+.namaz-root > * {
+  position: relative;
+  z-index: 1;
+}
+
+.namaz-root .lucide {
+  stroke-width: 1.7;
 }
 
 .dark .namaz-root {

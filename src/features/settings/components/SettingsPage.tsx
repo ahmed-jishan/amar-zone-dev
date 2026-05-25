@@ -1,7 +1,7 @@
 // src/app/(tabs)/settings/page.tsx
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Globe, Lock, Download,
   Upload, Trash2, ChevronRight, Check, Shield,
@@ -13,6 +13,24 @@ import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { NAMAZ_STORAGE_KEYS } from '@/features/namaz/constants/storageKeys'
+import {
+  buildBackupPayload,
+  decryptBackup,
+  encryptBackup,
+  mergeBackupPayload,
+  parseEncryptedBackup,
+  serializeEncryptedBackup,
+} from '@/lib/utils/encryptedBackup'
+import QRCode from 'qrcode'
+import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser'
+import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
+import { hashPin } from '@/features/settings/utils/security'
+
+declare global {
+  interface Window {
+    google?: any
+  }
+}
 
 // ==================== Translations ====================
 const translations = {
@@ -50,6 +68,13 @@ const translations = {
     pinLock: 'PIN লক',
     pinActive: 'সক্রিয় আছে ✓',
     pinInactive: 'নিষ্ক্রিয়',
+    biometricLock: 'Fingerprint lock',
+    biometricActive: 'Phone biometric ready',
+    biometricInactive: 'Use fingerprint / phone lock',
+    biometricNeedsPin: 'Fingerprint er jonno age PIN set korun',
+    biometricUnavailable: 'Native biometric APK install korle check hobe',
+    toastBiometricOn: 'Fingerprint lock on hoyeche',
+    toastBiometricOff: 'Fingerprint lock off hoyeche',
     autoLock: 'অটো লক',
     autoLockSub: 'নির্দিষ্ট সময় নিষ্ক্রিয় থাকলে লক হবে',
     dataManage: 'ডেটা ব্যবস্থাপনা',
@@ -66,6 +91,33 @@ const translations = {
     storageUsed: 'স্টোরেজ ব্যবহার',
     dataSummary: 'ডেটা সারাংশ',
     localNote: 'সমস্ত ডেটা শুধু আপনার ডিভাইসে সংরক্ষিত। কোনো সার্ভারে পাঠানো হয় না।',
+    backupSync: 'এনক্রিপ্টেড ব্যাকআপ ও সিঙ্ক',
+    backupSyncSub: 'অপশনাল, এন্ড-টু-এন্ড এনক্রিপ্টেড ব্যাকআপ',
+    backupSyncTitle: 'এনক্রিপ্টেড ব্যাকআপ ও সিঙ্ক',
+    backupPassphrase: 'পাসফ্রেজ',
+    backupPassphraseConfirm: 'পাসফ্রেজ নিশ্চিত করুন',
+    backupPassphraseHint: 'কমপক্ষে ৮ অক্ষর দিন',
+    backupExport: 'এনক্রিপ্টেড ব্যাকআপ ডাউনলোড',
+    backupImport: 'এনক্রিপ্টেড ব্যাকআপ ইম্পোর্ট',
+    backupImportHint: 'JSON ব্যাকআপ ফাইল নির্বাচন করুন',
+    backupExported: 'এনক্রিপ্টেড ব্যাকআপ ডাউনলোড হয়েছে ✓',
+    backupMergeSuccess: 'ব্যাকআপ মর্জ হয়েছে ✓',
+    backupDecryptError: 'ডিক্রিপ্ট করতে সমস্যা হয়েছে',
+    backupPassMismatch: 'পাসফ্রেজ মেলেনি',
+    backupDrive: 'গুগল ড্রাইভ (শিগগিরই)',
+    driveConnect: 'ড্রাইভ কানেক্ট করুন',
+    driveConnected: 'ড্রাইভ কানেক্টেড',
+    driveUpload: 'ড্রাইভে আপলোড',
+    driveDownload: 'ড্রাইভ থেকে রিস্টোর',
+    driveMissing: 'ড্রাইভ সংযুক্ত নেই',
+    backupQrTitle: 'QR ট্রান্সফার',
+    backupQrGenerate: 'QR তৈরি করুন',
+    backupQrScan: 'QR স্ক্যান করুন',
+    backupQrNext: 'পরের',
+    backupQrPrev: 'আগের',
+    backupQrProgress: 'QR অগ্রগতি',
+    backupQrReady: 'স্ক্যান শেষ। ইম্পোর্ট করতে ডিক্রিপ্ট করুন',
+    backupQrStop: 'স্ক্যান বন্ধ করুন',
     backupTitle: 'ব্যাকআপ করুন',
     backupBody: 'সমস্ত ডেটা একটি JSON ফাইলে সংরক্ষিত হবে।',
     backupIncludes: 'যা যা সংরক্ষিত হবে',
@@ -134,6 +186,13 @@ const translations = {
     pinLock: 'PIN Lock',
     pinActive: 'Active ✓',
     pinInactive: 'Disabled',
+    biometricLock: 'Fingerprint lock',
+    biometricActive: 'Phone biometric ready',
+    biometricInactive: 'Use fingerprint / phone lock',
+    biometricNeedsPin: 'Set a PIN first to keep fallback unlock available',
+    biometricUnavailable: 'Native biometric can only be checked inside the installed app',
+    toastBiometricOn: 'Fingerprint lock enabled',
+    toastBiometricOff: 'Fingerprint lock disabled',
     autoLock: 'Auto lock',
     autoLockSub: 'Lock after inactivity',
     dataManage: 'Data Management',
@@ -150,6 +209,33 @@ const translations = {
     storageUsed: 'Storage used',
     dataSummary: 'Data summary',
     localNote: 'All data is stored only on your device. No data is sent to any server.',
+    backupSync: 'Encrypted Backup & Sync',
+    backupSyncSub: 'Optional, end-to-end encrypted backup',
+    backupSyncTitle: 'Encrypted Backup & Sync',
+    backupPassphrase: 'Passphrase',
+    backupPassphraseConfirm: 'Confirm passphrase',
+    backupPassphraseHint: 'Use at least 8 characters',
+    backupExport: 'Download encrypted backup',
+    backupImport: 'Import encrypted backup',
+    backupImportHint: 'Select encrypted JSON backup',
+    backupExported: 'Encrypted backup downloaded ✓',
+    backupMergeSuccess: 'Backup merged ✓',
+    backupDecryptError: 'Failed to decrypt backup',
+    backupPassMismatch: 'Passphrases do not match',
+    backupDrive: 'Google Drive (coming soon)',
+    driveConnect: 'Connect Drive',
+    driveConnected: 'Drive connected',
+    driveUpload: 'Upload to Drive',
+    driveDownload: 'Restore from Drive',
+    driveMissing: 'Drive is not connected',
+    backupQrTitle: 'QR Transfer',
+    backupQrGenerate: 'Generate QR',
+    backupQrScan: 'Scan QR',
+    backupQrNext: 'Next',
+    backupQrPrev: 'Previous',
+    backupQrProgress: 'QR progress',
+    backupQrReady: 'Scan complete. Decrypt to import',
+    backupQrStop: 'Stop scanning',
     backupTitle: 'Backup',
     backupBody: 'All data will be saved as a JSON file.',
     backupIncludes: 'What will be included',
@@ -187,16 +273,6 @@ const translations = {
 }
 
 // ==================== Helper ====================
-function hashPin(pin: string): string {
-  let hash = 0
-  for (let i = 0; i < pin.length; i++) {
-    const c = pin.charCodeAt(i)
-    hash = (hash << 5) - hash + c
-    hash |= 0
-  }
-  return String(hash)
-}
-
 function getStorageSize(): string {
   let total = 0
   for (let i = 0; i < localStorage.length; i++) {
@@ -237,6 +313,7 @@ export default function SettingsPage() {
     currency_symbol,
     pinEnabled,
     pinHash,
+    biometricLockEnabled,
     notificationsEnabled,
     calculatorEnabled,
     notificationCategories,
@@ -263,15 +340,39 @@ export default function SettingsPage() {
 
   const [showPinSetup, setShowPinSetup] = useState(false)
   const [showPinDisable, setShowPinDisable] = useState(false)
+  const [enableBiometricAfterPin, setEnableBiometricAfterPin] = useState(false)
+  const [biometricChecking, setBiometricChecking] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
+  const [showBackupSyncModal, setShowBackupSyncModal] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2800)
+  }
+
+  const handleBiometricToggle = async (next: boolean) => {
+    if (!next) {
+      update({ biometricLockEnabled: false })
+      showToast(t.toastBiometricOff)
+      return
+    }
+
+    if (!pinEnabled || !pinHash) {
+      setEnableBiometricAfterPin(true)
+      setShowPinSetup(true)
+      showToast(t.biometricNeedsPin)
+      return
+    }
+
+    setBiometricChecking(true)
+    const status = await getBiometricStatus()
+    setBiometricChecking(false)
+    update({ biometricLockEnabled: true })
+    showToast(status.available ? t.toastBiometricOn : t.biometricUnavailable)
   }
 
   const handleBackup = () => {
@@ -523,6 +624,13 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            label={t.biometricLock}
+            sub={biometricChecking ? 'Checking...' : biometricLockEnabled ? t.biometricActive : t.biometricInactive}
+            value={biometricLockEnabled}
+            onChange={handleBiometricToggle}
+          />
+          <div className="st-divider" />
+          <RowSwitch
             label={t.autoLock}
             sub={t.autoLockSub}
             value={autoLockEnabled}
@@ -540,6 +648,8 @@ export default function SettingsPage() {
 
         {/* Data Management */}
         <Section icon={<Download size={15} />} title={t.dataManage}>
+          <RowArrow label={t.backupSync} sub={t.backupSyncSub} onClick={() => setShowBackupSyncModal(true)} />
+          <div className="st-divider" />
           <RowArrow label={t.backup} sub={t.backupSub} onClick={() => setShowBackupModal(true)} />
           <div className="st-divider" />
           <RowArrow label={t.exportCsv} sub={t.exportCsvSub} onClick={() => setShowExportModal(true)} />
@@ -576,10 +686,15 @@ export default function SettingsPage() {
       {showPinSetup && (
         <PinSetupModal
           language={language}
-          onClose={() => setShowPinSetup(false)}
+          onClose={() => {
+            setEnableBiometricAfterPin(false)
+            setShowPinSetup(false)
+          }}
           onSave={(pin) => {
-            update({ pinEnabled: true, pinHash: hashPin(pin) })
+            update({ pinEnabled: true, pinHash: hashPin(pin), biometricLockEnabled: enableBiometricAfterPin ? true : biometricLockEnabled })
             showToast(translations[language].toastPinSet)
+            if (enableBiometricAfterPin) showToast(translations[language].toastBiometricOn)
+            setEnableBiometricAfterPin(false)
             setShowPinSetup(false)
           }}
         />
@@ -590,7 +705,7 @@ export default function SettingsPage() {
           pinHash={pinHash}
           onClose={() => setShowPinDisable(false)}
           onConfirm={() => {
-            update({ pinEnabled: false, pinHash: undefined })
+            update({ pinEnabled: false, pinHash: undefined, biometricLockEnabled: false })
             showToast(translations[language].toastPinRemoved)
             setShowPinDisable(false)
           }}
@@ -635,6 +750,14 @@ export default function SettingsPage() {
           onClose={() => setShowExportModal(false)}
           onExportTasks={handleExportTasksCsv}
           onExportMoney={handleExportMoneyCsv}
+        />
+      )}
+
+      {showBackupSyncModal && (
+        <EncryptedBackupModal
+          language={language}
+          onClose={() => setShowBackupSyncModal(false)}
+          onToast={showToast}
         />
       )}
 
@@ -714,6 +837,410 @@ function RowArrow({ label, sub, onClick, danger, accent, noArrow }: { label: str
       {!noArrow && <ChevronRight size={15} className="st-row-arrow" />}
     </button>
   )
+}
+
+function EncryptedBackupModal({ language, onClose, onToast }: { language: Language; onClose: () => void; onToast: (msg: string) => void }) {
+  const t = translations[language]
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const [passphrase, setPassphrase] = useState('')
+  const [confirmPassphrase, setConfirmPassphrase] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [driveReady, setDriveReady] = useState(false)
+  const [driveConnected, setDriveConnected] = useState(false)
+  const [qrSessionId, setQrSessionId] = useState('')
+  const [qrChunks, setQrChunks] = useState<string[]>([])
+  const [qrIndex, setQrIndex] = useState(0)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [scanActive, setScanActive] = useState(false)
+  const [scanStatus, setScanStatus] = useState<{ id: string; total: number; received: number } | null>(null)
+  const [scannedPayload, setScannedPayload] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const scannerRef = useRef<BrowserQRCodeReader | null>(null)
+  const scannerControlsRef = useRef<IScannerControls | null>(null)
+  const scannedChunksRef = useRef(new Map<string, { total: number; parts: Map<number, string> }>())
+
+  useEffect(() => {
+    if (qrChunks.length === 0) {
+      setQrDataUrl(null)
+      return
+    }
+    const chunk = qrChunks[qrIndex]
+    const payload = JSON.stringify({
+      id: qrSessionId,
+      index: qrIndex,
+      total: qrChunks.length,
+      data: chunk,
+    })
+    QRCode.toDataURL(payload, { errorCorrectionLevel: 'H', margin: 2, width: 220 })
+      .then((url: string) => setQrDataUrl(url))
+      .catch(() => setQrDataUrl(null))
+  }, [qrChunks, qrIndex, qrSessionId])
+
+  useEffect(() => {
+    void checkDriveStatus()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.google?.accounts?.oauth2) {
+      setDriveReady(true)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.onload = () => setDriveReady(true)
+    script.onerror = () => setDriveReady(false)
+    document.body.appendChild(script)
+    return () => {
+      script.remove()
+    }
+  }, [])
+
+  useEffect(() => () => stopScan(), [])
+
+  const validatePassphrase = () => {
+    if (passphrase.trim().length < 8) {
+      setError(t.backupPassphraseHint)
+      return false
+    }
+    return true
+  }
+
+  const handleExport = async () => {
+    setError('')
+    if (!validatePassphrase()) return
+    if (confirmPassphrase && passphrase !== confirmPassphrase) {
+      setError(t.backupPassMismatch)
+      return
+    }
+    setBusy(true)
+    try {
+      const payload = buildBackupPayload()
+      const encrypted = await encryptBackup(passphrase, payload)
+      const text = serializeEncryptedBackup(encrypted)
+      downloadText(`selfsync-encrypted-backup-${new Date().toISOString().split('T')[0]}.json`, text)
+      onToast(t.backupExported)
+    } catch (e) {
+      setError(t.backupDecryptError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleImportText = async (text: string) => {
+    setError('')
+    if (!validatePassphrase()) return
+    setBusy(true)
+    try {
+      const encrypted = parseEncryptedBackup(text)
+      const payload = await decryptBackup(passphrase, encrypted)
+      mergeBackupPayload(payload)
+      onToast(t.backupMergeSuccess)
+      setTimeout(() => window.location.reload(), 600)
+    } catch (e) {
+      setError(t.backupDecryptError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleImportFile = async (file: File) => {
+    const text = await file.text()
+    await handleImportText(text)
+  }
+
+  const handleGenerateQr = async () => {
+    setError('')
+    if (!validatePassphrase()) return
+    if (confirmPassphrase && passphrase !== confirmPassphrase) {
+      setError(t.backupPassMismatch)
+      return
+    }
+    setBusy(true)
+    try {
+      const payload = buildBackupPayload()
+      const encrypted = await encryptBackup(passphrase, payload)
+      const text = serializeEncryptedBackup(encrypted)
+      const chunks = chunkString(text, 900)
+      setQrSessionId(generateQrSessionId())
+      setQrChunks(chunks)
+      setQrIndex(0)
+      setScannedPayload(null)
+      setScanStatus(null)
+    } catch (e) {
+      setError(t.backupDecryptError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const startScan = async () => {
+    if (scanActive) return
+    setError('')
+    setScannedPayload(null)
+    setScanStatus(null)
+    setScanActive(true)
+    try {
+      const mod = await import('@zxing/browser')
+      const reader = new mod.BrowserQRCodeReader()
+      scannerRef.current = reader
+      if (!videoRef.current) return
+      const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+        if (!result) return
+        const text = result.getText()
+        const parsed = safeParseQrChunk(text)
+        if (!parsed) return
+        const entry = scannedChunksRef.current.get(parsed.id) || { total: parsed.total, parts: new Map<number, string>() }
+        if (!entry.parts.has(parsed.index)) entry.parts.set(parsed.index, parsed.data)
+        scannedChunksRef.current.set(parsed.id, entry)
+        setScanStatus({ id: parsed.id, total: parsed.total, received: entry.parts.size })
+        if (entry.parts.size === parsed.total) {
+          const ordered = Array.from(entry.parts.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(([, data]) => data)
+            .join('')
+          setScannedPayload(ordered)
+          stopScan()
+        }
+      })
+      scannerControlsRef.current = controls
+    } catch (e) {
+      setError(t.backupDecryptError)
+      setScanActive(false)
+    }
+  }
+
+  const stopScan = () => {
+    scannerControlsRef.current?.stop()
+    scannerControlsRef.current = null
+    scannerRef.current = null
+    setScanActive(false)
+  }
+
+  const handleImportScanned = async () => {
+    if (!scannedPayload) return
+    await handleImportText(scannedPayload)
+  }
+
+  const checkDriveStatus = async () => {
+    try {
+      const res = await fetch('/api/drive/oauth/status')
+      const data = await res.json()
+      setDriveConnected(Boolean(data?.connected))
+    } catch {
+      setDriveConnected(false)
+    }
+  }
+
+  const handleDriveConnect = async () => {
+    if (!driveReady || !clientId) return
+    setError('')
+    const codeClient = window.google.accounts.oauth2.initCodeClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.appdata',
+      ux_mode: 'popup',
+      prompt: 'consent',
+      callback: async (response: { code?: string }) => {
+        if (!response?.code) {
+          setError(t.backupDecryptError)
+          return
+        }
+        try {
+          const res = await fetch('/api/drive/oauth/exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: response.code }),
+          })
+          if (!res.ok) throw new Error('exchange_failed')
+          await checkDriveStatus()
+        } catch {
+          setError(t.backupDecryptError)
+        }
+      },
+    })
+    codeClient.requestCode()
+  }
+
+  const handleDriveUpload = async () => {
+    setError('')
+    if (!driveConnected) {
+      setError(t.driveMissing)
+      return
+    }
+    if (!validatePassphrase()) return
+    setBusy(true)
+    try {
+      const payload = buildBackupPayload()
+      const encrypted = await encryptBackup(passphrase, payload)
+      const res = await fetch('/api/drive/backup/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ encrypted }),
+      })
+      if (!res.ok) throw new Error('upload_failed')
+      onToast(t.backupMergeSuccess)
+    } catch {
+      setError(t.backupDecryptError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleDriveDownload = async () => {
+    setError('')
+    if (!driveConnected) {
+      setError(t.driveMissing)
+      return
+    }
+    if (!validatePassphrase()) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/drive/backup/download')
+      if (!res.ok) throw new Error('download_failed')
+      const data = await res.json()
+      const payload = await decryptBackup(passphrase, data.encrypted)
+      mergeBackupPayload(payload)
+      onToast(t.backupMergeSuccess)
+      setTimeout(() => window.location.reload(), 600)
+    } catch {
+      setError(t.backupDecryptError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <ModalShell title={t.backupSyncTitle} onClose={onClose}>
+      <div className="st-backup-sync">
+        <div className="st-backup-field">
+          <label className="st-backup-label">{t.backupPassphrase}</label>
+          <input
+            className="mo-inp"
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder={t.backupPassphraseHint}
+          />
+        </div>
+        <div className="st-backup-field">
+          <label className="st-backup-label">{t.backupPassphraseConfirm}</label>
+          <input
+            className="mo-inp"
+            type="password"
+            value={confirmPassphrase}
+            onChange={(e) => setConfirmPassphrase(e.target.value)}
+            placeholder={t.backupPassphraseHint}
+          />
+        </div>
+
+        {error && <p className="st-error">{error}</p>}
+
+        <div className="st-backup-actions">
+          <button className="mo-submit mo-submit--neu" onClick={handleExport} disabled={busy}>{t.backupExport}</button>
+          <label className="st-file-label st-file-label--inline">
+            {t.backupImport}
+            <input
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f) }}
+            />
+          </label>
+        </div>
+        <p className="st-backup-hint">{t.backupImportHint}</p>
+
+        <div className="st-backup-drive">
+          <div className="st-drive-row">
+            <span>{driveConnected ? t.driveConnected : t.backupDrive}</span>
+            <button className="st-qr-btn" onClick={handleDriveConnect} disabled={!driveReady || !clientId}>{t.driveConnect}</button>
+          </div>
+          <div className="st-drive-actions">
+            <button className="st-qr-btn" onClick={handleDriveUpload} disabled={busy}>{t.driveUpload}</button>
+            <button className="st-qr-btn" onClick={handleDriveDownload} disabled={busy}>{t.driveDownload}</button>
+          </div>
+        </div>
+
+        <div className="st-backup-qr">
+          <div className="st-backup-qr-head">
+            <span>{t.backupQrTitle}</span>
+            <div className="st-backup-qr-actions">
+              <button className="st-qr-btn" onClick={handleGenerateQr} disabled={busy}>{t.backupQrGenerate}</button>
+              <button className="st-qr-btn" onClick={scanActive ? stopScan : startScan}>{scanActive ? t.backupQrStop : t.backupQrScan}</button>
+            </div>
+          </div>
+
+          {qrDataUrl && (
+            <div className="st-qr-preview">
+              <div className="st-qr-frame">
+                <img src={qrDataUrl} alt="QR" />
+                <div className="st-qr-mark" aria-hidden="true">JA</div>
+              </div>
+              <div className="st-qr-nav">
+                <button className="st-qr-nav-btn" onClick={() => setQrIndex(Math.max(0, qrIndex - 1))} disabled={qrIndex === 0}>{t.backupQrPrev}</button>
+                <span>{t.backupQrProgress}: {qrIndex + 1}/{qrChunks.length}</span>
+                <button className="st-qr-nav-btn" onClick={() => setQrIndex(Math.min(qrChunks.length - 1, qrIndex + 1))} disabled={qrIndex >= qrChunks.length - 1}>{t.backupQrNext}</button>
+              </div>
+            </div>
+          )}
+
+          {scanActive && (
+            <div className="st-qr-scan">
+              <video ref={videoRef} className="st-qr-video" />
+              {scanStatus && (
+                <div className="st-qr-status">
+                  {t.backupQrProgress}: {scanStatus.received}/{scanStatus.total}
+                </div>
+              )}
+            </div>
+          )}
+
+          {scannedPayload && (
+            <div className="st-qr-ready">
+              <p>{t.backupQrReady}</p>
+              <button className="mo-submit mo-submit--neu" onClick={handleImportScanned} disabled={busy}>{t.backupImport}</button>
+            </div>
+          )}
+        </div>
+      </div>
+      <button className="mo-submit mo-submit--cancel" onClick={onClose}>{t.cancel}</button>
+    </ModalShell>
+  )
+}
+
+function chunkString(value: string, size: number): string[] {
+  const out: string[] = []
+  for (let i = 0; i < value.length; i += size) {
+    out.push(value.slice(i, i + size))
+  }
+  return out
+}
+
+function generateQrSessionId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+function safeParseQrChunk(text: string): { id: string; index: number; total: number; data: string } | null {
+  try {
+    const parsed = JSON.parse(text) as { id: string; index: number; total: number; data: string }
+    if (!parsed || typeof parsed.id !== 'string' || typeof parsed.index !== 'number' || typeof parsed.total !== 'number' || typeof parsed.data !== 'string') {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function downloadText(filename: string, text: string) {
+  const blob = new Blob([text], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 // ==================== Modals ====================
@@ -894,11 +1421,26 @@ const CSS = `
   --border: rgb(var(--border));
   --accent: #4ade80;
   --accent-glow: #4ade8040;
+  --brand-grad: linear-gradient(135deg, rgba(74, 222, 128, 0.25), rgba(96, 165, 250, 0.22));
+  --brand-grad-strong: linear-gradient(135deg, #4ade80, #60a5fa);
   --danger: #f87171;
   min-height: 100%;
   background: var(--bg-primary, #080c14);
   color: var(--text-primary, #e8eaf0);
   font-family: 'Siyam Rupali', 'Noto Sans Bengali', system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.st-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  z-index: 0;
 }
 
 /* Professional light-mode palette */
@@ -1059,6 +1601,8 @@ html:not(.dark) .mo-submit--neu {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .st-section {
@@ -1075,12 +1619,24 @@ html:not(.dark) .mo-submit--neu {
   gap: 8px;
   padding: 14px 16px 12px;
   border-bottom: 1px solid var(--border, #1a2535);
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
 }
 .st-section-icon {
   color: var(--accent, #4ade80);
-  opacity: 0.8;
-  display: flex;
+  opacity: 0.95;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: var(--brand-grad);
+  border: 1px solid color-mix(in srgb, var(--accent, #4ade80) 40%, transparent 60%);
+}
+.st-section-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.7;
 }
 .st-section-title {
   font-size: 11px;
@@ -1137,6 +1693,11 @@ html:not(.dark) .mo-submit--neu {
 .st-row-arrow {
   color: var(--text-muted, #556677);
   flex-shrink: 0;
+}
+.st-row-arrow svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.7;
 }
 
 .st-divider {
@@ -1195,7 +1756,7 @@ html:not(.dark) .mo-submit--neu {
 }
 .st-theme-btn--on {
   border-color: var(--accent-glow, #4ade8060);
-  background: color-mix(in srgb, var(--accent-glow, #0f2018) 60%, transparent 40%);
+  background: var(--brand-grad);
   color: var(--accent, #4ade80);
 }
 .st-theme-icon {
@@ -1239,7 +1800,7 @@ html:not(.dark) .mo-submit--neu {
   transition: all 0.2s;
 }
 .st-toggle-opt--on {
-  background: var(--accent-glow, #0f2018);
+  background: var(--brand-grad);
   color: var(--accent, #4ade80);
 }
 
@@ -1460,6 +2021,182 @@ html:not(.dark) .mo-submit--neu {
 }
 .st-file-label:active {
   background: #c9a84c25;
+}
+.st-file-label--inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.st-backup-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.st-backup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.st-backup-label {
+  font-size: 12px;
+  color: var(--text-muted, #677388);
+  letter-spacing: 0.3px;
+}
+.st-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.st-backup-hint {
+  font-size: 12px;
+  color: var(--text-muted, #677388);
+  margin-top: -4px;
+}
+.st-backup-drive {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border, #1a2535);
+  color: var(--text-muted, #677388);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.st-drive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.st-drive-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.st-backup-qr {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border, #1a2535);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(74, 222, 128, 0.08), transparent 45%),
+    color-mix(in srgb, var(--bg-secondary, #0f1520) 88%, white 12%);
+}
+.st-backup-qr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary, #c8d4e0);
+  font-weight: 600;
+}
+.st-backup-qr-actions {
+  display: flex;
+  gap: 8px;
+}
+.st-qr-btn {
+  border: 1px solid var(--border, #1a2535);
+  background: transparent;
+  color: var(--text-secondary, #c8d4e0);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.st-qr-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.st-qr-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.st-qr-frame {
+  position: relative;
+  width: 236px;
+  height: 236px;
+  border-radius: 16px;
+  border: 1px solid var(--border, #1a2535);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(245, 250, 255, 0.9));
+  padding: 8px;
+  box-shadow: 0 12px 26px rgba(8, 12, 20, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.st-qr-frame img {
+  width: 220px;
+  height: 220px;
+  border-radius: 10px;
+}
+.st-qr-mark {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.3);
+}
+.st-qr-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted, #677388);
+}
+.st-qr-nav-btn {
+  border: 1px solid var(--border, #1a2535);
+  background: transparent;
+  color: var(--text-secondary, #c8d4e0);
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.st-qr-nav-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.st-qr-scan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.st-qr-video {
+  width: 100%;
+  max-height: 220px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #1a2535);
+  background: #070b12;
+}
+.st-qr-status {
+  font-size: 12px;
+  color: var(--text-muted, #677388);
+}
+.st-qr-ready {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: var(--text-muted, #677388);
 }
 .st-restore-warn {
   font-size: 12px;

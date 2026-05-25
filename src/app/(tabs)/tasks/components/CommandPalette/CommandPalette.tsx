@@ -178,6 +178,12 @@ export default function CommandPalette() {
   }, []);
 
   useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('az:open-command', handler);
+    return () => window.removeEventListener('az:open-command', handler);
+  }, []);
+
+  useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
@@ -201,17 +207,7 @@ export default function CommandPalette() {
     [flatList, selectedIndex]
   );
 
-  if (!open) return (
-    <button
-      onClick={() => setOpen(true)}
-      className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full az-glass shadow-[var(--az-shadow-lg)] flex items-center justify-center text-[var(--az-text-2)] hover:text-[var(--az-accent)] hover:shadow-[var(--az-shadow-glow)] transition-all duration-300 hover:scale-110"
-      aria-label="Open command palette"
-    >
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    </button>
-  );
+  if (!open) return null;
 
   return (
     <div

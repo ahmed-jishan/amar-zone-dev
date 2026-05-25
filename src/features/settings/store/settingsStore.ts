@@ -12,6 +12,7 @@ export interface AppSettings {
   currency_symbol: string
   pinEnabled: boolean
   pinHash?: string
+  biometricLockEnabled: boolean
   onboardingComplete: boolean
   notificationsEnabled: boolean
   calculatorEnabled: boolean
@@ -33,6 +34,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   currency: 'BDT',
   currency_symbol: '৳',
   pinEnabled: false,
+  biometricLockEnabled: false,
   onboardingComplete: true,
   notificationsEnabled: true,
   calculatorEnabled: true,
