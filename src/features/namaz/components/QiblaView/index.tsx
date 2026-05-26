@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import QiblaCompass from './QiblaCompass';
 import AccuracyMeter from './AccuracyMeter';
+import { getCurrentPrayerLocation, LocationPermissionError, reverseGeocodeLocation } from '@/lib/native/location';
 
 interface Location { lat: number; lng: number; city?: string; }
 type LocationState = 'loading' | 'success' | 'error';
@@ -50,47 +51,34 @@ export default function QiblaView() {
     setLocationState('loading');
     setLocationError(null);
 
-    if (!navigator.geolocation) {
-      setLocationError('ব্রাউজার লোকেশন সাপোর্ট করে না');
-      setLocationState('error');
-      return;
-    }
+    void getCurrentPrayerLocation()
+      .then(async (position) => {
+        const lat = position.latitude;
+        const lng = position.longitude;
 
-    navigator.geolocation.getCurrentPosition(
-      // Success callback
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        
         setQiblaAngle(calculateQibla(lat, lng));
         setDistanceKm(distanceToKaaba(lat, lng));
-        
-        // Get city name from coordinates
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`)
-          .then(res => res.json())
-          .then(data => {
-            const city = data.address?.city || data.address?.town || data.address?.village || 'অজানা স্থান';
-            setLocation({ lat, lng, city });
-            setLocationState('success');
-          })
-          .catch(() => {
-            setLocation({ lat, lng, city: 'অজানা স্থান' });
-            setLocationState('success');
-          });
-      },
-      // Error callback
-      (error) => {
-        const msgs: Record<number, string> = { 
-          1: 'লোকেশন অনুমতি দিন', 
-          2: 'লোকেশন অনুপলব্ধ', 
-          3: 'টাইমআউট' 
-        };
-        setLocationError(msgs[error.code] ?? 'লোকেশন পাওয়া যায়নি');
+
+        try {
+          const place = await reverseGeocodeLocation(position);
+          setLocation({ lat, lng, city: place.displayName ?? place.city ?? 'Current location' });
+        } catch {
+          setLocation({ lat, lng, city: 'Current location' });
+        }
+
+        setLocationState('success');
+      })
+      .catch((error) => {
+        setLocationError(
+          error instanceof LocationPermissionError
+            ? 'Location permission is required. Allow location for SelfSync from phone settings.'
+            : error instanceof Error
+              ? error.message
+              : 'Location could not be detected.'
+        );
         setLocationState('error');
-        console.error('Geolocation error:', error.code, error.message);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
+        console.error('Geolocation error:', error);
+      });
   }, []);
 
   const requestOrientationPermission = async () => {

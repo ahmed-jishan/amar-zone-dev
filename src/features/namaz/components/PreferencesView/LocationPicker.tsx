@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { MapPin, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { usePrefsStore } from '../../store/prefsStore';
+import { getCurrentPrayerLocation, LocationPermissionError, reverseGeocodeLocation } from '@/lib/native/location';
 
 type DetectState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -17,93 +18,43 @@ export default function LocationPicker() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const detectLocation = useCallback(() => {
+  const detectLocation = useCallback(async () => {
     setError(null);
     setSuccessMsg(null);
     setDetectState('loading');
 
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setError('Geolocation is not supported in this browser.');
-      setDetectState('error');
-      return;
-    }
+    try {
+      const detected = await getCurrentPrayerLocation();
+      let nextLocation = { ...detected, city: 'Current location' };
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        
-        try {
-          // Reverse geocode to get city name
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-
-          if (!response.ok) throw new Error('Failed to get location name');
-
-          const data = await response.json();
-          const detectedCity = 
-            data.address?.city || 
-            data.address?.town || 
-            data.address?.municipality ||
-            data.address?.village || 
-            'Unknown location';
-
-          setLocation({
-            latitude: lat,
-            longitude: lng,
-            city: detectedCity,
-            accuracy: position.coords.accuracy,
-            source: 'device',
-            updatedAt: Date.now(),
-          });
-          setAutoDetectLocation(true);
-          setCity(detectedCity);
-          setSuccessMsg(`Location detected: ${detectedCity}`);
-          setDetectState('success');
-
-          // Clear success message after 2 seconds
-          setTimeout(() => setSuccessMsg(null), 2000);
-        } catch (err) {
-          console.error('Reverse geocode failed:', err);
-          // Fallback: save location without city name
-          setLocation({
-            latitude: lat,
-            longitude: lng,
-            city: 'Current location',
-            accuracy: position.coords.accuracy,
-            source: 'device',
-            updatedAt: Date.now(),
-          });
-          setAutoDetectLocation(true);
-          setCity('Current location');
-          setSuccessMsg('Location saved (city name unavailable)');
-          setDetectState('success');
-          setTimeout(() => setSuccessMsg(null), 2000);
-        }
-      },
-      (geoError) => {
-        let message = 'Unable to detect location';
-        
-        if (geoError.code === 1) {
-          message = 'Location permission denied. Enable it in browser settings.';
-        } else if (geoError.code === 2) {
-          message = 'Location service unavailable. Try again later.';
-        } else if (geoError.code === 3) {
-          message = 'Location request timed out. Please try again.';
-        }
-        
-        setError(message);
-        setDetectState('error');
-        console.error('Geolocation error:', geoError.code, geoError.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
+      try {
+        const place = await reverseGeocodeLocation(detected);
+        nextLocation = {
+          ...detected,
+          ...place,
+          city: place.city ?? place.displayName ?? 'Current location',
+        };
+      } catch (err) {
+        console.error('Reverse geocode failed:', err);
       }
-    );
+
+      setLocation(nextLocation);
+      setAutoDetectLocation(true);
+      setCity(nextLocation.city ?? 'Current location');
+      setSuccessMsg(`Location detected: ${nextLocation.displayName ?? nextLocation.city ?? 'Current location'}`);
+      setDetectState('success');
+      setTimeout(() => setSuccessMsg(null), 2000);
+    } catch (err) {
+      const message =
+        err instanceof LocationPermissionError
+          ? 'Location permission denied. Enable location for SelfSync from phone settings, then try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Unable to detect location. Please try again.';
+      setError(message);
+      setDetectState('error');
+      console.error('Geolocation error:', err);
+    }
   }, [setLocation, setAutoDetectLocation]);
 
   const saveManual = useCallback(() => {

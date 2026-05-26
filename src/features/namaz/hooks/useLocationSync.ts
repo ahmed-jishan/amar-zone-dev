@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NAMAZ_STORAGE_KEYS } from '../constants/storageKeys';
 import { usePrefsStore } from '../store/prefsStore';
 import { getItem, setItem } from '../utils/storageHelpers';
 import type { PrayerLocation } from '../types/prayer.types';
+import { getCurrentPrayerLocation, LocationPermissionError, watchPrayerLocation } from '@/lib/native/location';
 
 type LocationStatus = 'idle' | 'loading' | 'ready' | 'denied' | 'error' | 'unsupported';
 
@@ -97,10 +98,15 @@ export function useLocationSync(force = false) {
   const setLocation = usePrefsStore((state) => state.setLocation);
   const [status, setStatus] = useState<LocationStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const locationRef = useRef(location);
+
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
 
   useEffect(() => {
     if (!force && !autoDetectLocation) return;
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    if (typeof window === 'undefined') {
       setStatus('unsupported');
       return;
     }
@@ -109,11 +115,9 @@ export function useLocationSync(force = false) {
     setStatus('loading');
     setError(null);
 
-    const syncPosition = async (position: GeolocationPosition) => {
+    const syncPosition = async (positionLocation: PrayerLocation) => {
       const nextBase: PrayerLocation = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
+        ...positionLocation,
         source: 'device',
         updatedAt: Date.now(),
       };
@@ -132,34 +136,40 @@ export function useLocationSync(force = false) {
       }
     };
 
-    const onError = (geoError: GeolocationPositionError) => {
+    const onError = (geoError: Error) => {
       if (cancelled) return;
-      setStatus(geoError.code === geoError.PERMISSION_DENIED ? 'denied' : 'error');
+      setStatus(geoError instanceof LocationPermissionError ? 'denied' : 'error');
       setError(geoError.message);
     };
 
-    navigator.geolocation.getCurrentPosition(syncPosition, onError, {
-      enableHighAccuracy: true,
-      timeout: 15_000,
-      maximumAge: 0,
-    });
+    let cleanupWatch: (() => void) | undefined;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-        if (shouldSyncLocation(location, next as PrayerLocation, position.coords.accuracy)) {
-          void syncPosition(position);
+    void getCurrentPrayerLocation()
+      .then(syncPosition)
+      .catch(onError);
+
+    void watchPrayerLocation(
+      (next) => {
+        if (shouldSyncLocation(locationRef.current, next, next.accuracy)) {
+          void syncPosition(next);
         }
       },
-      onError,
-      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 }
-    );
+      onError
+    )
+      .then((cleanup) => {
+        if (cancelled) {
+          cleanup();
+          return;
+        }
+        cleanupWatch = cleanup;
+      })
+      .catch(onError);
 
     return () => {
       cancelled = true;
-      navigator.geolocation.clearWatch(watchId);
+      cleanupWatch?.();
     };
-  }, [autoDetectLocation, force, location, setLocation]);
+  }, [autoDetectLocation, force, setLocation]);
 
   return useMemo(() => ({
     location,

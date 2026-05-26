@@ -1,4 +1,11 @@
 import type { CanonicalPrayerName, PrayerTime } from '../types/prayer.types';
+import {
+  cancelAllAppNotifications,
+  cancelAppNotification,
+  isNativeNotificationPlatform,
+  requestAppNotificationPermission,
+  scheduleAppNotification,
+} from '@/lib/native/notifications';
 
 export interface ScheduledPrayerNotification {
   id: string;
@@ -16,17 +23,13 @@ function buildFireTime(time: string, minutesBefore: number): number {
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (typeof window === 'undefined' || !('Notification' in window)) return 'denied';
-  if (Notification.permission !== 'default') return Notification.permission;
-  return Notification.requestPermission();
+  return requestAppNotificationPermission();
 }
 
 export async function schedulePrayerReminder(
   prayer: PrayerTime,
   minutesBefore: number
 ): Promise<ScheduledPrayerNotification | null> {
-  if (typeof window === 'undefined' || !('Notification' in window)) return null;
-
   const permission = await requestNotificationPermission();
   if (permission !== 'granted') return null;
 
@@ -36,15 +39,27 @@ export async function schedulePrayerReminder(
   const id = `${prayer.name}:${fireAt}`;
   cancelPrayerReminder(id);
 
-  const timer = setTimeout(() => {
-    new Notification(`${prayer.label} prayer reminder`, {
+  const scheduled = await scheduleAppNotification({
+    title: `${prayer.label} prayer reminder`,
+    body: minutesBefore > 0 ? `${minutesBefore} minutes remaining` : 'Prayer time has started',
+    tag: id,
+    at: new Date(fireAt),
+  });
+
+  if (!scheduled) return null;
+
+  if (!isNativeNotificationPlatform() && typeof window !== 'undefined' && 'Notification' in window) {
+    const timer = setTimeout(() => {
+      new Notification(`${prayer.label} prayer reminder`, {
       body: minutesBefore > 0 ? `${minutesBefore} minutes remaining` : 'Prayer time has started',
       tag: id,
-    });
-    timers.delete(id);
-  }, fireAt - Date.now());
+      });
+      timers.delete(id);
+    }, fireAt - Date.now());
 
-  timers.set(id, timer);
+    timers.set(id, timer);
+  }
+
   return { id, prayer: prayer.name, fireAt };
 }
 
@@ -52,9 +67,11 @@ export function cancelPrayerReminder(id: string): void {
   const timer = timers.get(id);
   if (timer) clearTimeout(timer);
   timers.delete(id);
+  void cancelAppNotification(id);
 }
 
 export function cancelAllPrayerReminders(): void {
   timers.forEach((timer) => clearTimeout(timer));
   timers.clear();
+  void cancelAllAppNotifications();
 }

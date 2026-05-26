@@ -222,7 +222,7 @@ const translations = {
     backupMergeSuccess: 'Backup merged ✓',
     backupDecryptError: 'Failed to decrypt backup',
     backupPassMismatch: 'Passphrases do not match',
-    backupDrive: 'Google Drive (coming soon)',
+    backupDrive: 'Google Drive',
     driveConnect: 'Connect Drive',
     driveConnected: 'Drive connected',
     driveUpload: 'Upload to Drive',
@@ -839,6 +839,108 @@ function RowArrow({ label, sub, onClick, danger, accent, noArrow }: { label: str
   )
 }
 
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
+const DRIVE_BACKUP_NAME = 'selfsync-backup.json'
+const DRIVE_ACCESS_TOKEN_KEY = 'selfsync-drive-access-token'
+
+function requestDriveAccessToken(clientId?: string): Promise<string> {
+  if (!clientId) return Promise.reject(new Error('Google client id is missing'))
+  if (!window.google?.accounts?.oauth2) return Promise.reject(new Error('Google Drive is not ready yet'))
+
+  return new Promise((resolve, reject) => {
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      prompt: 'consent',
+      callback: (response: { access_token?: string; error?: string }) => {
+        if (response.error || !response.access_token) {
+          reject(new Error(response.error || 'Google Drive sign-in was cancelled'))
+          return
+        }
+        resolve(response.access_token)
+      },
+      error_callback: () => reject(new Error('Google Drive sign-in could not be opened')),
+    })
+    tokenClient.requestAccessToken()
+  })
+}
+
+async function getDriveAccessToken(clientId?: string): Promise<string> {
+  const existing = localStorage.getItem(DRIVE_ACCESS_TOKEN_KEY)
+  if (existing) return existing
+  const token = await requestDriveAccessToken(clientId)
+  localStorage.setItem(DRIVE_ACCESS_TOKEN_KEY, token)
+  return token
+}
+
+async function findDriveBackupFile(accessToken: string): Promise<string | null> {
+  const q = `name='${DRIVE_BACKUP_NAME}' and 'appDataFolder' in parents and trashed=false`
+  const url = new URL('https://www.googleapis.com/drive/v3/files')
+  url.searchParams.set('spaces', 'appDataFolder')
+  url.searchParams.set('fields', 'files(id,name,modifiedTime)')
+  url.searchParams.set('q', q)
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) throw new Error('Could not read Google Drive backup status')
+  const data = await response.json() as { files?: Array<{ id: string }> }
+  return data.files?.[0]?.id ?? null
+}
+
+async function uploadDriveBackup(accessToken: string, content: string): Promise<void> {
+  const fileId = await findDriveBackupFile(accessToken)
+
+  if (fileId) {
+    const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: content,
+    })
+    if (!response.ok) throw new Error('Could not update Google Drive backup')
+    return
+  }
+
+  const boundary = `selfsync-${Date.now()}`
+  const metadata = JSON.stringify({ name: DRIVE_BACKUP_NAME, parents: ['appDataFolder'] })
+  const body = [
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    metadata,
+    `--${boundary}`,
+    'Content-Type: application/json',
+    '',
+    content,
+    `--${boundary}--`,
+    '',
+  ].join('\r\n')
+
+  const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+    },
+    body,
+  })
+  if (!response.ok) throw new Error('Could not create Google Drive backup')
+}
+
+async function downloadDriveBackup(accessToken: string): Promise<string> {
+  const fileId = await findDriveBackupFile(accessToken)
+  if (!fileId) throw new Error('No Google Drive backup found')
+
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) throw new Error('Could not download Google Drive backup')
+  return response.text()
+}
+
 function EncryptedBackupModal({ language, onClose, onToast }: { language: Language; onClose: () => void; onToast: (msg: string) => void }) {
   const t = translations[language]
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
@@ -1025,19 +1127,66 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
   }
 
   const checkDriveStatus = async () => {
-    setDriveConnected(false)
+    setDriveConnected(Boolean(localStorage.getItem(DRIVE_ACCESS_TOKEN_KEY)))
   }
 
   const handleDriveConnect = async () => {
-    setError(t.driveMissing)
+    setError('')
+    if (!clientId) {
+      setError('Google client id is missing')
+      return
+    }
+    if (!window.google?.accounts?.oauth2) {
+      setError('Google Drive is still loading. Try again in a moment.')
+      return
+    }
+
+    setBusy(true)
+    try {
+      const token = await requestDriveAccessToken(clientId)
+      localStorage.setItem(DRIVE_ACCESS_TOKEN_KEY, token)
+      setDriveConnected(true)
+      onToast(t.driveConnected)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.driveMissing)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleDriveUpload = async () => {
-    setError(t.driveMissing)
+    setError('')
+    if (!validatePassphrase()) return
+
+    setBusy(true)
+    try {
+      const token = await getDriveAccessToken(clientId)
+      const payload = buildBackupPayload()
+      const encrypted = await encryptBackup(passphrase, payload)
+      await uploadDriveBackup(token, serializeEncryptedBackup(encrypted))
+      setDriveConnected(true)
+      onToast(t.backupExported)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.driveMissing)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleDriveDownload = async () => {
-    setError(t.driveMissing)
+    setError('')
+    if (!validatePassphrase()) return
+
+    setBusy(true)
+    try {
+      const token = await getDriveAccessToken(clientId)
+      const text = await downloadDriveBackup(token)
+      await handleImportText(text)
+      setDriveConnected(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.driveMissing)
+      setBusy(false)
+    }
   }
 
   return (

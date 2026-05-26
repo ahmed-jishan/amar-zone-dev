@@ -5,6 +5,7 @@ import {
   schedulePrayerReminder,
   type ScheduledPrayerNotification,
 } from '../utils/notificationManager';
+import { getNotificationPermission } from '@/lib/native/notifications';
 import { usePrefsStore } from '../store/prefsStore';
 import type { PrayerTimesResponse } from '../types/prayer.types';
 
@@ -14,6 +15,10 @@ export function useNotifications(prayerTimes?: PrayerTimesResponse | null) {
   const setReminderPrefs = usePrefsStore((state) => state.setReminderPrefs);
   const [scheduled, setScheduled] = useState<ScheduledPrayerNotification[]>([]);
   const [permission, setPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    void getNotificationPermission().then(setPermission);
+  }, []);
 
   useEffect(() => {
     if (!remindersEnabled || !prayerTimes) {

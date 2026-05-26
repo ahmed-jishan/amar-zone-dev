@@ -9,7 +9,7 @@ export default function ReminderSettings() {
   const remindersEnabled = usePrefsStore((state) => state.remindersEnabled);
   const reminderMinutesBefore = usePrefsStore((state) => state.reminderMinutesBefore);
   const setReminderPrefs = usePrefsStore((state) => state.setReminderPrefs);
-  const { permission } = useNotifications();
+  const { permission, enable, disable } = useNotifications();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleToggle = useCallback(async () => {
@@ -17,32 +17,12 @@ export default function ReminderSettings() {
 
     try {
       if (remindersEnabled) {
-        // Disable: directly set to false
-        setReminderPrefs(false, reminderMinutesBefore);
+        disable();
       } else {
-        // Enable: request permission first
-        if (!('Notification' in window)) {
-          alert('Browser notifications are not supported in this browser.');
-          return;
+        const permissionResult = await enable();
+        if (permissionResult !== 'granted') {
+          alert('Notification permission is denied. Enable notifications from your phone settings, then try again.');
         }
-
-        // Check current permission status
-        if (Notification.permission === 'denied') {
-          alert('Notification permission is denied. Please enable it in browser settings.');
-          return;
-        }
-
-        // Request permission if needed
-        if (Notification.permission === 'default') {
-          const permissionResult = await Notification.requestPermission();
-          if (permissionResult !== 'granted') {
-            alert('Notification permission denied.');
-            return;
-          }
-        }
-
-        // Permission is granted, enable reminders
-        setReminderPrefs(true, reminderMinutesBefore);
       }
     } catch (error) {
       console.error('Error toggling reminders:', error);
@@ -50,7 +30,7 @@ export default function ReminderSettings() {
     } finally {
       setIsLoading(false);
     }
-  }, [remindersEnabled, reminderMinutesBefore, setReminderPrefs]);
+  }, [disable, enable, remindersEnabled]);
 
   const handleMinutesChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
