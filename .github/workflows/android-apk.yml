@@ -11,6 +11,9 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID }}
+      NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
 
     steps:
       - name: Checkout
