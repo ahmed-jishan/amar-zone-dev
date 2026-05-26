@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff, Plus, TrendingDown, TrendingUp } from 'lucide-react'
 import { useMoneyStore } from '../store/moneyStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
@@ -45,6 +46,7 @@ export default function MoneyPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month')
+  const [balanceVisible, setBalanceVisible] = useState(true)
 
   const { language, currency_symbol } = useSettingsStore()
   const router = useRouter()
@@ -140,40 +142,58 @@ export default function MoneyPage() {
     <div className="mon-root min-h-[100dvh] bg-[var(--mon-bg)] text-[var(--mon-text-1)]">
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32">
         {/* HERO */}
-        <div className="relative overflow-hidden pt-6 pb-4">
-          <div className="absolute top-[-60px] right-[-40px] w-[200px] h-[200px] rounded-full opacity-20 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, var(--mon-gold), transparent 70%)', filter: 'blur(40px)', animation: 'mon-orb-float 8s ease-in-out infinite' }}
-          />
-          <div className="absolute bottom-[-40px] left-[-30px] w-[150px] h-[150px] rounded-full opacity-15 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, var(--mon-accent), transparent 70%)', filter: 'blur(40px)', animation: 'mon-orb-float 10s ease-in-out infinite reverse' }}
-          />
-
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-1">
-              <div>
-                <p className="text-[11px] font-semibold tracking-[1.5px] uppercase" style={{ color: 'var(--mon-gold)', opacity: 0.85 }}>
-                  {t.totalBalance}
-                </p>
-                <div className="flex items-baseline gap-1.5 mt-1">
-                  <span className="text-[22px] font-light" style={{ color: 'var(--mon-text-3)' }}>{currency_symbol}</span>
-                  <span className="text-[42px] font-black tracking-[-2px] leading-none" style={{ color: 'var(--mon-text-1)' }}>
-                    {totalBalance.toLocaleString('en-BD')}
+        <div className="pt-5 pb-4">
+          <div
+            className="relative overflow-hidden rounded-[28px] p-5 shadow-[var(--mon-shadow-lg)]"
+            style={{
+              background: 'linear-gradient(135deg, rgba(201,168,76,0.24), rgba(99,102,241,0.16)), linear-gradient(180deg, var(--mon-surface-1), var(--mon-surface-2))',
+              border: '1px solid var(--mon-glass-border)',
+            }}
+          >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[1.5px]" style={{ color: 'var(--mon-gold)' }}>
+                    {t.totalBalance}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceVisible((value) => !value)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[var(--mon-text-2)] transition active:scale-95"
+                    aria-label={balanceVisible ? 'Hide balance' : 'Show balance'}
+                  >
+                    {balanceVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+                  </button>
+                </div>
+                <div className="mt-2 flex items-baseline gap-1.5">
+                  <span className="text-[20px] font-semibold" style={{ color: 'var(--mon-text-3)' }}>{currency_symbol}</span>
+                  <span className="tabular-nums text-[40px] font-black leading-none transition-all duration-300" style={{ color: 'var(--mon-text-1)' }}>
+                    {balanceVisible ? totalBalance.toLocaleString('en-BD') : '••••••'}
                   </span>
                 </div>
-                <p className="text-[12px] mt-1" style={{ color: 'var(--mon-text-3)' }}>{getMonthName(month)}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]" style={{ color: 'var(--mon-text-3)' }}>
+                  <span>{getMonthName(month)}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-500">
+                    <TrendingUp size={13} /> {formatCurrency(summary.income, currency_symbol)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 text-red-500">
+                    <TrendingDown size={13} /> {formatCurrency(summary.expense, currency_symbol)}
+                  </span>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAddTxn(true)}
-                className="w-[46px] h-[46px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 active:scale-90 hover:scale-105"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 active:scale-95"
                 style={{
                   background: 'linear-gradient(135deg, var(--mon-gold), var(--mon-gold-2))',
                   color: '#080c14',
-                  boxShadow: '0 4px 20px var(--mon-gold-glow)',
+                  boxShadow: '0 12px 28px var(--mon-gold-glow)',
                 }}
+                aria-label="Add transaction"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M12 4v16m8-8H4" />
-                </svg>
+                <Plus size={21} strokeWidth={2.5} />
               </button>
             </div>
           </div>

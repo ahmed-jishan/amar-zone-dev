@@ -102,18 +102,27 @@ export default function QuranView() {
       artist: 'Quran Recitation',
       album: surah.banglaMeaning,
     });
-    navigator.mediaSession.setActionHandler('play', () => {
-      audioRef.current?.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    navigator.mediaSession.playbackState = 'playing';
+    navigator.mediaSession.setActionHandler('play', async () => {
+      try {
+        await audioRef.current?.play();
+        navigator.mediaSession.playbackState = 'playing';
+        setIsPlaying(true);
+      } catch {
+        navigator.mediaSession.playbackState = 'paused';
+        setIsPlaying(false);
+      }
     });
     navigator.mediaSession.setActionHandler('pause', () => {
       audioRef.current?.pause();
+      navigator.mediaSession.playbackState = 'paused';
       setIsPlaying(false);
     });
     navigator.mediaSession.setActionHandler('nexttrack', () => {
-      playPosition(surah, Math.min(surah.verses, ayahNumber + 1));
+      void playPosition(surah, Math.min(surah.verses, ayahNumber + 1));
     });
     navigator.mediaSession.setActionHandler('previoustrack', () => {
-      playPosition(surah, Math.max(1, ayahNumber - 1));
+      void playPosition(surah, Math.max(1, ayahNumber - 1));
     });
   };
 
@@ -129,21 +138,25 @@ export default function QuranView() {
     });
   };
 
-  const playPosition = (surah: SurahMeta, ayahNumber: number) => {
+  const playPosition = async (surah: SurahMeta, ayahNumber: number) => {
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
 
     if (activeSurah === surah.number && activeAyah === ayahNumber) {
       if (isPlaying) {
         audio.pause();
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
         setIsPlaying(false);
         return;
       }
 
-      audio.play().then(() => {
+      try {
+        await audio.play();
         setIsPlaying(true);
         updateMediaSession(surah, ayahNumber);
-      }).catch(() => setIsPlaying(false));
+      } catch {
+        setIsPlaying(false);
+      }
       return;
     }
 
@@ -154,18 +167,22 @@ export default function QuranView() {
     audio.onended = () => {
       const nextAyah = ayahNumber + 1;
       if (nextAyah <= surah.verses) {
-        playPosition(surah, nextAyah);
+        void playPosition(surah, nextAyah);
       } else {
         setIsPlaying(false);
         setActiveSurah(null);
         setActiveAyah(null);
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       }
     };
-    audio.play().then(() => {
+    try {
+      await audio.play();
       setIsPlaying(true);
       updateMediaSession(surah, ayahNumber);
-      void notifyNowPlaying(surah, ayahNumber);
-    }).catch(() => setIsPlaying(false));
+      await notifyNowPlaying(surah, ayahNumber);
+    } catch {
+      setIsPlaying(false);
+    }
   };
 
   const resumeLastRead = () => {
@@ -176,7 +193,7 @@ export default function QuranView() {
 
   const playBookmark = (surahNumber: number, ayahNumber: number) => {
     const surah = SURAHS.find((item) => item.number === surahNumber);
-    if (surah) playPosition(surah, ayahNumber);
+    if (surah) void playPosition(surah, ayahNumber);
   };
 
   const renderPlayIcon = (surahNumber: number, ayahNumber: number) =>
@@ -255,7 +272,7 @@ export default function QuranView() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => playPosition(selectedSurah, ayah.numberInSurah)}
+                    onClick={() => void playPosition(selectedSurah, ayah.numberInSurah)}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-xl nz-primary"
                       aria-label="Play ayah"
                     >
@@ -333,7 +350,7 @@ export default function QuranView() {
                   <button
                     key={surah.number}
                     type="button"
-                    onClick={() => playPosition(surah, 1)}
+                    onClick={() => void playPosition(surah, 1)}
                     className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold nz-control"
                   >
                     {activeSurah === surah.number && isPlaying ? <Pause size={15} /> : <Volume2 size={15} />}
@@ -402,7 +419,7 @@ export default function QuranView() {
               <div className="mt-4 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => playPosition(surah, active && activeAyah ? activeAyah : 1)}
+                  onClick={() => void playPosition(surah, active && activeAyah ? activeAyah : 1)}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold nz-primary"
                 >
                   {active && isPlaying ? <Pause size={16} /> : <Play size={16} />}

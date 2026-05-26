@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_META } from '../constants'
 import type { ExpenseCategory, IncomeCategory, Transaction, TransactionType, Wallet } from '@/lib/types'
 
 type TransactionCategory = ExpenseCategory | IncomeCategory
 
 export default function AddTransactionModal({ onClose, onAdd, translations: t, currencySymbol, wallets = [], selectedWalletId, transaction }: any) {
+  const [mounted, setMounted] = useState(false)
   const editing = !!transaction
   const initialTransaction = transaction as Transaction | undefined
   const [type, setType] = useState<TransactionType>(initialTransaction?.type || 'expense')
@@ -45,7 +47,13 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
         { label: 'Bill', amount: '', category: 'utilities', note: 'Bill payment' },
       ]
 
-  return (
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div className="relative w-full max-w-[420px] mx-4 rounded-[var(--mon-radius-2xl)] overflow-hidden animate-[mon-scale-in_200ms_ease-out] mon-glass shadow-[var(--mon-shadow-lg)]"
@@ -165,6 +173,7 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

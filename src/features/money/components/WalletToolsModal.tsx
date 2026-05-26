@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Wallet } from '@/lib/types'
 import { WALLET_TYPES } from '../constants'
 
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function WalletToolsModal({ wallets, selectedWalletId, onClose, onTransfer, onReconcile, onAddWallet, currencySymbol }: Props) {
+  const [mounted, setMounted] = useState(false)
   const defaultFrom = selectedWalletId || wallets[0]?.id || ''
   const defaultTo = wallets.find((wallet) => wallet.id !== defaultFrom)?.id || wallets[0]?.id || ''
   const [mode, setMode] = useState<'transfer' | 'reconcile'>('transfer')
@@ -34,6 +36,10 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
       setFromWalletId(wallets[0]?.id || '')
     }
   }, [wallets, fromWalletId])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (destinationWallets.length && !destinationWallets.some((wallet) => wallet.id === toWalletId)) {
@@ -71,7 +77,9 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
     setNewWalletBalance('')
   }
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <form
@@ -173,7 +181,8 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
           Save
         </button>
       </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 

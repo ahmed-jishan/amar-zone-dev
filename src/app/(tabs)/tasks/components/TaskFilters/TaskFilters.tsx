@@ -33,7 +33,6 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
   const searchQuery = useTaskStore((s) => s.searchQuery);
   const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
   const setSelectionMode = useTaskStore((s) => s.setSelectionMode);
-  const archiveCompletedOlderThan = useTaskStore((s) => s.archiveCompletedOlderThan);
 
   useEffect(() => {
     if (!showSort) return;
@@ -167,16 +166,6 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
               <span className={activeFilter === f.key ? 'text-white' : ''}>{f.icon}</span>
               {f.label}
             </button>
-            {f.key === 'archived' && (
-              <button
-                onClick={() => archiveCompletedOlderThan(30)}
-                className="az-filter-action"
-                title="Archive completed tasks older than 30 days"
-                aria-label="Archive completed tasks older than 30 days"
-              >
-                <ArchiveBoxIcon />
-              </button>
-            )}
           </div>
         ))}
 
@@ -281,14 +270,6 @@ function OverdueIcon() {
 function ArchivedIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
-      <path d="M10 12h4" />
-    </svg>
-  );
-}
-function ArchiveBoxIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
       <path d="M10 12h4" />
     </svg>

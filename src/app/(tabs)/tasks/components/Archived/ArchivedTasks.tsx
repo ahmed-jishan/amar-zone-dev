@@ -91,6 +91,13 @@ export default function ArchivedTasks({ tasks }: Props) {
 
   return (
     <div className="az-archived">
+      <div className="az-archived-info-block az-glass">
+        <div className="az-archived-info-title">Archived keeps finished work out of your active flow.</div>
+        <div className="az-archived-info-text">
+          Restore anything you need again, export a record, or permanently delete tasks when you are sure.
+        </div>
+      </div>
+
       <div className="az-archived-toolbar az-glass">
         <div className="az-archived-title">
           <span className="az-archived-label">Archived</span>

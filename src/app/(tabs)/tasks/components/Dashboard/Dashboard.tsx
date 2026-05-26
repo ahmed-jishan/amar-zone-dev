@@ -22,17 +22,35 @@ export default function Dashboard({ tasks }: Props) {
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
       data.push({
         day: dayName,
-        completed: tasks.filter((t) => t.completedDates.includes(iso)).length,
+        completed: tasks.filter((t) => (t.completedDates || []).includes(iso)).length,
         created: tasks.filter((t) => t.createdAt.startsWith(iso)).length,
       });
     }
     return data;
   }, [tasks]);
 
-  const maxCompleted = Math.max(...weeklyData.map((d) => d.completed), 1);
-  const completionTrend = weeklyData.map((d) => ({
+  const monthlyData = useMemo(() => {
+    const data: { day: string; completed: number; created: number }[] = [];
+    const today = new Date();
+    const days = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    for (let day = 1; day <= days; day += 1) {
+      const d = new Date(today.getFullYear(), today.getMonth(), day);
+      const iso = d.toISOString().split('T')[0];
+      data.push({
+        day: String(day),
+        completed: tasks.filter((t) => (t.completedDates || []).includes(iso)).length,
+        created: tasks.filter((t) => t.createdAt.startsWith(iso)).length,
+      });
+    }
+    return data;
+  }, [tasks]);
+
+  const activeData = period === 'week' ? weeklyData : monthlyData;
+  const maxCompleted = Math.max(...activeData.map((d) => Math.max(d.completed, d.created)), 1);
+  const completionTrend = activeData.map((d) => ({
     ...d,
     height: Math.max((d.completed / maxCompleted) * 100, 8),
+    createdHeight: Math.max((d.created / maxCompleted) * 100, 8),
   }));
 
   const categoryBreakdown = useMemo(() => {
@@ -91,26 +109,40 @@ export default function Dashboard({ tasks }: Props) {
         <StatCard label="Time Tracked" value={`${totalTime}m`} trend={avgCompletionTime} trendLabel="avg per task" color="var(--az-warn)" />
       </div>
 
-      {/* Weekly Bar Chart */}
+      {/* Activity Bar Chart */}
       <div className="p-4 rounded-[var(--az-radius-xl)] bg-[var(--az-surface-1)] border border-[var(--az-border)]">
-        <h3 className="text-[13px] font-semibold text-[var(--az-text-2)] mb-4 uppercase tracking-wide">Weekly Activity</h3>
-        <div className="flex items-end justify-between gap-2 h-32">
+        <h3 className="text-[13px] font-semibold text-[var(--az-text-2)] mb-4 uppercase tracking-wide">
+          {period === 'week' ? 'Weekly Activity' : 'Monthly Activity'}
+        </h3>
+        <div className={`flex items-end justify-between h-32 ${period === 'week' ? 'gap-2' : 'gap-1'}`}>
           {completionTrend.map((d, i) => (
             <div key={d.day} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex flex-col gap-1">
+              <div className="w-full flex items-end gap-1">
                 <div
-                  className="w-full rounded-t-md bg-[var(--az-success)]/80 transition-all duration-700 hover:bg-[var(--az-success)]"
+                  className="flex-1 rounded-t-md bg-[var(--az-success)]/80 transition-all duration-700 hover:bg-[var(--az-success)]"
                   style={{
                     height: `${d.height}%`,
                     animationDelay: `${i * 100}ms`,
                     animation: 'az-slide-up 500ms ease-out both',
                   }}
                 />
+                <div
+                  className="flex-1 rounded-t-md bg-[var(--az-accent)]/45 transition-all duration-700"
+                  style={{
+                    height: `${d.createdHeight}%`,
+                    animationDelay: `${i * 80}ms`,
+                    animation: 'az-slide-up 500ms ease-out both',
+                  }}
+                />
               </div>
-              <span className="text-[11px] font-medium text-[var(--az-text-3)]">{d.day}</span>
+              <span className="text-[10px] font-medium text-[var(--az-text-3)]">{period === 'month' && Number(d.day) % 2 !== 1 ? '' : d.day}</span>
               <span className="text-[10px] text-[var(--az-text-4)]">{d.completed}</span>
             </div>
           ))}
+        </div>
+        <div className="mt-3 flex items-center gap-4 text-[11px] text-[var(--az-text-3)]">
+          <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-[var(--az-success)]" /> Completed</span>
+          <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-[var(--az-accent)]/70" /> Created</span>
         </div>
       </div>
 

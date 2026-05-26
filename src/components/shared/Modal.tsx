@@ -1,5 +1,6 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface ModalProps {
@@ -10,25 +11,33 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
+  const [mounted, setMounted] = useState(false)
+
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden'
     else document.body.style.overflow = ''
     return () => { document.body.style.overflow = '' }
   }, [open])
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   if (!open) return null
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
         className="absolute inset-0"
-        style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+        style={{ backgroundColor: 'rgba(0,0,0,0.58)', backdropFilter: 'blur(10px)' }}
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6
-                   max-h-[90vh] overflow-y-auto animate-slide-up"
-        style={{ backgroundColor: 'rgb(var(--bg))' }}
+        className="relative z-10 w-full max-w-md rounded-3xl p-6
+                   max-h-[min(90dvh,720px)] overflow-y-auto animate-dialog-in shadow-2xl"
+        style={{ backgroundColor: 'rgb(var(--bg))', border: '1px solid rgb(var(--border))' }}
       >
         {title && (
           <div className="flex items-center justify-between mb-5">
@@ -46,6 +55,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

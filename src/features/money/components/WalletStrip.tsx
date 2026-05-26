@@ -29,7 +29,7 @@ export default function WalletStrip({ wallets, selectedWalletId, currencySymbol,
           Tools
         </button>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2.5 overflow-x-auto pb-1">
         {wallets.map((wallet) => {
           const active = wallet.id === selectedWalletId || (!selectedWalletId && wallet.isDefault);
           return (
@@ -37,11 +37,13 @@ export default function WalletStrip({ wallets, selectedWalletId, currencySymbol,
               key={wallet.id}
               type="button"
               onClick={() => onSelect(wallet.id)}
-              className="min-w-[148px] shrink-0 rounded-[var(--mon-radius-xl)] p-3 text-left transition-all active:scale-[0.98]"
+              className="min-w-[152px] shrink-0 rounded-[18px] p-3.5 text-left transition-all duration-200 active:scale-[0.98]"
               style={{
-                background: active ? 'var(--mon-gold-bg)' : 'var(--mon-surface-1)',
-                border: `1px solid ${active ? 'var(--mon-gold-glow)' : 'var(--mon-border)'}`,
-                boxShadow: active ? 'var(--mon-shadow-gold)' : 'none',
+                background: active
+                  ? 'linear-gradient(135deg, var(--mon-gold-bg), var(--mon-surface-1))'
+                  : 'var(--mon-surface-1)',
+                border: `1px solid ${active ? 'var(--mon-gold-glow)' : 'transparent'}`,
+                boxShadow: active ? '0 12px 26px rgba(201,168,76,0.14)' : 'var(--mon-shadow-sm)',
               }}
             >
               <div className="mb-2 flex items-center justify-between gap-2">

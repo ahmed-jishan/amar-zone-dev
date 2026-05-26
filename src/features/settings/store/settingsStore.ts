@@ -26,6 +26,15 @@ export interface AppSettings {
   quietHoursEnd: string
   autoLockEnabled: boolean
   autoLockMinutes: number
+  gdriveConnected: boolean
+  gdriveEmail?: string
+  gdriveUserName?: string
+  gdriveUserPicture?: string
+  lastSyncAt?: string
+  syncEnabled: boolean
+  syncPassword?: string
+  autoSync: boolean
+  wifiOnlySync: boolean
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -48,6 +57,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   quietHoursEnd: '07:00',
   autoLockEnabled: false,
   autoLockMinutes: 10,
+  gdriveConnected: false,
+  syncEnabled: false,
+  autoSync: false,
+  wifiOnlySync: false,
 }
 
 // Helper to apply theme to document root
@@ -65,6 +78,10 @@ function applyThemeToDOM(theme: Theme) {
 interface SettingsStore extends AppSettings {
   update: (patch: Partial<AppSettings>) => void
   toggleTheme: () => void
+  setGDriveConnected: (profile: { email?: string; name?: string; picture?: string }) => void
+  disconnectGDrive: () => void
+  setLastSync: (date?: string) => void
+  setAutoSync: (enabled: boolean) => void
   _hydrated: boolean
 }
 
@@ -85,6 +102,28 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ theme: next })
         applyThemeToDOM(next)
       },
+      setGDriveConnected: (profile) => {
+        set({
+          gdriveConnected: true,
+          syncEnabled: true,
+          gdriveEmail: profile.email,
+          gdriveUserName: profile.name,
+          gdriveUserPicture: profile.picture,
+        })
+      },
+      disconnectGDrive: () => {
+        set({
+          gdriveConnected: false,
+          syncEnabled: false,
+          autoSync: false,
+          gdriveEmail: undefined,
+          gdriveUserName: undefined,
+          gdriveUserPicture: undefined,
+          lastSyncAt: undefined,
+        })
+      },
+      setLastSync: (date) => set({ lastSyncAt: date ?? new Date().toISOString() }),
+      setAutoSync: (enabled) => set({ autoSync: enabled, syncEnabled: enabled || get().syncEnabled }),
     }),
     {
       name: 'selfsync-settings',

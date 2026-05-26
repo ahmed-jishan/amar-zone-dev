@@ -12,6 +12,7 @@ import { usePrefsStore } from '@/features/namaz/store/prefsStore'
 import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
+import { Capacitor } from '@capacitor/core'
 import { NAMAZ_STORAGE_KEYS } from '@/features/namaz/constants/storageKeys'
 import {
   buildBackupPayload,
@@ -25,12 +26,8 @@ import QRCode from 'qrcode'
 import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser'
 import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
-
-declare global {
-  interface Window {
-    google?: any
-  }
-}
+import CloudSyncCard from '@/components/settings/CloudSyncCard'
+import { gdriveAuth } from '@/lib/sync/gdrive-auth'
 
 // ==================== Translations ====================
 const translations = {
@@ -646,6 +643,8 @@ export default function SettingsPage() {
           )}
         </Section>
 
+        <CloudSyncCard />
+
         {/* Data Management */}
         <Section icon={<Download size={15} />} title={t.dataManage}>
           <RowArrow label={t.backupSync} sub={t.backupSyncSub} onClick={() => setShowBackupSyncModal(true)} />
@@ -845,10 +844,11 @@ const DRIVE_ACCESS_TOKEN_KEY = 'selfsync-drive-access-token'
 
 function requestDriveAccessToken(clientId?: string): Promise<string> {
   if (!clientId) return Promise.reject(new Error('Google client id is missing'))
-  if (!window.google?.accounts?.oauth2) return Promise.reject(new Error('Google Drive is not ready yet'))
+  const oauth2 = window.google?.accounts?.oauth2
+  if (!oauth2) return Promise.reject(new Error('Google Drive is not ready yet'))
 
   return new Promise((resolve, reject) => {
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+    const tokenClient = oauth2.initTokenClient({
       client_id: clientId,
       scope: DRIVE_SCOPE,
       prompt: 'consent',
@@ -944,6 +944,7 @@ async function downloadDriveBackup(accessToken: string): Promise<string> {
 function EncryptedBackupModal({ language, onClose, onToast }: { language: Language; onClose: () => void; onToast: (msg: string) => void }) {
   const t = translations[language]
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform()
   const [passphrase, setPassphrase] = useState('')
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
   const [error, setError] = useState('')
@@ -985,6 +986,10 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (isNative) {
+      setDriveReady(true)
+      return
+    }
     if (window.google?.accounts?.oauth2) {
       setDriveReady(true)
       return
@@ -1127,24 +1132,32 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
   }
 
   const checkDriveStatus = async () => {
+    if (isNative) {
+      setDriveConnected(gdriveAuth.isConnected())
+      return
+    }
     setDriveConnected(Boolean(localStorage.getItem(DRIVE_ACCESS_TOKEN_KEY)))
   }
 
   const handleDriveConnect = async () => {
     setError('')
-    if (!clientId) {
+    if (!isNative && !clientId) {
       setError('Google client id is missing')
       return
     }
-    if (!window.google?.accounts?.oauth2) {
+    if (!isNative && !window.google?.accounts?.oauth2) {
       setError('Google Drive is still loading. Try again in a moment.')
       return
     }
 
     setBusy(true)
     try {
-      const token = await requestDriveAccessToken(clientId)
-      localStorage.setItem(DRIVE_ACCESS_TOKEN_KEY, token)
+      if (isNative) {
+        await gdriveAuth.connect()
+      } else {
+        const token = await requestDriveAccessToken(clientId)
+        localStorage.setItem(DRIVE_ACCESS_TOKEN_KEY, token)
+      }
       setDriveConnected(true)
       onToast(t.driveConnected)
     } catch (e) {
@@ -1160,7 +1173,7 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
 
     setBusy(true)
     try {
-      const token = await getDriveAccessToken(clientId)
+      const token = isNative ? await gdriveAuth.getValidToken() : await getDriveAccessToken(clientId)
       const payload = buildBackupPayload()
       const encrypted = await encryptBackup(passphrase, payload)
       await uploadDriveBackup(token, serializeEncryptedBackup(encrypted))
@@ -1179,7 +1192,7 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
 
     setBusy(true)
     try {
-      const token = await getDriveAccessToken(clientId)
+      const token = isNative ? await gdriveAuth.getValidToken() : await getDriveAccessToken(clientId)
       const text = await downloadDriveBackup(token)
       await handleImportText(text)
       setDriveConnected(true)

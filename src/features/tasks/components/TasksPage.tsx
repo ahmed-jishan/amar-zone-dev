@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Plus, X, Check, Clock, Play, Pause, RotateCcw, ChevronRight,
   ChevronDown, Flame, Zap, Target, BookOpen, Layers,
@@ -607,6 +608,7 @@ function RewardToast({ xp, msg }: { xp: number; msg: string }) {
 
 // ─── ADD TASK MODAL ───────────────────────────────────────
 function AddTaskModal({ onClose, onAdd, t, language }: any) {
+  const [mounted, setMounted] = useState(false)
   const [mode, setMode] = useState<TaskMode>('daily')
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
@@ -623,7 +625,13 @@ function AddTaskModal({ onClose, onAdd, t, language }: any) {
   const submit = () => { if (!title.trim()) return; onAdd({ mode, title: title.trim(), description: desc||undefined, priority, timerMinutes: timerMins, color, category: category||undefined, goalDays: goalDays?Number(goalDays):undefined, dueDate: dueDate||undefined, subTasks, status: 'pending' as TaskStatus }); onClose() }
 
   const modeLabel = (m: TaskMode) => language==='bn' ? MODE_META[m].labelBn : MODE_META[m].labelEn
-  return (
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
     <div className="mo-backdrop" onClick={onClose}>
       <div className="mo-sheet" onClick={e=>e.stopPropagation()}>
         <div className="mo-notch"/><div className="mo-head"><h2 className="mo-title">{t.newTask}</h2><button className="mo-close" onClick={onClose}><X size={16}/></button></div>
@@ -644,12 +652,14 @@ function AddTaskModal({ onClose, onAdd, t, language }: any) {
         {subTasks.map((s: SubTask,i)=>(<div key={s.id} className="mo-subtask-item"><span className="mo-subtask-dot" style={{background:color}}/><span>{s.title}</span><button onClick={()=>setSubTasks(subTasks.filter((_,j)=>j!==i))}><X size={11}/></button></div>))}
         <button className="mo-submit" style={{background:`linear-gradient(135deg,${color},${color}cc)`}} onClick={submit}>{t.create}</button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
 // ─── EDIT TASK MODAL ──────────────────────────────────────
 function EditTaskModal({ task, onClose, onSave, t, language }: any) {
+  const [mounted, setMounted] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [desc, setDesc] = useState(task.description||'')
   const [priority, setPriority] = useState(task.priority)
@@ -664,7 +674,13 @@ function EditTaskModal({ task, onClose, onSave, t, language }: any) {
   const toggleSubDone = (id: string) => setSubTasks(subTasks.map((s: SubTask)=>s.id===id?{...s,done:!s.done}:s))
   const removeSub = (id: string) => setSubTasks(subTasks.filter((s: SubTask)=>s.id!==id))
 
-  return (
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
     <div className="mo-backdrop" onClick={onClose}>
       <div className="mo-sheet" onClick={e=>e.stopPropagation()}>
         <div className="mo-notch"/><div className="mo-head"><h2 className="mo-title">{t.editTask}</h2><button className="mo-close" onClick={onClose}><X size={16}/></button></div>
@@ -683,7 +699,8 @@ function EditTaskModal({ task, onClose, onSave, t, language }: any) {
         {subTasks.map((s: SubTask)=>(<div key={s.id} className="mo-subtask-item" style={{opacity:s.done?0.6:1}}><button className="tk-subtask-check" onClick={()=>toggleSubDone(s.id)} style={s.done?{background:color,borderColor:color,width:18,height:18,borderRadius:4,border:'none',marginRight:6}:{width:18,height:18,borderRadius:4,border:'1.5px solid #2a3d55',background:'transparent',marginRight:6}}>{s.done && <Check size={10}/>}</button><span style={{flex:1}}>{s.title}</span><button onClick={()=>removeSub(s.id)}><X size={11}/></button></div>))}
         <button className="mo-submit" style={{background:`linear-gradient(135deg,${color},${color}cc)`}} onClick={()=>{ onSave({title,description:desc||undefined,priority,color,dueDate:dueDate||undefined,category:category||undefined,timerMinutes:timerMins,goalDays:goalDays?Number(goalDays):undefined,subTasks}); onClose() }}>{t.save}</button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -816,9 +833,9 @@ const CSS = `
 .tk-reward-particles { position:absolute; inset:0; pointer-events:none; }
 .tk-particle { position:absolute; top:50%; left:50%; width:5px; height:5px; border-radius:50%; animation:particleFly .6s ease-out both; }
 @keyframes particleFly { 0%{transform:translate(-50%,-50%) rotate(var(--angle)) translateX(0); opacity:1} 100%{transform:translate(-50%,-50%) rotate(var(--angle)) translateX(var(--dist)); opacity:0} }
-.mo-backdrop { position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.7); backdrop-filter:blur(8px); display:flex; align-items:flex-end; justify-content:center; animation:moFade .2s ease-out; }
-.mo-sheet { width:100%; max-width:480px; background:linear-gradient(180deg,#0f1520 0%,#0a1018 100%); border:1px solid #1a2535; border-bottom:none; border-radius:24px 24px 0 0; padding:8px 20px 48px; max-height:90vh; overflow-y:auto; animation:moSlide .32s cubic-bezier(.32,1.5,.6,1); }
-.mo-notch { width:36px; height:4px; background:#1e2d40; border-radius:999px; margin:10px auto 18px; }
+.mo-backdrop { position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:18px; animation:moFade .2s ease-out; }
+.mo-sheet { width:100%; max-width:520px; background:linear-gradient(180deg,#0f1520 0%,#0a1018 100%); border:1px solid #1a2535; border-radius:24px; padding:10px 22px 28px; max-height:85vh; overflow-y:auto; animation:moSlide .32s cubic-bezier(.32,1.5,.6,1); box-shadow:0 18px 50px rgba(0,0,0,0.55); }
+.mo-notch { display:none; }
 .mo-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
 .mo-title { font-size:18px; font-weight:700; color:white; }
 .mo-close { width:32px; height:32px; border-radius:10px; background:#1a2535; border:1px solid #243040; color:#8899aa; display:flex; align-items:center; justify-content:center; cursor:pointer; }
