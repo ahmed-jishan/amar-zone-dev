@@ -10,8 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "cap:add:android": "npx cap add android && node scripts/ensure-android-biometric-permission.cjs && node scripts/generate-app-icons.cjs",
-    "cap:sync": "npx cap sync && node scripts/ensure-android-biometric-permission.cjs && node scripts/generate-app-icons.cjs",
+    "cap:add:android": "npx cap add android && node scripts/ensure-android-permissions.cjs && node scripts/generate-app-icons.cjs",
+    "cap:sync": "npx cap sync && node scripts/ensure-android-permissions.cjs && node scripts/generate-app-icons.cjs",
     "cap:open:android": "npx cap open android"
   },
   "dependencies": {
