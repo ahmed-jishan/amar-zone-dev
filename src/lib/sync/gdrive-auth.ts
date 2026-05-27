@@ -186,9 +186,32 @@ export class GDriveAuth {
   }
 
   private async connectNative(silent = false): Promise<GDriveUserInfo> {
-    const plugin = window.Capacitor?.Plugins?.GoogleAuth || window.Capacitor?.Plugins?.GoogleLogin
-    if (!plugin?.signIn) throw new Error('Google Login plugin is not available in this Android build')
+    // Safety check: ensure we're on a native platform
+    if (!this.isNativeAndroid()) {
+      throw new Error('Native Google Auth is not available on this platform')
+    }
 
+    // Try to get the GoogleAuth plugin first, fallback to GoogleLogin
+    let plugin: any = null
+    try {
+      plugin = window.Capacitor?.Plugins?.GoogleAuth
+    } catch {
+      // Plugin might not be loaded yet
+    }
+
+    if (!plugin) {
+      try {
+        plugin = window.Capacitor?.Plugins?.GoogleLogin
+      } catch {
+        // Plugin might not be loaded yet
+      }
+    }
+
+    if (!plugin?.signIn) {
+      throw new Error('Google Login plugin is not available. Ensure GoogleAuth is properly configured in your Android build.')
+    }
+
+    // Handle silent refresh if requested
     if (silent && plugin.refresh) {
       try {
         const refreshed = await plugin.refresh()
@@ -198,28 +221,60 @@ export class GDriveAuth {
           this.saveToken({ accessToken, expiresAt: Date.now() + 3500000, profile })
           return profile
         }
-      } catch {
-        // Fall through to interactive sign-in.
+      } catch (error) {
+        // Fall through to interactive sign-in
+        console.warn('Silent token refresh failed:', error)
       }
     }
 
+    // Interactive sign-in
     let user: any
     try {
       user = await plugin.signIn()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Google sign-in failed'
-      throw new Error(`${message}. Check your Android client ID and SHA-1 in Google Cloud.`)
+      
+      // Provide more helpful error messages
+      if (message.includes('401') || message.includes('403')) {
+        throw new Error('Google authentication failed. Check your app SHA-1 and client ID in Google Cloud Console.')
+      }
+      if (message.includes('no network') || message.includes('timeout')) {
+        throw new Error('Network error. Check your internet connection.')
+      }
+      if (message.includes('cancelled')) {
+        throw new Error('Google sign-in was cancelled.')
+      }
+      
+      throw new Error(`Google sign-in failed: ${message}`)
     }
+
+    // Validate the response
+    if (!user) {
+      throw new Error('Google sign-in returned no user data.')
+    }
+
     const accessToken = user.authentication?.accessToken || user.accessToken
-    if (!accessToken) throw new Error('Google sign-in did not return an access token')
+    if (!accessToken) {
+      throw new Error('Google sign-in did not return an access token. Please try again.')
+    }
+
     const expiresAt = Date.now() + 3500000
-    const profile = { email: user.email, name: user.name || user.displayName, picture: user.imageUrl }
+    const profile = { 
+      email: user.email, 
+      name: user.name || user.displayName, 
+      picture: user.imageUrl 
+    }
+
     this.saveToken({ accessToken, expiresAt, profile })
     return profile
   }
 
   private isNativeAndroid(): boolean {
-    return typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.())
+    try {
+      return typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.())
+    } catch {
+      return false
+    }
   }
 
   private async ensureGis(): Promise<void> {
