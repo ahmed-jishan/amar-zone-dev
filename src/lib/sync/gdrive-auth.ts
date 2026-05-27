@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core'
+
 type GoogleTokenClient = {
   requestAccessToken: (options?: { prompt?: '' | 'consent' | 'select_account' }) => void
 }
@@ -22,12 +24,15 @@ type TokenState = {
   profile?: GDriveUserInfo
 }
 
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
 const TOKEN_KEY = 'amar-zone-gdrive-token'
-const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
+const WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
   || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   || process.env.GOOGLE_CLIENT_ID
-  || '1015865101368-f64lta5461e0ns0m2mj0mtejaqqugodh.apps.googleusercontent.com'
+  || ''
+const ANDROID_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+  || process.env.GOOGLE_ANDROID_CLIENT_ID
+  || ''
 
 const REQUEST_TIMEOUT = 30000 // 30 second timeout
 
@@ -58,6 +63,7 @@ export class GDriveAuth {
   private tokenClient: GoogleTokenClient | null = null
   private isConnecting = false
   private gisLoadPromise: Promise<void> | null = null
+  private nativeInitialized = false
 
   async connect(): Promise<GDriveUserInfo> {
     // Prevent multiple simultaneous connection attempts
@@ -229,8 +235,13 @@ export class GDriveAuth {
       }, REQUEST_TIMEOUT)
 
       try {
+        if (!WEB_CLIENT_ID) {
+          handleReject(new Error('Missing Google web client ID. Set NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID.'))
+          return
+        }
+
         const newTokenClient = window.google?.accounts?.oauth2?.initTokenClient({
-          client_id: CLIENT_ID,
+          client_id: WEB_CLIENT_ID,
           scope: DRIVE_SCOPE,
           prompt: prompt || undefined,
           callback: (response) => {
@@ -271,45 +282,28 @@ export class GDriveAuth {
     if (!this.isNativeAndroid()) {
       throw new Error('Native Google Auth is not available on this platform')
     }
-
-    let plugin: any = null
-
-    // Try to get the GoogleAuth plugin first
-    try {
-      if (window.Capacitor?.Plugins?.GoogleAuth) {
-        plugin = window.Capacitor.Plugins.GoogleAuth
-      }
-    } catch (error) {
-      console.warn('GoogleAuth plugin check failed:', error)
+    if (!ANDROID_CLIENT_ID) {
+      throw new Error('Missing Google Android client ID. Set NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID and rebuild the app.')
     }
 
-    // Fallback to GoogleLogin
-    if (!plugin) {
-      try {
-        if (window.Capacitor?.Plugins?.GoogleLogin) {
-          plugin = window.Capacitor.Plugins.GoogleLogin
-        }
-      } catch (error) {
-        console.warn('GoogleLogin plugin check failed:', error)
-      }
+    if (!WEB_CLIENT_ID) {
+      throw new Error('Missing Google web client ID. Set NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID and rebuild the app.')
     }
 
-    if (!plugin) {
-      throw new Error(
-        'Google Login plugin is not available. ' +
-        'Please ensure GoogleAuth is properly configured in your Android build. ' +
-        'Check capacitor.config.ts and run "npm run cap:sync".'
-      )
-    }
-
-    if (typeof plugin.signIn !== 'function') {
-      throw new Error('Google Login plugin does not have signIn method. Plugin may not be properly initialized.')
+    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+    if (!this.nativeInitialized) {
+      await GoogleAuth.initialize({
+        clientId: WEB_CLIENT_ID,
+        scopes: ['profile', 'email', DRIVE_SCOPE],
+        grantOfflineAccess: true,
+      })
+      this.nativeInitialized = true
     }
 
     // Handle silent refresh if requested
-    if (silent && typeof plugin.refresh === 'function') {
+    if (silent && typeof GoogleAuth.refresh === 'function') {
       try {
-        const refreshed = await plugin.refresh()
+        const refreshed = await GoogleAuth.refresh()
         const accessToken = refreshed?.accessToken
         if (accessToken) {
           const profile = await this.fetchUserInfo(accessToken)
@@ -325,7 +319,7 @@ export class GDriveAuth {
     // Interactive sign-in with timeout protection
     let user: any
     try {
-      const signInPromise = plugin.signIn()
+      const signInPromise = GoogleAuth.signIn()
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Google sign-in timed out')), REQUEST_TIMEOUT)
       )
@@ -380,7 +374,9 @@ export class GDriveAuth {
 
   private isNativeAndroid(): boolean {
     try {
-      return typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.())
+      return typeof window !== 'undefined'
+        && Capacitor.isNativePlatform()
+        && Capacitor.getPlatform() === 'android'
     } catch {
       return false
     }

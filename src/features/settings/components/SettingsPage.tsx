@@ -943,7 +943,10 @@ async function downloadDriveBackup(accessToken: string): Promise<string> {
 
 function EncryptedBackupModal({ language, onClose, onToast }: { language: Language; onClose: () => void; onToast: (msg: string) => void }) {
   const t = translations[language]
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
+    || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    || process.env.GOOGLE_CLIENT_ID
+    || ''
   const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform()
   const [passphrase, setPassphrase] = useState('')
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
