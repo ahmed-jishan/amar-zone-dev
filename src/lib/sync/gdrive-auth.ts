@@ -57,6 +57,7 @@ declare global {
 export class GDriveAuth {
   private tokenClient: GoogleTokenClient | null = null
   private isConnecting = false
+  private gisLoadPromise: Promise<void> | null = null
 
   async connect(): Promise<GDriveUserInfo> {
     // Prevent multiple simultaneous connection attempts
@@ -65,17 +66,27 @@ export class GDriveAuth {
     }
 
     this.isConnecting = true
+    let profile: GDriveUserInfo | null = null
+    
     try {
       if (this.isNativeAndroid()) {
-        const profile = await this.connectNative()
+        profile = await this.connectNative()
         return profile
       }
 
       await this.ensureGis()
       const token = await this.requestWebToken('consent')
-      const profile = await this.fetchUserInfo(token.accessToken)
+      profile = await this.fetchUserInfo(token.accessToken)
       this.saveToken({ ...token, profile })
       return profile
+    } catch (error) {
+      // Clear token on any connection failure
+      try {
+        localStorage.removeItem(TOKEN_KEY)
+      } catch (e) {
+        console.warn('Could not clear token on error:', e)
+      }
+      throw error
     } finally {
       this.isConnecting = false
     }
@@ -218,7 +229,7 @@ export class GDriveAuth {
       }, REQUEST_TIMEOUT)
 
       try {
-        this.tokenClient = window.google?.accounts?.oauth2?.initTokenClient({
+        const newTokenClient = window.google?.accounts?.oauth2?.initTokenClient({
           client_id: CLIENT_ID,
           scope: DRIVE_SCOPE,
           prompt: prompt || undefined,
@@ -241,11 +252,12 @@ export class GDriveAuth {
           },
         }) ?? null
 
-        if (!this.tokenClient) {
+        if (!newTokenClient) {
           handleReject(new Error('Google Identity Services is not available'))
           return
         }
 
+        this.tokenClient = newTokenClient
         this.tokenClient.requestAccessToken()
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unexpected error during Google sign-in'
@@ -378,37 +390,65 @@ export class GDriveAuth {
     if (typeof window === 'undefined') throw new Error('Google Drive sync requires a browser')
     if (window.google?.accounts?.oauth2) return
 
-    return new Promise<void>((resolve, reject) => {
+    // Use singleton promise to prevent duplicate loading
+    if (this.gisLoadPromise) {
+      return this.gisLoadPromise
+    }
+
+    this.gisLoadPromise = new Promise<void>((resolve, reject) => {
       try {
         const existing = document.querySelector<HTMLScriptElement>(
           'script[src="https://accounts.google.com/gsi/client"]'
         )
-        if (existing && existing.dataset.loaded === 'true') {
-          resolve()
+        
+        // If script exists and is already loaded, resolve immediately
+        if (existing) {
+          if (window.google?.accounts?.oauth2) {
+            this.gisLoadPromise = null
+            resolve()
+            return
+          }
+          // Script exists but not loaded yet, wait for it
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Timeout loading Google Identity Services. Check your internet connection.'))
+            this.gisLoadPromise = null
+          }, REQUEST_TIMEOUT)
+
+          const checkInterval = setInterval(() => {
+            if (window.google?.accounts?.oauth2) {
+              clearInterval(checkInterval)
+              clearTimeout(timeoutId)
+              this.gisLoadPromise = null
+              resolve()
+            }
+          }, 100)
           return
         }
 
-        const script = existing ?? document.createElement('script')
+        const script = document.createElement('script')
         script.src = 'https://accounts.google.com/gsi/client'
         script.async = true
         script.defer = true
-        script.dataset.loaded = 'true'
 
         const timeoutId = setTimeout(() => {
           reject(new Error('Timeout loading Google Identity Services. Check your internet connection.'))
+          this.gisLoadPromise = null
         }, REQUEST_TIMEOUT)
 
         script.onload = () => {
           clearTimeout(timeoutId)
+          this.gisLoadPromise = null
           resolve()
         }
         script.onerror = () => {
           clearTimeout(timeoutId)
+          this.gisLoadPromise = null
           reject(new Error('Failed to load Google Identity Services. It may be blocked by your network or adblocker.'))
         }
 
-        if (!existing) document.head.appendChild(script)
+        document.head.appendChild(script)
       } catch (error) {
+        this.gisLoadPromise = null
         reject(
           new Error(
             `Could not initialize Google Identity Services: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -416,6 +456,8 @@ export class GDriveAuth {
         )
       }
     })
+
+    return this.gisLoadPromise
   }
 
   private async fetchUserInfo(accessToken: string): Promise<GDriveUserInfo> {
