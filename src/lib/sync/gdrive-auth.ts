@@ -29,6 +29,8 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
   || process.env.GOOGLE_CLIENT_ID
   || '1015865101368-f64lta5461e0ns0m2mj0mtejaqqugodh.apps.googleusercontent.com'
 
+const REQUEST_TIMEOUT = 30000 // 30 second timeout
+
 declare global {
   interface Window {
     google?: {
@@ -54,26 +56,42 @@ declare global {
 
 export class GDriveAuth {
   private tokenClient: GoogleTokenClient | null = null
+  private isConnecting = false
 
   async connect(): Promise<GDriveUserInfo> {
-    if (this.isNativeAndroid()) {
-      const profile = await this.connectNative()
-      return profile
+    // Prevent multiple simultaneous connection attempts
+    if (this.isConnecting) {
+      throw new Error('Connection already in progress. Please wait.')
     }
 
-    await this.ensureGis()
-    const token = await this.requestWebToken('consent')
-    const profile = await this.fetchUserInfo(token.accessToken)
-    this.saveToken({ ...token, profile })
-    return profile
+    this.isConnecting = true
+    try {
+      if (this.isNativeAndroid()) {
+        const profile = await this.connectNative()
+        return profile
+      }
+
+      await this.ensureGis()
+      const token = await this.requestWebToken('consent')
+      const profile = await this.fetchUserInfo(token.accessToken)
+      this.saveToken({ ...token, profile })
+      return profile
+    } finally {
+      this.isConnecting = false
+    }
   }
 
   async disconnect(): Promise<void> {
     const token = this.readToken()
     if (token?.accessToken && typeof window !== 'undefined') {
-      window.google?.accounts?.oauth2?.revoke(token.accessToken, () => undefined)
+      try {
+        window.google?.accounts?.oauth2?.revoke(token.accessToken, () => undefined)
+      } catch (error) {
+        console.warn('Token revoke failed:', error)
+      }
     }
     localStorage.removeItem(TOKEN_KEY)
+    this.tokenClient = null
   }
 
   isConnected(): boolean {
@@ -86,16 +104,28 @@ export class GDriveAuth {
     if (token && token.expiresAt > Date.now() + 60000) return token.accessToken
 
     if (this.isNativeAndroid()) {
-      const profile = await this.connectNative(true)
-      const refreshed = this.readToken()
-      if (refreshed?.accessToken) return refreshed.accessToken
-      throw new Error(`Unable to refresh Google token for ${profile.email ?? 'account'}`)
+      try {
+        const profile = await this.connectNative(true)
+        const refreshed = this.readToken()
+        if (refreshed?.accessToken) return refreshed.accessToken
+        throw new Error(`Unable to refresh Google token for ${profile.email ?? 'account'}`)
+      } catch (error) {
+        // If refresh fails, clear the stored token
+        localStorage.removeItem(TOKEN_KEY)
+        throw error
+      }
     }
 
-    await this.ensureGis()
-    const refreshed = await this.requestWebToken('')
-    this.saveToken({ ...refreshed, profile: token?.profile })
-    return refreshed.accessToken
+    try {
+      await this.ensureGis()
+      const refreshed = await this.requestWebToken('')
+      this.saveToken({ ...refreshed, profile: token?.profile })
+      return refreshed.accessToken
+    } catch (error) {
+      // If refresh fails, clear the stored token
+      localStorage.removeItem(TOKEN_KEY)
+      throw error
+    }
   }
 
   async getUserInfo(): Promise<GDriveUserInfo> {
@@ -158,30 +188,69 @@ export class GDriveAuth {
   }
 
   private async requestWebToken(prompt: '' | 'consent'): Promise<{ accessToken: string; expiresAt: number }> {
-    const client = this.tokenClient ?? window.google?.accounts?.oauth2?.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: DRIVE_SCOPE,
-      callback: () => undefined,
-    })
-    if (!client) throw new Error('Google Identity Services is not available')
-    this.tokenClient = client
-
     return new Promise((resolve, reject) => {
-      this.tokenClient = window.google?.accounts?.oauth2?.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: DRIVE_SCOPE,
-        callback: (response) => {
-          if (response.error || !response.access_token) {
-            reject(new Error(response.error || 'Google sign-in was cancelled'))
-            return
-          }
-          resolve({
-            accessToken: response.access_token,
-            expiresAt: Date.now() + Math.max((response.expires_in ?? 3600) - 60, 60) * 1000,
-          })
-        },
-      }) ?? null
-      this.tokenClient?.requestAccessToken({ prompt })
+      let timeoutId: NodeJS.Timeout | null = null
+      let resolved = false
+
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId)
+      }
+
+      const handleResolve = (value: any) => {
+        if (!resolved) {
+          resolved = true
+          cleanup()
+          resolve(value)
+        }
+      }
+
+      const handleReject = (error: Error) => {
+        if (!resolved) {
+          resolved = true
+          cleanup()
+          reject(error)
+        }
+      }
+
+      // Set timeout for the entire request
+      timeoutId = setTimeout(() => {
+        handleReject(new Error('Google sign-in request timed out. Please check your internet connection and try again.'))
+      }, REQUEST_TIMEOUT)
+
+      try {
+        this.tokenClient = window.google?.accounts?.oauth2?.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: DRIVE_SCOPE,
+          prompt: prompt || undefined,
+          callback: (response) => {
+            if (response.error) {
+              handleReject(new Error(`Google authentication error: ${response.error}`))
+              return
+            }
+            if (!response.access_token) {
+              handleReject(new Error('Google sign-in was cancelled or failed to return a token'))
+              return
+            }
+            handleResolve({
+              accessToken: response.access_token,
+              expiresAt: Date.now() + Math.max((response.expires_in ?? 3600) - 60, 60) * 1000,
+            })
+          },
+          error_callback: () => {
+            handleReject(new Error('Could not open Google sign-in dialog. It may have been blocked by your browser.'))
+          },
+        }) ?? null
+
+        if (!this.tokenClient) {
+          handleReject(new Error('Google Identity Services is not available'))
+          return
+        }
+
+        this.tokenClient.requestAccessToken()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unexpected error during Google sign-in'
+        handleReject(new Error(`Google sign-in failed: ${message}`))
+      }
     })
   }
 
@@ -191,28 +260,42 @@ export class GDriveAuth {
       throw new Error('Native Google Auth is not available on this platform')
     }
 
-    // Try to get the GoogleAuth plugin first, fallback to GoogleLogin
     let plugin: any = null
+
+    // Try to get the GoogleAuth plugin first
     try {
-      plugin = window.Capacitor?.Plugins?.GoogleAuth
-    } catch {
-      // Plugin might not be loaded yet
+      if (window.Capacitor?.Plugins?.GoogleAuth) {
+        plugin = window.Capacitor.Plugins.GoogleAuth
+      }
+    } catch (error) {
+      console.warn('GoogleAuth plugin check failed:', error)
     }
 
+    // Fallback to GoogleLogin
     if (!plugin) {
       try {
-        plugin = window.Capacitor?.Plugins?.GoogleLogin
-      } catch {
-        // Plugin might not be loaded yet
+        if (window.Capacitor?.Plugins?.GoogleLogin) {
+          plugin = window.Capacitor.Plugins.GoogleLogin
+        }
+      } catch (error) {
+        console.warn('GoogleLogin plugin check failed:', error)
       }
     }
 
-    if (!plugin?.signIn) {
-      throw new Error('Google Login plugin is not available. Ensure GoogleAuth is properly configured in your Android build.')
+    if (!plugin) {
+      throw new Error(
+        'Google Login plugin is not available. ' +
+        'Please ensure GoogleAuth is properly configured in your Android build. ' +
+        'Check capacitor.config.ts and run "npm run cap:sync".'
+      )
+    }
+
+    if (typeof plugin.signIn !== 'function') {
+      throw new Error('Google Login plugin does not have signIn method. Plugin may not be properly initialized.')
     }
 
     // Handle silent refresh if requested
-    if (silent && plugin.refresh) {
+    if (silent && typeof plugin.refresh === 'function') {
       try {
         const refreshed = await plugin.refresh()
         const accessToken = refreshed?.accessToken
@@ -227,30 +310,44 @@ export class GDriveAuth {
       }
     }
 
-    // Interactive sign-in
+    // Interactive sign-in with timeout protection
     let user: any
     try {
-      user = await plugin.signIn()
+      const signInPromise = plugin.signIn()
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Google sign-in timed out')), REQUEST_TIMEOUT)
+      )
+
+      user = await Promise.race([signInPromise, timeoutPromise])
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Google sign-in failed'
-      
+
       // Provide more helpful error messages
       if (message.includes('401') || message.includes('403')) {
-        throw new Error('Google authentication failed. Check your app SHA-1 and client ID in Google Cloud Console.')
+        throw new Error(
+          'Google authentication failed. ' +
+          'Please verify your app SHA-1 fingerprint in Google Cloud Console matches your Android build.'
+        )
       }
-      if (message.includes('no network') || message.includes('timeout')) {
-        throw new Error('Network error. Check your internet connection.')
+      if (message.includes('no network') || message.includes('timeout') || message.includes('timed out')) {
+        throw new Error('Network error or timeout. Please check your internet connection and try again.')
       }
-      if (message.includes('cancelled')) {
+      if (message.includes('cancelled') || message.includes('user_cancelled')) {
         throw new Error('Google sign-in was cancelled.')
       }
-      
+      if (message.includes('DEVELOPER_ERROR') || message.includes('NETWORK_ERROR')) {
+        throw new Error(
+          `Google authentication error: ${message}. ` +
+          'Please ensure your app is properly configured in Google Cloud Console.'
+        )
+      }
+
       throw new Error(`Google sign-in failed: ${message}`)
     }
 
     // Validate the response
     if (!user) {
-      throw new Error('Google sign-in returned no user data.')
+      throw new Error('Google sign-in returned no user data. Please try again.')
     }
 
     const accessToken = user.authentication?.accessToken || user.accessToken
@@ -259,10 +356,10 @@ export class GDriveAuth {
     }
 
     const expiresAt = Date.now() + 3500000
-    const profile = { 
-      email: user.email, 
-      name: user.name || user.displayName, 
-      picture: user.imageUrl 
+    const profile = {
+      email: user.email,
+      name: user.name || user.displayName,
+      picture: user.imageUrl,
     }
 
     this.saveToken({ accessToken, expiresAt, profile })
@@ -281,25 +378,61 @@ export class GDriveAuth {
     if (typeof window === 'undefined') throw new Error('Google Drive sync requires a browser')
     if (window.google?.accounts?.oauth2) return
 
-    await new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]')
-      const script = existing ?? document.createElement('script')
-      script.src = 'https://accounts.google.com/gsi/client'
-      script.async = true
-      script.defer = true
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error('Unable to load Google Identity Services'))
-      if (!existing) document.head.appendChild(script)
+    return new Promise<void>((resolve, reject) => {
+      try {
+        const existing = document.querySelector<HTMLScriptElement>(
+          'script[src="https://accounts.google.com/gsi/client"]'
+        )
+        if (existing && existing.dataset.loaded === 'true') {
+          resolve()
+          return
+        }
+
+        const script = existing ?? document.createElement('script')
+        script.src = 'https://accounts.google.com/gsi/client'
+        script.async = true
+        script.defer = true
+        script.dataset.loaded = 'true'
+
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Timeout loading Google Identity Services. Check your internet connection.'))
+        }, REQUEST_TIMEOUT)
+
+        script.onload = () => {
+          clearTimeout(timeoutId)
+          resolve()
+        }
+        script.onerror = () => {
+          clearTimeout(timeoutId)
+          reject(new Error('Failed to load Google Identity Services. It may be blocked by your network or adblocker.'))
+        }
+
+        if (!existing) document.head.appendChild(script)
+      } catch (error) {
+        reject(
+          new Error(
+            `Could not initialize Google Identity Services: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        )
+      }
     })
   }
 
   private async fetchUserInfo(accessToken: string): Promise<GDriveUserInfo> {
-    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    if (!response.ok) return {}
-    const data = await response.json()
-    return { email: data.email, name: data.name, picture: data.picture }
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!response.ok) {
+        console.warn('Could not fetch user info:', response.status)
+        return {}
+      }
+      const data = await response.json()
+      return { email: data.email, name: data.name, picture: data.picture }
+    } catch (error) {
+      console.warn('Error fetching user info:', error)
+      return {}
+    }
   }
 
   private async parseDriveResponse<T>(response: Response): Promise<T> {
@@ -311,11 +444,21 @@ export class GDriveAuth {
     let message = `Google Drive request failed (${response.status})`
     try {
       const data = await response.json()
-      message = data.error?.message || message
+      if (data.error?.message) {
+        message = data.error.message
+      }
     } catch {
       message = response.statusText || message
     }
-    if (response.status === 403) message = `${message}. Check Drive quota and account permissions.`
+
+    if (response.status === 401) {
+      message = `${message}. Please reconnect your Google Drive account.`
+    } else if (response.status === 403) {
+      message = `${message}. Check your Google Drive quota and account permissions.`
+    } else if (response.status === 429) {
+      message = `${message}. Rate limited. Please try again in a few minutes.`
+    }
+
     return new Error(message)
   }
 
@@ -324,13 +467,19 @@ export class GDriveAuth {
     try {
       const raw = localStorage.getItem(TOKEN_KEY)
       return raw ? JSON.parse(raw) as TokenState : null
-    } catch {
+    } catch (error) {
+      console.warn('Error reading token from storage:', error)
       return null
     }
   }
 
   private saveToken(token: TokenState): void {
-    localStorage.setItem(TOKEN_KEY, JSON.stringify(token))
+    try {
+      localStorage.setItem(TOKEN_KEY, JSON.stringify(token))
+    } catch (error) {
+      console.error('Error saving token to storage:', error)
+      throw new Error('Could not save authentication token to device storage')
+    }
   }
 }
 
