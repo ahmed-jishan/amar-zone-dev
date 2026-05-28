@@ -14,6 +14,7 @@ jobs:
     env:
       NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID }}
       NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
     steps:
       - name: Checkout
