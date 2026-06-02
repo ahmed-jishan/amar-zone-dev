@@ -293,10 +293,11 @@ export class GDriveAuth {
     const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
     if (!this.nativeInitialized) {
       await GoogleAuth.initialize({
-        clientId: WEB_CLIENT_ID,
+        clientId: ANDROID_CLIENT_ID,
+        serverClientId: WEB_CLIENT_ID,
         scopes: ['profile', 'email', DRIVE_SCOPE],
         grantOfflineAccess: true,
-      })
+      } as any)
       this.nativeInitialized = true
     }
 

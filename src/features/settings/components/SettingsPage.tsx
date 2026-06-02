@@ -26,6 +26,7 @@ import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser'
 import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
 import CloudSyncCard from '@/components/settings/CloudSyncCard'
+import { requestAppNotificationPermission } from '@/lib/native/notifications'
 
 // ==================== Translations ====================
 const translations = {
@@ -480,11 +481,7 @@ export default function SettingsPage() {
       setReminderPrefs(false)
       return
     }
-    if (!('Notification' in window)) {
-      showToast(t.toastNotifBlocked)
-      return
-    }
-    const permission = await Notification.requestPermission()
+    const permission = await requestAppNotificationPermission()
     if (permission !== 'granted') {
       showToast(t.toastNotifBlocked)
       return

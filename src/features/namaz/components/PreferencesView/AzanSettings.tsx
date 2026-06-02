@@ -2,6 +2,7 @@
 
 import { BellRing, Volume2, VolumeX } from 'lucide-react';
 import { usePrefsStore } from '../../store/prefsStore';
+import { requestAppNotificationPermission } from '@/lib/native/notifications';
 
 const RECITERS = [
   { id: 'alafasy', name: 'Mishary Alafasy', note: 'Clear and calm' },
@@ -17,8 +18,12 @@ export default function AzanSettings() {
 
   const toggleAzan = async () => {
     const next = !azanEnabled;
-    if (next && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+    if (next) {
+      const permission = await requestAppNotificationPermission();
+      if (permission !== 'granted') {
+        setAzanEnabled(false);
+        return;
+      }
     }
     setAzanEnabled(next);
   };

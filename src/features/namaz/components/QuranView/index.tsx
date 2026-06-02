@@ -16,6 +16,7 @@ import { SURAHS, type SurahMeta } from '../../data/surahs';
 import { usePrefsStore } from '../../store/prefsStore';
 import { useQuranStore } from '../../store/quranStore';
 import { fetchSurahAyahs, getAyahAudioUrl, type QuranAyah } from '../../utils/quranApi';
+import { requestAppNotificationPermission, scheduleAppNotification, isNativeNotificationPlatform } from '@/lib/native/notifications';
 
 export default function QuranView() {
   const [query, setQuery] = useState('');
@@ -127,7 +128,19 @@ export default function QuranView() {
   };
 
   const notifyNowPlaying = async (surah: SurahMeta, ayahNumber: number) => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (typeof window === 'undefined') return;
+    if (isNativeNotificationPlatform()) {
+      const permission = await requestAppNotificationPermission();
+      if (permission !== 'granted') return;
+      await scheduleAppNotification({
+        tag: `quran-${surah.number}`,
+        title: `${surah.transliteration} ${ayahNumber}`,
+        body: 'Quran recitation is playing. Use mobile media controls to pause or resume.',
+        at: new Date(Date.now() + 500),
+      });
+      return;
+    }
+    if (!('Notification' in window)) return;
     if (Notification.permission === 'default') await Notification.requestPermission();
     if (Notification.permission !== 'granted') return;
 

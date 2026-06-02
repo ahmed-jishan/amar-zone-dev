@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePrefsStore } from '../store/prefsStore';
 import type { PrayerTimesResponse } from '../types/prayer.types';
 import { AZAN_PRAYER_ORDER, buildPrayerDate, formatRemaining, getNextAzan } from '../utils/prayerSchedule';
+import { isNativeNotificationPlatform, requestAppNotificationPermission, scheduleAppNotification } from '@/lib/native/notifications';
 
 const AZAN_AUDIO_URL = 'https://www.islamcan.com/audio/adhan/azan1.mp3';
 let currentAzanAudio: HTMLAudioElement | null = null;
@@ -62,6 +63,19 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       const key = `${prayerTimes.date}:${prayer}:${entry.time}`;
 
       if (delay <= 0 || firedRef.current.has(key)) return null;
+
+      if (isNativeNotificationPlatform()) {
+        void (async () => {
+          const permission = await requestAppNotificationPermission();
+          if (permission !== 'granted') return;
+          await scheduleAppNotification({
+            tag: key,
+            title: `${entry.label} Azan`,
+            body: 'Prayer time has started. Use mobile media controls to pause or resume.',
+            at: target,
+          });
+        })();
+      }
 
       return window.setTimeout(() => {
         firedRef.current.add(key);
