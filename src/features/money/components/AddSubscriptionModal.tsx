@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { EXPENSE_CATEGORIES, CATEGORY_META } from '../constants'
 import type { ExpenseCategory, Subscription } from '@/lib/types'
 
@@ -8,10 +9,12 @@ export default function AddSubscriptionModal({
   onClose,
   onAdd,
   currencySymbol,
+  anchorRect,
 }: {
   onClose: () => void
   onAdd: (subscription: Omit<Subscription, 'id'>) => void
   currencySymbol: string
+  anchorRect?: DOMRect | null
 }) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -19,6 +22,38 @@ export default function AddSubscriptionModal({
   const [billingCycle, setBillingCycle] = useState<Subscription['billingCycle']>('monthly')
   const [nextBillingDate, setNextBillingDate] = useState(new Date().toISOString().split('T')[0])
   const [note, setNote] = useState('')
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!anchorRect) {
+      setPosition(null)
+      return
+    }
+
+    const updatePosition = () => {
+      const panel = panelRef.current
+      const width = Math.min(420, window.innerWidth - 32)
+      const height = panel?.offsetHeight ?? 560
+      const margin = 16
+      const gap = 10
+      const hasRoomBelow = window.innerHeight - anchorRect.bottom > Math.min(height, 520) + gap
+      const top = hasRoomBelow
+        ? anchorRect.bottom + gap
+        : Math.max(margin, anchorRect.top - height - gap)
+      const anchorCenter = anchorRect.left + (anchorRect.right - anchorRect.left) / 2
+      const preferredLeft = Math.min(
+        window.innerWidth / 2 - width / 2,
+        anchorCenter - width / 2
+      )
+      const left = Math.max(margin, Math.min(preferredLeft, window.innerWidth - width - margin))
+      setPosition({ top, left, width })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    return () => window.removeEventListener('resize', updatePosition)
+  }, [anchorRect])
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -36,11 +71,27 @@ export default function AddSubscriptionModal({
     onClose()
   }
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-50 flex items-center justify-center animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative mx-4 w-full max-w-[420px] overflow-hidden rounded-[var(--mon-radius-2xl)] mon-glass shadow-[var(--mon-shadow-lg)] animate-[mon-scale-in_200ms_ease-out]"
+        ref={panelRef}
+        className="relative w-full max-w-[420px] overflow-hidden rounded-[var(--mon-radius-2xl)] mon-glass shadow-[var(--mon-shadow-lg)] animate-[mon-scale-in_200ms_ease-out]"
+        style={position ? {
+          position: 'fixed',
+          top: position.top,
+          left: position.left,
+          width: position.width,
+          margin: 0,
+          maxHeight: 'calc(100dvh - 32px)',
+          overflowY: 'auto',
+          transformOrigin: 'top center',
+        } : {
+          marginLeft: 16,
+          marginRight: 16,
+          maxHeight: 'calc(100dvh - 32px)',
+          overflowY: 'auto',
+        }}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--mon-border)' }}>
@@ -52,7 +103,7 @@ export default function AddSubscriptionModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 p-5">
           <Field label="Name">
-            <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Internet, Netflix, Rent"
+            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Internet, Netflix, Rent"
               className="w-full rounded-[var(--mon-radius-lg)] px-3 py-2 text-[14px] outline-none"
               style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', color: 'var(--mon-text-1)' }}
             />
@@ -128,6 +179,9 @@ export default function AddSubscriptionModal({
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return null
+  return createPortal(content, document.body)
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

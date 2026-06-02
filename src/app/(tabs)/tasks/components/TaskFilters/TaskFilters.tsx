@@ -135,7 +135,17 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
         </button>
 
         <button
-          onClick={() => window.dispatchEvent(new CustomEvent('az:open-command'))}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            window.dispatchEvent(new CustomEvent('az:open-command', {
+              detail: {
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+                left: rect.left,
+              },
+            }));
+          }}
           className="az-cmd-btn"
           title="Command palette (⌘K)"
           aria-label="Open command palette"

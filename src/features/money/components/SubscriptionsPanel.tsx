@@ -7,7 +7,7 @@ import { formatCurrency, getRelativeDate } from '../utils'
 interface Props {
   subscriptions: Subscription[]
   currencySymbol: string
-  onAdd: () => void
+  onAdd: (anchor?: DOMRect) => void
   onPause: (id: string) => void
   onResume: (id: string) => void
   onDelete: (id: string) => void
@@ -41,7 +41,7 @@ export default function SubscriptionsPanel({
           <h3 className="mt-1 text-[20px] font-black" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(monthlyTotal, currencySymbol)}</h3>
           <p className="mt-0.5 text-[12px]" style={{ color: 'var(--mon-text-3)' }}>estimated monthly commitment</p>
         </div>
-        <button onClick={onAdd}
+        <button onClick={(event) => onAdd(event.currentTarget.getBoundingClientRect())}
           className="rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all active:scale-95"
           style={{ color: 'var(--mon-gold)', background: 'var(--mon-gold-bg)', border: '1px solid var(--mon-gold-glow)' }}
         >

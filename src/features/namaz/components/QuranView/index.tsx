@@ -29,6 +29,7 @@ export default function QuranView() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ayahRefs = useRef<Record<number, HTMLElement | null>>({});
+  const hasNotifiedPlaybackRef = useRef(false);
 
   const quranReciter = usePrefsStore((state) => state.quranReciter);
   const bookmarks = useQuranStore((state) => state.bookmarks);
@@ -87,6 +88,9 @@ export default function QuranView() {
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
+      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+      }
     };
   }, []);
 
@@ -95,15 +99,19 @@ export default function QuranView() {
     setActiveAyah(ayah);
   };
 
-  const updateMediaSession = (surah: SurahMeta, ayahNumber: number) => {
+  const updateMediaSession = (surah: SurahMeta, ayahNumber: number, playing: boolean) => {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: `${surah.transliteration} ${ayahNumber}`,
+      title: `${surah.transliteration}`,
       artist: 'Quran Recitation',
-      album: surah.banglaMeaning,
+      album: `Ayah ${ayahNumber} of ${surah.verses} - ${surah.banglaMeaning}`,
+      artwork: [
+        { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
     });
-    navigator.mediaSession.playbackState = 'playing';
+    navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
     navigator.mediaSession.setActionHandler('play', async () => {
       try {
         await audioRef.current?.play();
@@ -120,23 +128,32 @@ export default function QuranView() {
       setIsPlaying(false);
     });
     navigator.mediaSession.setActionHandler('nexttrack', () => {
-      void playPosition(surah, Math.min(surah.verses, ayahNumber + 1));
+      void playAdjacentSurah(surah.number, 1);
     });
     navigator.mediaSession.setActionHandler('previoustrack', () => {
-      void playPosition(surah, Math.max(1, ayahNumber - 1));
+      void playAdjacentSurah(surah.number, -1);
+    });
+    navigator.mediaSession.setActionHandler('stop', () => {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      hasNotifiedPlaybackRef.current = false;
+      navigator.mediaSession.playbackState = 'none';
     });
   };
 
   const notifyNowPlaying = async (surah: SurahMeta, ayahNumber: number) => {
     if (typeof window === 'undefined') return;
+    if (hasNotifiedPlaybackRef.current) return;
+    hasNotifiedPlaybackRef.current = true;
+
     if (isNativeNotificationPlatform()) {
       const permission = await requestAppNotificationPermission();
       if (permission !== 'granted') return;
       await scheduleAppNotification({
-        tag: `quran-${surah.number}`,
-        title: `${surah.transliteration} ${ayahNumber}`,
-        body: 'Quran recitation is playing. Use mobile media controls to pause or resume.',
-        at: new Date(Date.now() + 500),
+        tag: 'quran-now-playing',
+        title: 'Quran recitation is playing',
+        body: `${surah.transliteration} - Ayah ${ayahNumber}. Use lock-screen media controls for play, pause, next and previous surah.`,
+        at: new Date(Date.now() + 100),
       });
       return;
     }
@@ -144,16 +161,24 @@ export default function QuranView() {
     if (Notification.permission === 'default') await Notification.requestPermission();
     if (Notification.permission !== 'granted') return;
 
-    new Notification(`${surah.transliteration} ${ayahNumber}`, {
-      body: 'Quran recitation is playing. Use mobile media controls to pause or resume.',
-      tag: `quran-${surah.number}`,
+    new Notification('Quran recitation is playing', {
+      body: `${surah.transliteration} - Ayah ${ayahNumber}. Use media controls for play, pause, next and previous surah.`,
+      tag: 'quran-now-playing',
       silent: true,
     });
+  };
+
+  const playAdjacentSurah = async (currentSurahNumber: number, offset: 1 | -1) => {
+    const nextNumber = currentSurahNumber + offset;
+    const nextSurah = SURAHS.find((item) => item.number === nextNumber);
+    if (!nextSurah) return;
+    await playPosition(nextSurah, 1);
   };
 
   const playPosition = async (surah: SurahMeta, ayahNumber: number) => {
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
+    audio.preload = 'auto';
 
     if (activeSurah === surah.number && activeAyah === ayahNumber) {
       if (isPlaying) {
@@ -166,7 +191,8 @@ export default function QuranView() {
       try {
         await audio.play();
         setIsPlaying(true);
-        updateMediaSession(surah, ayahNumber);
+        updateMediaSession(surah, ayahNumber, true);
+        await notifyNowPlaying(surah, ayahNumber);
       } catch {
         setIsPlaying(false);
       }
@@ -185,16 +211,18 @@ export default function QuranView() {
         setIsPlaying(false);
         setActiveSurah(null);
         setActiveAyah(null);
+        hasNotifiedPlaybackRef.current = false;
         if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       }
     };
     try {
       await audio.play();
       setIsPlaying(true);
-      updateMediaSession(surah, ayahNumber);
+      updateMediaSession(surah, ayahNumber, true);
       await notifyNowPlaying(surah, ayahNumber);
     } catch {
       setIsPlaying(false);
+      updateMediaSession(surah, ayahNumber, false);
     }
   };
 

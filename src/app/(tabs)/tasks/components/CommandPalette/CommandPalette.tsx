@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTaskStore } from '@/lib/store/taskStore';
 
 interface Command {
@@ -12,12 +13,22 @@ interface Command {
   category: string;
 }
 
+interface AnchorRect {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export default function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [anchorRect, setAnchorRect] = useState<AnchorRect | null>(null);
+  const [palettePosition, setPalettePosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
 
   const tasks = useTaskStore((s) => s.tasks);
   const setSearchQuery = useTaskStore((s) => s.setSearchQuery);
@@ -169,6 +180,7 @@ export default function CommandPalette() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
+        setAnchorRect(null);
         setOpen((o) => !o);
       }
       if (e.key === 'Escape') setOpen(false);
@@ -178,7 +190,11 @@ export default function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    const handler = () => setOpen(true);
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<AnchorRect>).detail;
+      setAnchorRect(detail ?? null);
+      setOpen(true);
+    };
     window.addEventListener('az:open-command', handler);
     return () => window.removeEventListener('az:open-command', handler);
   }, []);
@@ -190,6 +206,39 @@ export default function CommandPalette() {
       setQuery('');
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !anchorRect) {
+      setPalettePosition(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      const width = Math.min(560, window.innerWidth - 32);
+      const height = paletteRef.current?.offsetHeight ?? 430;
+      const margin = 16;
+      const gap = 10;
+      const hasRoomBelow = window.innerHeight - anchorRect.bottom > Math.min(height, 430) + gap;
+      const top = hasRoomBelow
+        ? anchorRect.bottom + gap
+        : Math.max(margin, anchorRect.top - height - gap);
+      const anchorCenter = anchorRect.left + (anchorRect.right - anchorRect.left) / 2;
+      const preferredLeft = Math.min(
+        window.innerWidth / 2 - width / 2,
+        anchorCenter - width / 2
+      );
+      const left = Math.max(margin, Math.min(preferredLeft, window.innerWidth - width - margin));
+      setPalettePosition({ top, left, width });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [anchorRect, open]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -207,16 +256,31 @@ export default function CommandPalette() {
     [flatList, selectedIndex]
   );
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  const content = (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] animate-[az-fade-in_150ms_ease-out]"
+      className={`fixed inset-0 z-50 flex justify-center animate-[az-fade-in_150ms_ease-out] ${
+        palettePosition ? 'items-start' : 'items-start pt-[12vh]'
+      }`}
       onClick={() => setOpen(false)}
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-[560px] mx-4 az-glass-strong rounded-[var(--az-radius-2xl)] shadow-[var(--az-shadow-lg)] overflow-hidden animate-[az-scale-in_200ms_ease-out]"
+        ref={paletteRef}
+        className="relative w-full max-w-[560px] az-glass-strong rounded-[var(--az-radius-2xl)] shadow-[var(--az-shadow-lg)] overflow-hidden animate-[az-scale-in_200ms_ease-out]"
+        style={palettePosition ? {
+          position: 'fixed',
+          top: palettePosition.top,
+          left: palettePosition.left,
+          width: palettePosition.width,
+          margin: 0,
+          maxHeight: 'calc(100dvh - 32px)',
+          transformOrigin: 'top center',
+        } : {
+          marginLeft: 16,
+          marginRight: 16,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
@@ -297,6 +361,8 @@ export default function CommandPalette() {
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }
 
 /* ── Icons ── */

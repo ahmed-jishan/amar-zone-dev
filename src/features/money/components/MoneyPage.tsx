@@ -38,6 +38,7 @@ export default function MoneyPage() {
   const [showLoanModal, setShowLoanModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
+  const [subscriptionModalAnchor, setSubscriptionModalAnchor] = useState<DOMRect | null>(null)
   const [showWalletTools, setShowWalletTools] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState<{ loan: Loan; type: 'repay' | 'add' } | null>(null)
@@ -313,7 +314,10 @@ export default function MoneyPage() {
             <SubscriptionsPanel
               subscriptions={store.subscriptions}
               currencySymbol={currency_symbol}
-              onAdd={() => setShowSubscriptionModal(true)}
+              onAdd={(anchor) => {
+                setSubscriptionModalAnchor(anchor ?? null)
+                setShowSubscriptionModal(true)
+              }}
               onPause={store.pauseSubscription}
               onResume={store.resumeSubscription}
               onDelete={store.deleteSubscription}
@@ -381,7 +385,17 @@ export default function MoneyPage() {
       {editingTxn && <AddTransactionModal onClose={() => setEditingTxn(null)} onAdd={(updates: Partial<Transaction>) => store.updateTransaction(editingTxn.id, updates)} translations={t} currencySymbol={currency_symbol} wallets={wallets} selectedWalletId={store.selectedWalletId} transaction={editingTxn} />}
       {showLoanModal && <AddLoanModal onClose={() => setShowLoanModal(false)} onAdd={store.addLoan} translations={t} currencySymbol={currency_symbol} />}
       {showGoalModal && <AddGoalModal onClose={() => setShowGoalModal(false)} onAdd={store.addSavingsGoal} translations={t} currencySymbol={currency_symbol} />}
-      {showSubscriptionModal && <AddSubscriptionModal onClose={() => setShowSubscriptionModal(false)} onAdd={store.addSubscription} currencySymbol={currency_symbol} />}
+      {showSubscriptionModal && (
+        <AddSubscriptionModal
+          onClose={() => {
+            setShowSubscriptionModal(false)
+            setSubscriptionModalAnchor(null)
+          }}
+          onAdd={store.addSubscription}
+          currencySymbol={currency_symbol}
+          anchorRect={subscriptionModalAnchor}
+        />
+      )}
       {showWalletTools && <WalletToolsModal wallets={wallets} selectedWalletId={store.selectedWalletId} onClose={() => setShowWalletTools(false)} onTransfer={store.transferWalletBalance} onReconcile={store.reconcileWalletBalance} onAddWallet={store.addWallet} currencySymbol={currency_symbol} />}
       {showHistoryModal && selectedLoan && <LoanHistoryModal loan={selectedLoan} onClose={() => setShowHistoryModal(false)} translations={t} currencySymbol={currency_symbol} />}
       {showPaymentModal && <LoanEntryModal loan={showPaymentModal.loan} type={showPaymentModal.type} onClose={() => setShowPaymentModal(null)} onSubmit={store.addLoanEntry} translations={t} currencySymbol={currency_symbol} />}

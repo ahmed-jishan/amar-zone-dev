@@ -32,52 +32,148 @@ export const RECITER_AUDIO_FOLDERS = {
   sudais: 'Abdurrahmaan_As-Sudais_192kbps',
 } as const;
 
-const ARABIC_TO_BANGLA: Record<string, string> = {
-  ا: 'আ', أ: 'আ', إ: 'ই', آ: 'আ',
-  ب: 'ব', ت: 'ত', ث: 'স', ج: 'জ', ح: 'হ', خ: 'খ',
-  د: 'দ', ذ: 'য', ر: 'র', ز: 'য', س: 'স', ش: 'শ',
-  ص: 'স', ض: 'দ', ط: 'ত', ظ: 'য', ع: 'আ', غ: 'গ',
-  ف: 'ফ', ق: 'ক', ك: 'ক', ک: 'ক', ل: 'ল', م: 'ম',
-  ن: 'ন', ه: 'হ', ة: 'হ', و: 'ও', ي: 'ই', ى: 'আ',
-  ء: '', ئ: 'ই', ؤ: 'উ', ٱ: 'আ',
+const CONSONANTS: Record<string, string> = {
+  ا: 'আ',
+  أ: 'আ',
+  إ: 'ই',
+  آ: 'আ',
+  ٱ: 'আ',
+  ب: 'ব',
+  ت: 'ত',
+  ث: 'ছ',
+  ج: 'জ',
+  ح: 'হ',
+  خ: 'খ',
+  د: 'দ',
+  ذ: 'য',
+  ر: 'র',
+  ز: 'য',
+  س: 'স',
+  ش: 'শ',
+  ص: 'স',
+  ض: 'দ্ব',
+  ط: 'ত্ব',
+  ظ: 'য',
+  ع: 'আ',
+  غ: 'গ',
+  ف: 'ফ',
+  ق: 'ক্ব',
+  ك: 'ক',
+  ک: 'ক',
+  ل: 'ল',
+  م: 'ম',
+  ن: 'ন',
+  ه: 'হ',
+  ة: 'হ',
+  و: 'ও',
+  ي: 'ই',
+  ى: 'আ',
+  ء: '',
+  ئ: 'ই',
+  ؤ: 'উ',
 };
 
-const VOWELS: Record<string, string> = {
+const SHORT_VOWELS: Record<string, string> = {
   '\u064e': 'া',
   '\u0650': 'ি',
   '\u064f': 'ু',
+};
+
+const TANWEEN: Record<string, string> = {
   '\u064b': 'ান',
   '\u064d': 'িন',
   '\u064c': 'ুন',
-  '\u0652': '',
-  '\u0651': '',
-  '\u0670': 'া',
-  '\u0653': '',
-  '\u0654': '',
-  '\u0655': '',
 };
 
-function toBanglaPronunciation(text: string): string {
-  let output = '';
+const SUN_LETTERS = new Set(['ت', 'ث', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ل', 'ن']);
+const SILENT_MARKS = /[\u0610-\u061a\u06d6-\u06ed]/;
+const DIACRITICS = /[\u064b-\u065f\u0670]/;
 
-  for (const char of text) {
-    if (char === ' ') {
-      output += ' ';
+function nextLetter(chars: string[], start: number): string | null {
+  for (let index = start; index < chars.length; index += 1) {
+    if (!DIACRITICS.test(chars[index]) && !SILENT_MARKS.test(chars[index])) return chars[index];
+  }
+  return null;
+}
+
+function previousPronouncedLetter(chars: string[], start: number): string | null {
+  for (let index = start; index >= 0; index -= 1) {
+    if (CONSONANTS[chars[index]]) return chars[index];
+  }
+  return null;
+}
+
+function longVowelFor(char: string, previousMark: string | null): string | null {
+  if (char === 'ا' || char === 'ى' || char === 'ٰ') return previousMark === '\u064e' ? '' : 'আ';
+  if (char === 'و' && previousMark === '\u064f') return '';
+  if (char === 'ي' && previousMark === '\u0650') return '';
+  return null;
+}
+
+function toBanglaPronunciation(text: string): string {
+  const chars = Array.from(text.normalize('NFC'));
+  const parts: string[] = [];
+  let lastVowelMark: string | null = null;
+
+  for (let index = 0; index < chars.length; index += 1) {
+    const char = chars[index];
+    const previousChar = chars[index - 1];
+    const upcoming = nextLetter(chars, index + 1);
+
+    if (char.trim() === '') {
+      parts.push(' ');
+      lastVowelMark = null;
       continue;
     }
-    if (char === 'ۚ' || char === 'ۖ' || char === 'ۗ' || char === 'ۙ' || char === 'ۛ' || char === 'ۜ') {
-      output += ' ';
+
+    if (SILENT_MARKS.test(char) || /[۝۞۩۔،؛]/.test(char)) {
+      parts.push(' ');
       continue;
     }
-    if (/[\u06d6-\u06ed]/.test(char)) continue;
-    if (VOWELS[char] !== undefined) {
-      output += VOWELS[char];
+
+    if (TANWEEN[char]) {
+      parts.push(TANWEEN[char]);
+      lastVowelMark = char;
       continue;
     }
-    output += ARABIC_TO_BANGLA[char] ?? '';
+
+    if (SHORT_VOWELS[char]) {
+      parts.push(SHORT_VOWELS[char]);
+      lastVowelMark = char;
+      continue;
+    }
+
+    if (char === '\u0651') {
+      const previousLetter = previousPronouncedLetter(chars, index - 1);
+      if (previousLetter) parts.push(CONSONANTS[previousLetter]);
+      continue;
+    }
+
+    if (char === '\u0652' || char === '\u0653' || char === '\u0654' || char === '\u0655') continue;
+
+    if (char === 'ل' && (previousChar === 'ا' || previousChar === 'ٱ') && upcoming && SUN_LETTERS.has(upcoming)) {
+      continue;
+    }
+
+    const longVowel = longVowelFor(char, lastVowelMark);
+    if (longVowel !== null) {
+      parts.push(longVowel);
+      lastVowelMark = null;
+      continue;
+    }
+
+    const consonant = CONSONANTS[char];
+    if (consonant) {
+      parts.push(consonant);
+      lastVowelMark = null;
+    }
   }
 
-  return output.replace(/\s+/g, ' ').trim();
+  return parts
+    .join('')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .trim();
 }
 
 export async function fetchSurahAyahs(surahNumber: number): Promise<QuranAyah[]> {
@@ -88,7 +184,7 @@ export async function fetchSurahAyahs(surahNumber: number): Promise<QuranAyah[]>
   if (cached && Date.now() - cached.savedAt < CACHE_MAX_AGE_MS) {
     return cached.ayahs.map((ayah) => ({
       ...ayah,
-      pronunciation: ayah.pronunciation || toBanglaPronunciation(ayah.arabic),
+      pronunciation: toBanglaPronunciation(ayah.arabic),
     }));
   }
 

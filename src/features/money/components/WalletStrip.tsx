@@ -37,19 +37,17 @@ export default function WalletStrip({ wallets, selectedWalletId, currencySymbol,
               key={wallet.id}
               type="button"
               onClick={() => onSelect(wallet.id)}
-              className="min-w-[152px] shrink-0 rounded-[18px] p-3.5 text-left transition-all duration-200 active:scale-[0.98]"
+              className="min-w-[152px] shrink-0 rounded-[14px] p-3.5 text-left transition-all duration-200 active:scale-[0.98]"
               style={{
-                background: active
-                  ? 'linear-gradient(135deg, var(--mon-gold-bg), var(--mon-surface-1))'
-                  : 'var(--mon-surface-1)',
-                border: `1px solid ${active ? 'var(--mon-gold-glow)' : 'transparent'}`,
-                boxShadow: active ? '0 12px 26px rgba(201,168,76,0.14)' : 'var(--mon-shadow-sm)',
+                background: active ? 'var(--mon-surface-hover)' : 'var(--mon-surface-1)',
+                border: `1px solid ${active ? 'var(--mon-border-hover)' : 'var(--mon-border)'}`,
+                boxShadow: 'none',
               }}
             >
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-[18px]">{wallet.icon}</span>
+                <span className="text-[18px]" aria-hidden="true">{wallet.icon}</span>
                 {wallet.isDefault && (
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: 'var(--mon-gold)', background: 'var(--mon-gold-bg)' }}>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: 'var(--mon-text-2)', background: 'var(--mon-surface-2)' }}>
                     Default
                   </span>
                 )}
