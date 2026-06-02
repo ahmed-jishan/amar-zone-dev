@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "predev": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){console.warn('Skipping .next cleanup:',e.code||e.message)}\"",
+    "postinstall": "node scripts/patch-google-auth-drive-scope.cjs",
     "icons": "node scripts/generate-app-icons.cjs",
     "dev": "next dev",
-    "prebuild": "node scripts/generate-app-icons.cjs && node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){console.warn('Skipping .next cleanup:',e.code||e.message)}\"",
+    "prebuild": "node scripts/patch-google-auth-drive-scope.cjs && node scripts/generate-app-icons.cjs && node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){console.warn('Skipping .next cleanup:',e.code||e.message)}\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "cap:add:android": "npx cap add android && node scripts/ensure-android-permissions.cjs && node scripts/generate-app-icons.cjs",
-    "cap:sync": "npx cap sync && node scripts/ensure-android-permissions.cjs && node scripts/generate-app-icons.cjs",
+    "cap:sync": "node scripts/patch-google-auth-drive-scope.cjs && npx cap sync && node scripts/ensure-android-permissions.cjs && node scripts/generate-app-icons.cjs",
     "cap:open:android": "npx cap open android"
   },
   "dependencies": {

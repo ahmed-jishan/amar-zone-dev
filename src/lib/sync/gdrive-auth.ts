@@ -25,6 +25,7 @@ type TokenState = {
 }
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
+const GOOGLE_AUTH_SCOPE = `profile email ${DRIVE_SCOPE}`
 const TOKEN_KEY = 'amar-zone-gdrive-token'
 const WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
   || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
@@ -83,6 +84,7 @@ export class GDriveAuth {
       await this.ensureGis()
       const token = await this.requestWebToken('consent')
       profile = await this.fetchUserInfo(token.accessToken)
+      await this.verifyDriveAccess(token.accessToken)
       this.saveToken({ ...token, profile })
       return profile
     } catch (error) {
@@ -100,6 +102,14 @@ export class GDriveAuth {
 
   async disconnect(): Promise<void> {
     const token = this.readToken()
+    if (this.isNativeAndroid()) {
+      try {
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+        if (typeof GoogleAuth.signOut === 'function') await GoogleAuth.signOut()
+      } catch (error) {
+        console.warn('Native Google sign-out failed:', error)
+      }
+    }
     if (token?.accessToken && typeof window !== 'undefined') {
       try {
         window.google?.accounts?.oauth2?.revoke(token.accessToken, () => undefined)
@@ -242,7 +252,7 @@ export class GDriveAuth {
 
         const newTokenClient = window.google?.accounts?.oauth2?.initTokenClient({
           client_id: WEB_CLIENT_ID,
-          scope: DRIVE_SCOPE,
+          scope: GOOGLE_AUTH_SCOPE,
           prompt: prompt || undefined,
           callback: (response) => {
             if (response.error) {
@@ -293,7 +303,7 @@ export class GDriveAuth {
     const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
     if (!this.nativeInitialized) {
       await GoogleAuth.initialize({
-        clientId: ANDROID_CLIENT_ID,
+        clientId: WEB_CLIENT_ID,
         serverClientId: WEB_CLIENT_ID,
         scopes: ['profile', 'email', DRIVE_SCOPE],
         grantOfflineAccess: true,
@@ -308,7 +318,8 @@ export class GDriveAuth {
         const accessToken = refreshed?.accessToken
         if (accessToken) {
           const profile = await this.fetchUserInfo(accessToken)
-          this.saveToken({ accessToken, expiresAt: Date.now() + 3500000, profile })
+          await this.verifyDriveAccess(accessToken)
+          this.saveToken({ accessToken, expiresAt: this.getNativeExpiry(refreshed), profile })
           return profile
         }
       } catch (error) {
@@ -336,13 +347,19 @@ export class GDriveAuth {
           'Please verify your app SHA-1 fingerprint in Google Cloud Console matches your Android build.'
         )
       }
+      if (message.includes('status code 10') || message.includes('DEVELOPER_ERROR')) {
+        throw new Error(
+          'Google sign-in configuration mismatch. ' +
+          'Use the Web client ID for native sign-in and make sure the Android OAuth client has package com.selfsync.app with this APK SHA-1.'
+        )
+      }
       if (message.includes('no network') || message.includes('timeout') || message.includes('timed out')) {
         throw new Error('Network error or timeout. Please check your internet connection and try again.')
       }
       if (message.includes('cancelled') || message.includes('user_cancelled')) {
         throw new Error('Google sign-in was cancelled.')
       }
-      if (message.includes('DEVELOPER_ERROR') || message.includes('NETWORK_ERROR')) {
+      if (message.includes('NETWORK_ERROR')) {
         throw new Error(
           `Google authentication error: ${message}. ` +
           'Please ensure your app is properly configured in Google Cloud Console.'
@@ -362,15 +379,24 @@ export class GDriveAuth {
       throw new Error('Google sign-in did not return an access token. Please try again.')
     }
 
-    const expiresAt = Date.now() + 3500000
     const profile = {
       email: user.email,
       name: user.name || user.displayName,
       picture: user.imageUrl,
     }
 
+    await this.verifyDriveAccess(accessToken)
+    const expiresAt = this.getNativeExpiry(user.authentication)
     this.saveToken({ accessToken, expiresAt, profile })
     return profile
+  }
+
+  private getNativeExpiry(authentication: any): number {
+    const expires = Number(authentication?.expires)
+    const expiresIn = Number(authentication?.expires_in ?? authentication?.expiresIn)
+    if (Number.isFinite(expires) && expires > 0) return expires * 1000
+    if (Number.isFinite(expiresIn) && expiresIn > 0) return Date.now() + Math.max(expiresIn - 60, 60) * 1000
+    return Date.now() + 3500000
   }
 
   private isNativeAndroid(): boolean {
@@ -471,6 +497,20 @@ export class GDriveAuth {
     } catch (error) {
       console.warn('Error fetching user info:', error)
       return {}
+    }
+  }
+
+  private async verifyDriveAccess(accessToken: string): Promise<void> {
+    const params = new URLSearchParams({
+      spaces: 'appDataFolder',
+      fields: 'files(id)',
+      pageSize: '1',
+    })
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!response.ok) {
+      throw await this.toDriveError(response)
     }
   }
 
