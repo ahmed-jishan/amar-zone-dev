@@ -8,6 +8,13 @@ import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { formatCurrency, getCurrentMonth } from '@/features/money/utils'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { useTaskStore } from '@/lib/store/taskStore'
+import {
+  cancelAllAppNotifications,
+  getNotificationPermission,
+  isNativeNotificationPlatform,
+  requestAppNotificationPermission,
+  scheduleAppNotification,
+} from '@/lib/native/notifications'
 
 type AlertSeverity = 'low' | 'medium' | 'high'
 type AlertKind = 'task' | 'subscription' | 'loan' | 'budget' | 'goal' | 'recurring'
@@ -67,7 +74,11 @@ export default function NotificationCenter() {
   const [permission, setPermission] = useState<NotificationPermission>('default')
 
   useEffect(() => {
-    setPermission('Notification' in window ? Notification.permission : 'denied')
+    const loadPermission = async () => {
+      const nextPermission = await getNotificationPermission()
+      setPermission(nextPermission)
+    }
+    loadPermission()
   }, [])
 
   const alerts = useMemo<AppAlert[]>(() => {
@@ -185,10 +196,19 @@ export default function NotificationCenter() {
       if (task.completed || task.status === 'archived') return
       task.reminders.forEach((reminder) => {
         if (reminder.triggered || new Date(reminder.remindAt).getTime() > now) return
-        new Notification(task.title, {
-          body: reminder.message || 'Task reminder is due now.',
-          tag: `task-${task.id}-${reminder.id}`,
-        })
+        if (isNativeNotificationPlatform()) {
+          void scheduleAppNotification({
+            tag: `task-${task.id}-${reminder.id}`,
+            title: task.title,
+            body: reminder.message || 'Task reminder is due now.',
+            at: new Date(Math.max(Date.now() + 500, new Date(reminder.remindAt).getTime())),
+          }).catch((error) => console.warn('Task notification failed:', error))
+        } else {
+          new Notification(task.title, {
+            body: reminder.message || 'Task reminder is due now.',
+            tag: `task-${task.id}-${reminder.id}`,
+          })
+        }
         markReminderTriggered(task.id, reminder.id)
       })
     })
@@ -202,14 +222,30 @@ export default function NotificationCenter() {
       .filter((alert) => alert.kind !== 'task' && alert.severity !== 'low')
       .forEach((alert) => {
         if (fired[alert.id] === today) return
-        new Notification(alert.title, { body: alert.body, tag: alert.id })
+        if (isNativeNotificationPlatform()) {
+          void scheduleAppNotification({
+            tag: alert.id,
+            title: alert.title,
+            body: alert.body,
+            at: new Date(Date.now() + 500),
+          }).catch((error) => console.warn('Money alert notification failed:', error))
+        } else {
+          new Notification(alert.title, { body: alert.body, tag: alert.id })
+        }
         markAlertFired(alert.id)
       })
   }, [alerts, notificationCategories.money, notificationsEnabled, permission, quietHoursEnabled, quietHoursEnd, quietHoursStart])
 
+  useEffect(() => {
+    if (!notificationsEnabled && isNativeNotificationPlatform()) {
+      cancelAllAppNotifications().catch((error) => {
+        console.warn('Failed to cancel pending notifications:', error)
+      })
+    }
+  }, [notificationsEnabled])
+
   const requestPermission = async () => {
-    if (!('Notification' in window)) return
-    const next = await Notification.requestPermission()
+    const next = await requestAppNotificationPermission()
     setPermission(next)
     if (next === 'granted') update({ notificationsEnabled: true })
   }
@@ -267,7 +303,7 @@ export default function NotificationCenter() {
                 onClick={requestPermission}
                 className="flex w-full items-center justify-between rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-3 py-3 text-left text-sm font-semibold text-indigo-300"
               >
-                Enable browser notifications
+                  Enable notifications
                 <Bell className="h-4 w-4" />
               </button>
             )}

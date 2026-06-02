@@ -12,7 +12,6 @@ import { usePrefsStore } from '@/features/namaz/store/prefsStore'
 import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
-import { Capacitor } from '@capacitor/core'
 import { NAMAZ_STORAGE_KEYS } from '@/features/namaz/constants/storageKeys'
 import {
   buildBackupPayload,
@@ -27,7 +26,6 @@ import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser'
 import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
 import CloudSyncCard from '@/components/settings/CloudSyncCard'
-import { gdriveAuth } from '@/lib/sync/gdrive-auth'
 
 // ==================== Translations ====================
 const translations = {
@@ -89,7 +87,7 @@ const translations = {
     dataSummary: 'ডেটা সারাংশ',
     localNote: 'সমস্ত ডেটা শুধু আপনার ডিভাইসে সংরক্ষিত। কোনো সার্ভারে পাঠানো হয় না।',
     backupSync: 'এনক্রিপ্টেড ব্যাকআপ ও সিঙ্ক',
-    backupSyncSub: 'অপশনাল, এন্ড-টু-এন্ড এনক্রিপ্টেড ব্যাকআপ',
+    backupSyncSub: 'QR ভিত্তিক এনক্রিপ্টেড ট্রান্সফার',
     backupSyncTitle: 'এনক্রিপ্টেড ব্যাকআপ ও সিঙ্ক',
     backupPassphrase: 'পাসফ্রেজ',
     backupPassphraseConfirm: 'পাসফ্রেজ নিশ্চিত করুন',
@@ -207,7 +205,7 @@ const translations = {
     dataSummary: 'Data summary',
     localNote: 'All data is stored only on your device. No data is sent to any server.',
     backupSync: 'Encrypted Backup & Sync',
-    backupSyncSub: 'Optional, end-to-end encrypted backup',
+    backupSyncSub: 'Optional, QR-based encrypted transfer',
     backupSyncTitle: 'Encrypted Backup & Sync',
     backupPassphrase: 'Passphrase',
     backupPassphraseConfirm: 'Confirm passphrase',
@@ -838,122 +836,13 @@ function RowArrow({ label, sub, onClick, danger, accent, noArrow }: { label: str
   )
 }
 
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
-const DRIVE_BACKUP_NAME = 'selfsync-backup.json'
-const DRIVE_ACCESS_TOKEN_KEY = 'selfsync-drive-access-token'
-
-function requestDriveAccessToken(clientId?: string): Promise<string> {
-  if (!clientId) return Promise.reject(new Error('Google client id is missing'))
-  const oauth2 = window.google?.accounts?.oauth2
-  if (!oauth2) return Promise.reject(new Error('Google Drive is not ready yet'))
-
-  return new Promise((resolve, reject) => {
-    const tokenClient = oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_SCOPE,
-      prompt: 'consent',
-      callback: (response: { access_token?: string; error?: string }) => {
-        if (response.error || !response.access_token) {
-          reject(new Error(response.error || 'Google Drive sign-in was cancelled'))
-          return
-        }
-        resolve(response.access_token)
-      },
-      error_callback: () => reject(new Error('Google Drive sign-in could not be opened')),
-    })
-    tokenClient.requestAccessToken()
-  })
-}
-
-async function getDriveAccessToken(clientId?: string): Promise<string> {
-  const existing = localStorage.getItem(DRIVE_ACCESS_TOKEN_KEY)
-  if (existing) return existing
-  const token = await requestDriveAccessToken(clientId)
-  localStorage.setItem(DRIVE_ACCESS_TOKEN_KEY, token)
-  return token
-}
-
-async function findDriveBackupFile(accessToken: string): Promise<string | null> {
-  const q = `name='${DRIVE_BACKUP_NAME}' and 'appDataFolder' in parents and trashed=false`
-  const url = new URL('https://www.googleapis.com/drive/v3/files')
-  url.searchParams.set('spaces', 'appDataFolder')
-  url.searchParams.set('fields', 'files(id,name,modifiedTime)')
-  url.searchParams.set('q', q)
-
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!response.ok) throw new Error('Could not read Google Drive backup status')
-  const data = await response.json() as { files?: Array<{ id: string }> }
-  return data.files?.[0]?.id ?? null
-}
-
-async function uploadDriveBackup(accessToken: string, content: string): Promise<void> {
-  const fileId = await findDriveBackupFile(accessToken)
-
-  if (fileId) {
-    const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: content,
-    })
-    if (!response.ok) throw new Error('Could not update Google Drive backup')
-    return
-  }
-
-  const boundary = `selfsync-${Date.now()}`
-  const metadata = JSON.stringify({ name: DRIVE_BACKUP_NAME, parents: ['appDataFolder'] })
-  const body = [
-    `--${boundary}`,
-    'Content-Type: application/json; charset=UTF-8',
-    '',
-    metadata,
-    `--${boundary}`,
-    'Content-Type: application/json',
-    '',
-    content,
-    `--${boundary}--`,
-    '',
-  ].join('\r\n')
-
-  const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': `multipart/related; boundary=${boundary}`,
-    },
-    body,
-  })
-  if (!response.ok) throw new Error('Could not create Google Drive backup')
-}
-
-async function downloadDriveBackup(accessToken: string): Promise<string> {
-  const fileId = await findDriveBackupFile(accessToken)
-  if (!fileId) throw new Error('No Google Drive backup found')
-
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!response.ok) throw new Error('Could not download Google Drive backup')
-  return response.text()
-}
 
 function EncryptedBackupModal({ language, onClose, onToast }: { language: Language; onClose: () => void; onToast: (msg: string) => void }) {
   const t = translations[language]
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
-    || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-    || process.env.GOOGLE_CLIENT_ID
-    || ''
-  const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform()
   const [passphrase, setPassphrase] = useState('')
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [driveReady, setDriveReady] = useState(false)
-  const [driveConnected, setDriveConnected] = useState(false)
   const [qrSessionId, setQrSessionId] = useState('')
   const [qrChunks, setQrChunks] = useState<string[]>([])
   const [qrIndex, setQrIndex] = useState(0)
@@ -983,30 +872,6 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
       .catch(() => setQrDataUrl(null))
   }, [qrChunks, qrIndex, qrSessionId])
 
-  useEffect(() => {
-    void checkDriveStatus()
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (isNative) {
-      setDriveReady(true)
-      return
-    }
-    if (window.google?.accounts?.oauth2) {
-      setDriveReady(true)
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.onload = () => setDriveReady(true)
-    script.onerror = () => setDriveReady(false)
-    document.body.appendChild(script)
-    return () => {
-      script.remove()
-    }
-  }, [])
 
   useEffect(() => () => stopScan(), [])
 
@@ -1016,27 +881,6 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
       return false
     }
     return true
-  }
-
-  const handleExport = async () => {
-    setError('')
-    if (!validatePassphrase()) return
-    if (confirmPassphrase && passphrase !== confirmPassphrase) {
-      setError(t.backupPassMismatch)
-      return
-    }
-    setBusy(true)
-    try {
-      const payload = buildBackupPayload()
-      const encrypted = await encryptBackup(passphrase, payload)
-      const text = serializeEncryptedBackup(encrypted)
-      downloadText(`selfsync-encrypted-backup-${new Date().toISOString().split('T')[0]}.json`, text)
-      onToast(t.backupExported)
-    } catch (e) {
-      setError(t.backupDecryptError)
-    } finally {
-      setBusy(false)
-    }
   }
 
   const handleImportText = async (text: string) => {
@@ -1054,11 +898,6 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
     } finally {
       setBusy(false)
     }
-  }
-
-  const handleImportFile = async (file: File) => {
-    const text = await file.text()
-    await handleImportText(text)
   }
 
   const handleGenerateQr = async () => {
@@ -1134,77 +973,6 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
     await handleImportText(scannedPayload)
   }
 
-  const checkDriveStatus = async () => {
-    if (isNative) {
-      setDriveConnected(gdriveAuth.isConnected())
-      return
-    }
-    setDriveConnected(Boolean(localStorage.getItem(DRIVE_ACCESS_TOKEN_KEY)))
-  }
-
-  const handleDriveConnect = async () => {
-    setError('')
-    if (!isNative && !clientId) {
-      setError('Google client id is missing')
-      return
-    }
-    if (!isNative && !window.google?.accounts?.oauth2) {
-      setError('Google Drive is still loading. Try again in a moment.')
-      return
-    }
-
-    setBusy(true)
-    try {
-      if (isNative) {
-        await gdriveAuth.connect()
-      } else {
-        const token = await requestDriveAccessToken(clientId)
-        localStorage.setItem(DRIVE_ACCESS_TOKEN_KEY, token)
-      }
-      setDriveConnected(true)
-      onToast(t.driveConnected)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t.driveMissing)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleDriveUpload = async () => {
-    setError('')
-    if (!validatePassphrase()) return
-
-    setBusy(true)
-    try {
-      const token = isNative ? await gdriveAuth.getValidToken() : await getDriveAccessToken(clientId)
-      const payload = buildBackupPayload()
-      const encrypted = await encryptBackup(passphrase, payload)
-      await uploadDriveBackup(token, serializeEncryptedBackup(encrypted))
-      setDriveConnected(true)
-      onToast(t.backupExported)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t.driveMissing)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleDriveDownload = async () => {
-    setError('')
-    if (!validatePassphrase()) return
-
-    setBusy(true)
-    try {
-      const token = isNative ? await gdriveAuth.getValidToken() : await getDriveAccessToken(clientId)
-      const text = await downloadDriveBackup(token)
-      await handleImportText(text)
-      setDriveConnected(true)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t.driveMissing)
-      setBusy(false)
-    }
-  }
-
   return (
     <ModalShell title={t.backupSyncTitle} onClose={onClose}>
       <div className="st-backup-sync">
@@ -1231,30 +999,6 @@ function EncryptedBackupModal({ language, onClose, onToast }: { language: Langua
 
         {error && <p className="st-error">{error}</p>}
 
-        <div className="st-backup-actions">
-          <button className="mo-submit mo-submit--neu" onClick={handleExport} disabled={busy}>{t.backupExport}</button>
-          <label className="st-file-label st-file-label--inline">
-            {t.backupImport}
-            <input
-              type="file"
-              accept=".json"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f) }}
-            />
-          </label>
-        </div>
-        <p className="st-backup-hint">{t.backupImportHint}</p>
-
-        <div className="st-backup-drive">
-          <div className="st-drive-row">
-            <span>{driveConnected ? t.driveConnected : t.backupDrive}</span>
-            <button className="st-qr-btn" onClick={handleDriveConnect} disabled={!driveReady || !clientId}>{t.driveConnect}</button>
-          </div>
-          <div className="st-drive-actions">
-            <button className="st-qr-btn" onClick={handleDriveUpload} disabled={busy}>{t.driveUpload}</button>
-            <button className="st-qr-btn" onClick={handleDriveDownload} disabled={busy}>{t.driveDownload}</button>
-          </div>
-        </div>
 
         <div className="st-backup-qr">
           <div className="st-backup-qr-head">
