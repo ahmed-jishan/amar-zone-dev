@@ -15,6 +15,14 @@ jobs:
       NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID }}
       NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+      ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+      ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
+      ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -49,6 +57,28 @@ jobs:
 
       - name: Sync Capacitor
         run: npm run cap:sync
+
+      - name: Prepare Android signing keys
+        run: |
+          if [ -n "$ANDROID_DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p ~/.android
+            echo "$ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
+          fi
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            mkdir -p android/signing
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/signing/release.keystore
+          fi
+
+      - name: Print keystore SHA-1 fingerprints
+        run: |
+          if [ -f ~/.android/debug.keystore ]; then
+            echo "Debug keystore SHA-1:"
+            keytool -list -v -keystore ~/.android/debug.keystore -storepass "${ANDROID_DEBUG_KEYSTORE_PASSWORD:-android}" -alias "${ANDROID_DEBUG_KEY_ALIAS:-AndroidDebugKey}" | grep -i "SHA1"
+          fi
+          if [ -f android/signing/release.keystore ]; then
+            echo "Release keystore SHA-1:"
+            keytool -list -v -keystore android/signing/release.keystore -storepass "${ANDROID_KEYSTORE_PASSWORD}" -alias "${ANDROID_KEY_ALIAS}" | grep -i "SHA1"
+          fi
 
       - name: Build installable APK
         working-directory: android
