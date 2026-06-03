@@ -103,9 +103,9 @@ export default function QuranView() {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: `${surah.transliteration}`,
+      title: `Surah ${surah.transliteration}`,
       artist: 'Quran Recitation',
-      album: `Ayah ${ayahNumber} of ${surah.verses} - ${surah.banglaMeaning}`,
+      album: `Ayah ${ayahNumber}`,
       artwork: [
         { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -117,6 +117,7 @@ export default function QuranView() {
         await audioRef.current?.play();
         navigator.mediaSession.playbackState = 'playing';
         setIsPlaying(true);
+        await updateNativeMediaNotification(surah, ayahNumber, true);
       } catch {
         navigator.mediaSession.playbackState = 'paused';
         setIsPlaying(false);
@@ -126,12 +127,13 @@ export default function QuranView() {
       audioRef.current?.pause();
       navigator.mediaSession.playbackState = 'paused';
       setIsPlaying(false);
+      void updateNativeMediaNotification(surah, ayahNumber, false);
     });
     navigator.mediaSession.setActionHandler('nexttrack', () => {
-      void playAdjacentSurah(surah.number, 1);
+      void playAdjacentAyah(surah.number, ayahNumber, 1);
     });
     navigator.mediaSession.setActionHandler('previoustrack', () => {
-      void playAdjacentSurah(surah.number, -1);
+      void playAdjacentAyah(surah.number, ayahNumber, -1);
     });
     navigator.mediaSession.setActionHandler('stop', () => {
       audioRef.current?.pause();
@@ -143,18 +145,26 @@ export default function QuranView() {
   const updateNativeMediaNotification = async (surah: SurahMeta, ayahNumber: number, playing: boolean) => {
     const ayah = ayahs.find((item) => item.numberInSurah === ayahNumber);
     await updateQuranMediaNotification({
-      title: surah.transliteration,
-      subtitle: `Ayah ${ayahNumber} of ${surah.verses}`,
+      title: `Surah ${surah.transliteration}`,
+      subtitle: `Ayah ${ayahNumber}`,
       ayahLine: ayah?.bangla || surah.banglaMeaning,
       playing,
     }).catch((error) => console.warn('Quran media notification failed:', error));
   };
 
-  const playAdjacentSurah = async (currentSurahNumber: number, offset: 1 | -1) => {
-    const nextNumber = currentSurahNumber + offset;
-    const nextSurah = SURAHS.find((item) => item.number === nextNumber);
+  const playAdjacentAyah = async (currentSurahNumber: number, currentAyahNumber: number, offset: 1 | -1) => {
+    const currentSurah = SURAHS.find((item) => item.number === currentSurahNumber);
+    if (!currentSurah) return;
+
+    const nextAyah = currentAyahNumber + offset;
+    if (nextAyah >= 1 && nextAyah <= currentSurah.verses) {
+      await playPosition(currentSurah, nextAyah);
+      return;
+    }
+
+    const nextSurah = SURAHS.find((item) => item.number === currentSurahNumber + offset);
     if (!nextSurah) return;
-    await playPosition(nextSurah, 1);
+    await playPosition(nextSurah, offset === 1 ? 1 : nextSurah.verses);
   };
 
   const playPosition = async (surah: SurahMeta, ayahNumber: number) => {
@@ -237,9 +247,9 @@ export default function QuranView() {
         setIsPlaying(false);
         if (activeAyah) void updateNativeMediaNotification(currentSurah, activeAyah, false);
       } else if (action === 'next') {
-        void playAdjacentSurah(currentSurah.number, 1);
+        if (activeAyah) void playAdjacentAyah(currentSurah.number, activeAyah, 1);
       } else if (action === 'previous') {
-        void playAdjacentSurah(currentSurah.number, -1);
+        if (activeAyah) void playAdjacentAyah(currentSurah.number, activeAyah, -1);
       }
     };
 

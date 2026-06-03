@@ -33,6 +33,104 @@ function toPrayerLocation(position: Position | GeolocationPosition): PrayerLocat
   };
 }
 
+function cleanAddressPart(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized || undefined;
+}
+
+function uniqueParts(parts: Array<string | undefined>) {
+  const seen = new Set<string>();
+  return parts.filter((part): part is string => {
+    const value = cleanAddressPart(part);
+    if (!value) return false;
+    const key = value.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function buildHumanLocation(address: Record<string, string | undefined>, fallbackDisplayName?: string) {
+  const houseNumber = cleanAddressPart(address.house_number);
+  const road = cleanAddressPart(
+    address.road ||
+    address.pedestrian ||
+    address.footway ||
+    address.street ||
+    address.residential ||
+    address.path
+  );
+  const streetAddress = cleanAddressPart(
+    houseNumber && road ? `${houseNumber} ${road}` : road || address.house_name || address.building
+  );
+  const neighborhood = cleanAddressPart(
+    address.neighbourhood ||
+    address.suburb ||
+    address.quarter ||
+    address.city_block ||
+    address.hamlet
+  );
+  const subLocality = cleanAddressPart(
+    address.suburb ||
+    address.neighbourhood ||
+    address.quarter ||
+    address.city_district ||
+    address.subdistrict ||
+    address.upazila ||
+    address.thana
+  );
+  const city = cleanAddressPart(
+    address.city ||
+    address.town ||
+    address.municipality ||
+    address.village ||
+    address.union ||
+    address.county
+  );
+  const district = cleanAddressPart(address.district || address.county || address.state_district);
+  const region = cleanAddressPart(address.state || address.division || district);
+  const country = cleanAddressPart(address.country);
+
+  const fallbackParts = uniqueParts((fallbackDisplayName ?? '').split(',').map((part) => part.trim()).slice(0, 5));
+  const addressLines = uniqueParts([
+    streetAddress,
+    neighborhood,
+    subLocality,
+    city,
+    district,
+    country,
+    ...fallbackParts,
+  ]);
+
+  return {
+    houseNumber,
+    road,
+    streetAddress,
+    neighborhood,
+    subLocality,
+    city,
+    district,
+    region,
+    country,
+    addressLines,
+    displayName: addressLines.join(', ') || fallbackDisplayName,
+  } satisfies Partial<PrayerLocation>;
+}
+
+export function formatPrayerLocation(location: PrayerLocation) {
+  const lines = location.addressLines?.filter(Boolean);
+  if (lines?.length) return lines.join(', ');
+  if (location.displayName) return location.displayName;
+  return uniqueParts([
+    location.streetAddress,
+    location.neighborhood,
+    location.subLocality,
+    location.city,
+    location.district || location.region,
+    location.country,
+  ]).join(', ') || `${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`;
+}
+
 export async function requestLocationPermission(): Promise<NativeLocationStatus> {
   if (typeof window === 'undefined') return 'unsupported';
 
@@ -135,7 +233,7 @@ export async function watchPrayerLocation(
 
 export async function reverseGeocodeLocation(location: PrayerLocation): Promise<Partial<PrayerLocation>> {
   const response = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${location.latitude}&lon=${location.longitude}&zoom=14&addressdetails=1`,
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${location.latitude}&lon=${location.longitude}&zoom=18&addressdetails=1&namedetails=1`,
     { headers: { Accept: 'application/json', 'Accept-Language': 'en' } }
   );
 
@@ -145,18 +243,5 @@ export async function reverseGeocodeLocation(location: PrayerLocation): Promise<
     display_name?: string;
     address?: Record<string, string | undefined>;
   };
-  const address = payload.address ?? {};
-  const city =
-    address.city ||
-    address.town ||
-    address.municipality ||
-    address.upazila ||
-    address.village ||
-    address.suburb ||
-    address.county;
-  const region = address.state || address.division || address.county;
-  const country = address.country;
-  const displayName = city && region && city !== region ? `${city}, ${region}` : city && country ? `${city}, ${country}` : payload.display_name;
-
-  return { city, region, country, displayName };
+  return buildHumanLocation(payload.address ?? {}, payload.display_name);
 }

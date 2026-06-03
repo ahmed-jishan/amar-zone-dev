@@ -5,7 +5,13 @@ import { NAMAZ_STORAGE_KEYS } from '../constants/storageKeys';
 import { usePrefsStore } from '../store/prefsStore';
 import { getItem, setItem } from '../utils/storageHelpers';
 import type { PrayerLocation } from '../types/prayer.types';
-import { getCurrentPrayerLocation, LocationPermissionError, watchPrayerLocation } from '@/lib/native/location';
+import {
+  formatPrayerLocation,
+  getCurrentPrayerLocation,
+  LocationPermissionError,
+  reverseGeocodeLocation,
+  watchPrayerLocation,
+} from '@/lib/native/location';
 
 type LocationStatus = 'idle' | 'loading' | 'ready' | 'denied' | 'error' | 'unsupported';
 
@@ -20,7 +26,7 @@ const MAX_STALE_MS = 5 * 60 * 1000;
 const MIN_ACCURACY_IMPROVEMENT = 15;
 
 function locationCacheKey(latitude: number, longitude: number) {
-  return `${latitude.toFixed(3)}:${longitude.toFixed(3)}`;
+  return `${latitude.toFixed(5)}:${longitude.toFixed(5)}`;
 }
 
 function shouldSyncLocation(previous: PrayerLocation, next: PrayerLocation, accuracy?: number) {
@@ -41,12 +47,7 @@ function shouldSyncLocation(previous: PrayerLocation, next: PrayerLocation, accu
 }
 
 export function formatLocation(location: PrayerLocation) {
-  if (location.displayName) return location.displayName;
-  if (location.city && location.region && location.city !== location.region) return `${location.city}, ${location.region}`;
-  if (location.city && location.country) return `${location.city}, ${location.country}`;
-  if (location.city) return location.city;
-  if (location.country) return location.country;
-  return `${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`;
+  return formatPrayerLocation(location);
 }
 
 async function reverseGeocode(latitude: number, longitude: number): Promise<Partial<PrayerLocation>> {
@@ -58,31 +59,7 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Part
     return cached.location;
   }
 
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=14&addressdetails=1`,
-    { headers: { Accept: 'application/json' } }
-  );
-
-  if (!response.ok) throw new Error('Unable to resolve location name');
-
-  const payload = await response.json() as {
-    display_name?: string;
-    address?: Record<string, string | undefined>;
-  };
-
-  const address = payload.address ?? {};
-  const city =
-    address.city ||
-    address.town ||
-    address.municipality ||
-    address.upazila ||
-    address.village ||
-    address.suburb ||
-    address.county;
-  const region = address.state || address.division || address.county;
-  const country = address.country;
-  const displayName = city && region && city !== region ? `${city}, ${region}` : city && country ? `${city}, ${country}` : payload.display_name;
-  const location = { city, region, country, displayName };
+  const location = await reverseGeocodeLocation({ latitude, longitude });
 
   setItem<Record<string, CachedPlace>>(NAMAZ_STORAGE_KEYS.locationCache, {
     ...cache,

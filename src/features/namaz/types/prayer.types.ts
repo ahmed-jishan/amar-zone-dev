@@ -55,10 +55,17 @@ export interface PrayerTimesRequest {
 export interface PrayerLocation {
   latitude: number;
   longitude: number;
+  houseNumber?: string;
+  road?: string;
+  streetAddress?: string;
+  neighborhood?: string;
+  subLocality?: string;
   city?: string;
+  district?: string;
   region?: string;
   country?: string;
   displayName?: string;
+  addressLines?: string[];
   accuracy?: number;
   source?: 'device' | 'manual' | 'fallback';
   updatedAt?: number;

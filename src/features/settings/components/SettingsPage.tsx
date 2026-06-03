@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Sun, Moon, Monitor, Globe, Lock, Download,
   Upload, Trash2, ChevronRight, Check, Shield,
-  Info, Palette, Bell, Eye, EyeOff, X
+  Info, Palette, Bell, Eye, EyeOff, X, ExternalLink
 } from 'lucide-react'
 import { useSettingsStore, type Theme, type Language } from '@/features/settings/store/settingsStore'
 import { usePrefsStore } from '@/features/namaz/store/prefsStore'
@@ -27,6 +27,8 @@ import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
 import CloudSyncCard from '@/components/settings/CloudSyncCard'
 import { requestAppNotificationPermission } from '@/lib/native/notifications'
+
+const PRIVACY_URL = "https://ahmed-jishan.github.io/selfsync-privacy/";
 
 // ==================== Translations ====================
 const translations = {
@@ -83,6 +85,8 @@ const translations = {
     clearData: 'সব ডেটা মুছুন',
     clearSub: 'স্থায়ীভাবে সরিয়ে ফেলবে',
     about: 'অ্যাপ সম্পর্কে',
+    privacyPolicy: 'Privacy Policy',
+    privacyPolicySub: 'Open app privacy details',
     version: 'সংস্করণ ১.০.০ · লোকাল-ফার্স্ট',
     storageUsed: 'স্টোরেজ ব্যবহার',
     dataSummary: 'ডেটা সারাংশ',
@@ -201,6 +205,8 @@ const translations = {
     clearData: 'Clear All Data',
     clearSub: 'Permanently remove',
     about: 'About',
+    privacyPolicy: 'Privacy Policy',
+    privacyPolicySub: 'Open app privacy details',
     version: 'Version 1.0.0 · Local-first',
     storageUsed: 'Storage used',
     dataSummary: 'Data summary',
@@ -667,6 +673,8 @@ export default function SettingsPage() {
           <div className="st-divider" />
           <RowArrow label={t.dataSummary} sub={dataSummary} onClick={() => {}} noArrow />
           <div className="st-divider" />
+          <RowExternalLink label={t.privacyPolicy} sub={t.privacyPolicySub} href={PRIVACY_URL} />
+          <div className="st-divider" />
           <div className="st-local-note">
             <Lock size={11} />
             {t.localNote}
@@ -830,6 +838,24 @@ function RowArrow({ label, sub, onClick, danger, accent, noArrow }: { label: str
       </div>
       {!noArrow && <ChevronRight size={15} className="st-row-arrow" />}
     </button>
+  )
+}
+
+function RowExternalLink({ label, sub, href }: { label: string; sub?: string; href: string }) {
+  return (
+    <a
+      className="st-row st-row-btn"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${label} (opens in a new tab)`}
+    >
+      <div className="st-row-info">
+        <span className="st-row-label">{label}</span>
+        {sub && <span className="st-row-sub">{sub}</span>}
+      </div>
+      <ExternalLink size={15} className="st-row-arrow" aria-hidden="true" />
+    </a>
   )
 }
 
@@ -1491,6 +1517,7 @@ html:not(.dark) .mo-submit--neu {
   background: transparent;
   border: none;
   cursor: default;
+  text-decoration: none;
 }
 .st-row-btn {
   cursor: pointer;
