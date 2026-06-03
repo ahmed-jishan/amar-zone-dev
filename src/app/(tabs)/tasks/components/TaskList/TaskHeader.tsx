@@ -17,9 +17,21 @@ interface Props {
   stats: Stats;
   onToggleDashboard: () => void;
   showDashboard: boolean;
+  nextTaskTitle?: string;
+  onStartNext?: () => void;
+  onPlanToday?: () => void;
+  onAddTask?: () => void;
 }
 
-export default function TaskHeader({ stats, onToggleDashboard, showDashboard }: Props) {
+export default function TaskHeader({
+  stats,
+  onToggleDashboard,
+  showDashboard,
+  nextTaskTitle,
+  onStartNext,
+  onPlanToday,
+  onAddTask,
+}: Props) {
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 6) return 'Good night';
@@ -62,6 +74,35 @@ export default function TaskHeader({ stats, onToggleDashboard, showDashboard }: 
             <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </button>
+      </div>
+
+      <div className="mt-4 rounded-[var(--az-radius-xl)] border border-[var(--az-accent-border)] bg-[var(--az-surface-1)] p-3.5 shadow-[var(--az-shadow-sm)]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase text-[var(--az-accent)]">Next best move</p>
+            <p className="mt-1 truncate text-[15px] font-semibold text-[var(--az-text-1)]">
+              {nextTaskTitle || (stats.today > 0 ? 'Pick one important task for today' : 'Plan a small win for today')}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {nextTaskTitle && (
+              <button
+                type="button"
+                onClick={onStartNext}
+                className="rounded-[var(--az-radius-md)] bg-[var(--az-accent)] px-3 py-2 text-[12px] font-bold text-white shadow-[0_0_12px_var(--az-accent-glow)]"
+              >
+                Start
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={stats.today > 0 ? onPlanToday : onAddTask}
+              className="rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-2)] px-3 py-2 text-[12px] font-semibold text-[var(--az-text-2)]"
+            >
+              {stats.today > 0 ? 'Plan' : 'Add'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Quick stats row */}

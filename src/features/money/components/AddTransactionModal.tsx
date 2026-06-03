@@ -7,11 +7,11 @@ import type { ExpenseCategory, IncomeCategory, Transaction, TransactionType, Wal
 
 type TransactionCategory = ExpenseCategory | IncomeCategory
 
-export default function AddTransactionModal({ onClose, onAdd, translations: t, currencySymbol, wallets = [], selectedWalletId, transaction }: any) {
+export default function AddTransactionModal({ onClose, onAdd, translations: t, currencySymbol, wallets = [], selectedWalletId, transaction, initialType }: any) {
   const [mounted, setMounted] = useState(false)
   const editing = !!transaction
   const initialTransaction = transaction as Transaction | undefined
-  const [type, setType] = useState<TransactionType>(initialTransaction?.type || 'expense')
+  const [type, setType] = useState<TransactionType>(initialTransaction?.type || initialType || 'expense')
   const [amount, setAmount] = useState(initialTransaction?.amount ? String(initialTransaction.amount) : '')
   const [category, setCategory] = useState<TransactionCategory>(initialTransaction?.category || 'food')
   const [note, setNote] = useState(initialTransaction?.note || '')

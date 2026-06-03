@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { TaskPriority, TaskCategory, TaskStatus, CreateTaskInput } from '../../types';
 import { useTaskStore } from '@/lib/store/taskStore';
 import { PRIORITIES } from '../../constants/priorities';
@@ -71,6 +71,7 @@ export default function QuickAdd() {
   const [tags, setTags] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const addTask = useTaskStore((s) => s.addTask);
+  const parsedPreview = useMemo(() => title.trim() ? parseNaturalTaskInput(title.trim()) : null, [title]);
 
   useEffect(() => {
     const handler = () => setIsOpen(true);
@@ -126,6 +127,10 @@ export default function QuickAdd() {
     setIsOpen(false);
   }, [title, priority, category, dueDate, timeEstimate, tags, addTask]);
 
+  const applyToken = (token: string) => {
+    setTitle((current) => `${current.trim()} ${token}`.trim());
+  };
+
   if (!isOpen) {
     return (
       <button
@@ -157,9 +162,43 @@ export default function QuickAdd() {
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="What needs to be done? Try: Pay bill tomorrow #finance high 15m"
+          placeholder="Add task, e.g. Pay bill tomorrow 15m"
           className="w-full bg-transparent text-[16px] font-semibold text-[var(--az-text-1)] placeholder:text-[var(--az-text-3)] outline-none mb-3"
         />
+
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {['today', 'tomorrow', 'high', '15m', '#finance'].map((token) => (
+            <button
+              key={token}
+              type="button"
+              onClick={() => applyToken(token)}
+              className="rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--az-text-2)] transition-colors hover:border-[var(--az-accent-border)] hover:text-[var(--az-accent)]"
+            >
+              {token}
+            </button>
+          ))}
+        </div>
+
+        {parsedPreview && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-[var(--az-radius-lg)] bg-[var(--az-accent-bg)] px-3 py-2 text-[12px] text-[var(--az-text-2)]">
+            <span className="font-bold text-[var(--az-accent)]">Detected</span>
+            <span>{parsedPreview.parsed.dueDate || dueDate ? 'Date' : 'No date'}</span>
+            <span>/</span>
+            <span>{parsedPreview.parsed.priority || priority}</span>
+            {(parsedPreview.parsed.timeEstimate || timeEstimate) && (
+              <>
+                <span>/</span>
+                <span>{parsedPreview.parsed.timeEstimate || timeEstimate}m</span>
+              </>
+            )}
+            {(parsedPreview.parsed.tags?.length || tags) && (
+              <>
+                <span>/</span>
+                <span>{parsedPreview.parsed.tags?.join(', ') || tags}</span>
+              </>
+            )}
+          </div>
+        )}
 
         {isExpanded && (
           <div className="space-y-3 mb-3 animate-[az-fade-in_200ms_ease-out]">

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Plus, TrendingDown, TrendingUp } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Eye, EyeOff, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { useMoneyStore } from '../store/moneyStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
@@ -32,8 +32,9 @@ import WalletStrip from './WalletStrip'
 import WalletToolsModal from './WalletToolsModal'
 
 export default function MoneyPage() {
-  const [tab, setTab] = useState<'overview' | 'transactions' | 'loans' | 'analytics' | 'budget' | 'goals'>('overview')
+  const [tab, setTab] = useState<'overview' | 'transactions' | 'budget' | 'bills' | 'goals' | 'loans' | 'analytics'>('overview')
   const [showAddTxn, setShowAddTxn] = useState(false)
+  const [addTxnType, setAddTxnType] = useState<'income' | 'expense'>('expense')
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null)
   const [showLoanModal, setShowLoanModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
@@ -185,7 +186,7 @@ export default function MoneyPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddTxn(true)}
+                onClick={() => { setAddTxnType('expense'); setShowAddTxn(true) }}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 active:scale-95"
                 style={{
                   background: 'linear-gradient(135deg, var(--mon-gold), var(--mon-gold-2))',
@@ -198,6 +199,36 @@ export default function MoneyPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="mb-5 grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => { setAddTxnType('expense'); setShowAddTxn(true) }}
+            className="flex flex-col items-center gap-1.5 rounded-[var(--mon-radius-lg)] p-3 text-[12px] font-bold transition active:scale-[0.98]"
+            style={{ background: 'var(--mon-expense-bg)', color: 'var(--mon-expense)', border: '1px solid var(--mon-border)' }}
+          >
+            <ArrowDownLeft size={18} />
+            Add Expense
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAddTxnType('income'); setShowAddTxn(true) }}
+            className="flex flex-col items-center gap-1.5 rounded-[var(--mon-radius-lg)] p-3 text-[12px] font-bold transition active:scale-[0.98]"
+            style={{ background: 'var(--mon-income-bg)', color: 'var(--mon-income)', border: '1px solid var(--mon-border)' }}
+          >
+            <ArrowUpRight size={18} />
+            Add Income
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowWalletTools(true)}
+            className="flex flex-col items-center gap-1.5 rounded-[var(--mon-radius-lg)] p-3 text-[12px] font-bold transition active:scale-[0.98]"
+            style={{ background: 'var(--mon-surface-1)', color: 'var(--mon-gold)', border: '1px solid var(--mon-border)' }}
+          >
+            <Wallet size={18} />
+            Wallets
+          </button>
         </div>
 
         {/* STATS ROW */}
@@ -264,7 +295,7 @@ export default function MoneyPage() {
 
         {/* TABS */}
         <div className="sticky top-0 z-20 mb-4 flex gap-0 overflow-x-auto pb-1" style={{ borderBottom: '1px solid var(--mon-border)' }}>
-          {(['overview', 'transactions', 'loans', 'analytics', 'budget', 'goals'] as const).map((tabKey) => (
+          {(['overview', 'transactions', 'budget', 'bills', 'goals', 'loans', 'analytics'] as const).map((tabKey) => (
             <button
               key={tabKey}
               onClick={() => setTab(tabKey)}
@@ -272,7 +303,7 @@ export default function MoneyPage() {
                 tab === tabKey ? 'text-[var(--mon-gold)]' : 'text-[var(--mon-text-3)] hover:text-[var(--mon-text-2)]'
               }`}
             >
-              {(t as any)[tabKey] || tabKey}
+              {tabKey === 'bills' ? 'Bills' : (t as any)[tabKey] || tabKey}
               {tab === tabKey && (
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[2px] rounded-full"
                   style={{ background: 'linear-gradient(90deg, var(--mon-gold), var(--mon-gold-2))' }}
@@ -310,18 +341,6 @@ export default function MoneyPage() {
               month={month}
               currencySymbol={currency_symbol}
               onCreateTask={createBudgetTask}
-            />
-            <SubscriptionsPanel
-              subscriptions={store.subscriptions}
-              currencySymbol={currency_symbol}
-              onAdd={(anchor) => {
-                setSubscriptionModalAnchor(anchor ?? null)
-                setShowSubscriptionModal(true)
-              }}
-              onPause={store.pauseSubscription}
-              onResume={store.resumeSubscription}
-              onDelete={store.deleteSubscription}
-              onCreateTask={createSubscriptionTask}
             />
             <OverviewTab
               t={t} weekData={weekData} maxWeekVal={maxWeekVal} spendingByCategory={spendingByCategory}
@@ -372,6 +391,21 @@ export default function MoneyPage() {
           <BudgetTab budgets={budgets} transactions={transactions} currency_symbol={currency_symbol} language={language} month={month} t={t} onSetBudget={store.setBudget} />
         )}
 
+        {tab === 'bills' && (
+          <SubscriptionsPanel
+            subscriptions={store.subscriptions}
+            currencySymbol={currency_symbol}
+            onAdd={(anchor) => {
+              setSubscriptionModalAnchor(anchor ?? null)
+              setShowSubscriptionModal(true)
+            }}
+            onPause={store.pauseSubscription}
+            onResume={store.resumeSubscription}
+            onDelete={store.deleteSubscription}
+            onCreateTask={createSubscriptionTask}
+          />
+        )}
+
         {/* GOALS */}
         {tab === 'goals' && (
           <GoalsTab goals={savingsGoals} currency_symbol={currency_symbol} language={language} t={t}
@@ -381,7 +415,7 @@ export default function MoneyPage() {
       </div>
 
       {/* MODALS */}
-      {showAddTxn && <AddTransactionModal onClose={() => setShowAddTxn(false)} onAdd={store.addTransaction} translations={t} currencySymbol={currency_symbol} />}
+      {showAddTxn && <AddTransactionModal onClose={() => setShowAddTxn(false)} onAdd={store.addTransaction} translations={t} currencySymbol={currency_symbol} wallets={wallets} selectedWalletId={store.selectedWalletId} initialType={addTxnType} />}
       {editingTxn && <AddTransactionModal onClose={() => setEditingTxn(null)} onAdd={(updates: Partial<Transaction>) => store.updateTransaction(editingTxn.id, updates)} translations={t} currencySymbol={currency_symbol} wallets={wallets} selectedWalletId={store.selectedWalletId} transaction={editingTxn} />}
       {showLoanModal && <AddLoanModal onClose={() => setShowLoanModal(false)} onAdd={store.addLoan} translations={t} currencySymbol={currency_symbol} />}
       {showGoalModal && <AddGoalModal onClose={() => setShowGoalModal(false)} onAdd={store.addSavingsGoal} translations={t} currencySymbol={currency_symbol} />}

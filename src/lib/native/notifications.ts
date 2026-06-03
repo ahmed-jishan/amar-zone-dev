@@ -6,6 +6,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 export type AppNotificationPermission = NotificationPermission;
 
 const idByTag = new Map<string, number>();
+let channelsReady = false;
 
 export function isNativeNotificationPlatform() {
   return typeof window !== 'undefined' && Capacitor.isNativePlatform();
@@ -59,16 +60,44 @@ export async function requestAppNotificationPermission(): Promise<AppNotificatio
   return Notification.requestPermission();
 }
 
+export async function ensureNotificationChannels(): Promise<void> {
+  if (!isNativeNotificationPlatform() || channelsReady) return;
+  const platform = Capacitor.getPlatform();
+  if (platform !== 'android') return;
+
+  await LocalNotifications.createChannel({
+    id: 'selfsync_alerts',
+    name: 'SelfSync Alerts',
+    description: 'Tasks, money, prayer and app reminders',
+    importance: 5,
+    visibility: 1,
+    lights: true,
+    vibration: true,
+  });
+  await LocalNotifications.createChannel({
+    id: 'selfsync_azan',
+    name: 'Azan Alerts',
+    description: 'Prayer time azan reminders',
+    importance: 5,
+    visibility: 1,
+    lights: true,
+    vibration: true,
+  });
+  channelsReady = true;
+}
+
 export async function scheduleAppNotification(params: {
   tag: string;
   title: string;
   body: string;
   at: Date;
+  channelId?: string;
 }): Promise<boolean> {
   const permission = await requestAppNotificationPermission();
   if (permission !== 'granted') return false;
 
   if (isNativeNotificationPlatform()) {
+    await ensureNotificationChannels();
     await LocalNotifications.schedule({
       notifications: [
         {
@@ -76,6 +105,7 @@ export async function scheduleAppNotification(params: {
           title: params.title,
           body: params.body,
           schedule: { at: params.at, allowWhileIdle: true },
+          channelId: params.channelId || 'selfsync_alerts',
           extra: { tag: params.tag },
         },
       ],

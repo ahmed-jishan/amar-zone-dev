@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { todayISO } from '../utils'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function AddGoalModal({ onClose, onAdd, translations: t, currencySymbol }: any) {
+  const [mounted, setMounted] = useState(false)
   const [title, setTitle] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
   const [currentAmount, setCurrentAmount] = useState('')
@@ -11,6 +12,12 @@ export default function AddGoalModal({ onClose, onAdd, translations: t, currency
   const [color, setColor] = useState('#c9a84c')
 
   const colors = ['#c9a84c', '#22c55e', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316']
+
+  useEffect(() => {
+    setMounted(true)
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,10 +32,12 @@ export default function AddGoalModal({ onClose, onAdd, translations: t, currency
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center p-4 animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative w-full max-w-[420px] mx-4 rounded-[var(--mon-radius-2xl)] overflow-hidden animate-[mon-scale-in_200ms_ease-out] mon-glass shadow-[var(--mon-shadow-lg)]"
+      <div className="relative w-full max-w-[420px] max-h-[calc(100dvh-2rem)] rounded-[var(--mon-radius-2xl)] overflow-hidden animate-[mon-scale-in_200ms_ease-out] mon-glass shadow-[var(--mon-shadow-lg)] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--mon-border)' }}>
@@ -38,7 +47,7 @@ export default function AddGoalModal({ onClose, onAdd, translations: t, currency
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1.5" style={{ color: 'var(--mon-text-3)' }}>{t.title}</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. New Laptop" autoFocus
@@ -96,6 +105,7 @@ export default function AddGoalModal({ onClose, onAdd, translations: t, currency
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

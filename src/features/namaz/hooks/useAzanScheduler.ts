@@ -5,6 +5,7 @@ import { usePrefsStore } from '../store/prefsStore';
 import type { PrayerTimesResponse } from '../types/prayer.types';
 import { AZAN_PRAYER_ORDER, buildPrayerDate, formatRemaining, getNextAzan } from '../utils/prayerSchedule';
 import { isNativeNotificationPlatform, requestAppNotificationPermission, scheduleAppNotification } from '@/lib/native/notifications';
+import { cancelNativeAzan, isNativeAzanSupported, scheduleNativeAzan } from '@/lib/native/azan';
 
 const AZAN_AUDIO_URL = 'https://www.islamcan.com/audio/adhan/azan1.mp3';
 let currentAzanAudio: HTMLAudioElement | null = null;
@@ -73,9 +74,12 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
             title: `${entry.label} Azan`,
             body: 'Prayer time has started. Use mobile media controls to pause or resume.',
             at: target,
+            channelId: 'selfsync_azan',
           });
         })();
       }
+
+      if (isNativeAzanSupported()) return null;
 
       return window.setTimeout(() => {
         firedRef.current.add(key);
@@ -93,6 +97,24 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       timers.forEach((timer) => {
         if (timer) window.clearTimeout(timer);
       });
+    };
+  }, [azanEnabled, prayerTimes]);
+
+  useEffect(() => {
+    if (!azanEnabled || !prayerTimes || !isNativeAzanSupported()) return;
+    const items = AZAN_PRAYER_ORDER.map((prayer) => {
+      const entry = prayerTimes.timings[prayer];
+      const target = buildPrayerDate(entry.time, new Date(), prayerTimes.timezone);
+      return {
+        id: `${prayerTimes.date}:${prayer}:${entry.time}`,
+        label: entry.label,
+        time: target.getTime(),
+      };
+    }).filter((item) => item.time > Date.now());
+
+    void scheduleNativeAzan(items, AZAN_AUDIO_URL).catch((error) => console.warn('Native azan schedule failed:', error));
+    return () => {
+      void cancelNativeAzan(items.map((item) => item.id)).catch((error) => console.warn('Native azan cancel failed:', error));
     };
   }, [azanEnabled, prayerTimes]);
 

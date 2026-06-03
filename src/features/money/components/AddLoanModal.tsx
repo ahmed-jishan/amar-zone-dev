@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { todayISO } from '../utils'
 
 export default function AddLoanModal({ onClose, onAdd, translations: t, currencySymbol }: any) {
+  const [mounted, setMounted] = useState(false)
   const [personName, setPersonName] = useState('')
   const [amount, setAmount] = useState('')
   const [direction, setDirection] = useState<'given' | 'taken'>('given')
@@ -24,10 +26,18 @@ export default function AddLoanModal({ onClose, onAdd, translations: t, currency
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
+  useEffect(() => {
+    setMounted(true)
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center p-4 animate-[mon-fade-in_150ms_ease-out]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative w-full max-w-[420px] mx-4 rounded-[var(--mon-radius-2xl)] overflow-hidden animate-[mon-scale-in_200ms_ease-out] mon-glass shadow-[var(--mon-shadow-lg)]"
+      <div className="relative w-full max-w-[420px] max-h-[calc(100dvh-2rem)] rounded-[var(--mon-radius-2xl)] overflow-hidden animate-[mon-scale-in_200ms_ease-out] mon-glass shadow-[var(--mon-shadow-lg)] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--mon-border)' }}>
@@ -37,7 +47,7 @@ export default function AddLoanModal({ onClose, onAdd, translations: t, currency
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
           {/* Direction */}
           <div className="flex p-1 rounded-[var(--mon-radius-lg)]" style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)' }}>
             {(['given', 'taken'] as const).map((d) => (
@@ -96,6 +106,7 @@ export default function AddLoanModal({ onClose, onAdd, translations: t, currency
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

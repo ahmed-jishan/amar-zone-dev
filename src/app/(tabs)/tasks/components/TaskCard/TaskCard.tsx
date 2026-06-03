@@ -433,7 +433,26 @@ function TaskCardComponent({
         )}
       </div>
 
-      {/* Focus button (hover) */}
+      {!isSelectionMode && onOpenDetails && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenDetails(task);
+          }}
+          className={`
+            flex-shrink-0 p-2 rounded-[var(--az-radius-md)] transition-all duration-300
+            opacity-100 sm:opacity-0 sm:translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0
+            text-[var(--az-text-3)] hover:text-[var(--az-accent)] hover:bg-[var(--az-accent-bg)]
+          `}
+          aria-label="Open task details"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Focus button */}
       {!task.completed && onFocus && !isSelectionMode && (
         <button
           onClick={(e) => {
@@ -442,7 +461,7 @@ function TaskCardComponent({
           }}
           className={`
             flex-shrink-0 p-2 rounded-[var(--az-radius-md)] transition-all duration-300
-            ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'}
+            opacity-100 sm:opacity-0 sm:translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0
             text-[var(--az-accent)] hover:bg-[var(--az-accent-bg)]
           `}
           aria-label="Focus on this task"

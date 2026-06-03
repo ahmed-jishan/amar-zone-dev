@@ -41,6 +41,20 @@ export default function TasksPage() {
   const { filter, setFilter, filteredTasks } = useTaskFilters(tasks);
   const stats = useTaskAnalytics(tasks);
 
+  const nextTask = useMemo(() => {
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    return tasks
+      .filter((task) => !task.completed && task.status !== 'archived')
+      .sort((a, b) => {
+        const statusWeight = (value: Task) => value.status === 'today' ? 0 : value.dueDate ? 1 : 2;
+        const dueA = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const dueB = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return statusWeight(a) - statusWeight(b)
+          || priorityOrder[a.priority] - priorityOrder[b.priority]
+          || dueA - dueB;
+      })[0] ?? null;
+  }, [tasks]);
+
   // Apply search + sort
   const displayTasks = useMemo(() => {
     let result = [...filteredTasks];
@@ -105,7 +119,15 @@ export default function TasksPage() {
     <div className="az-root min-h-[100dvh] bg-[var(--az-bg)]">
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32 pt-4">
         {/* Header */}
-        <TaskHeader stats={stats} onToggleDashboard={() => setShowDashboard((s) => !s)} showDashboard={showDashboard} />
+        <TaskHeader
+          stats={stats}
+          onToggleDashboard={() => setShowDashboard((s) => !s)}
+          showDashboard={showDashboard}
+          nextTaskTitle={nextTask?.title}
+          onStartNext={() => nextTask && startFocus(nextTask)}
+          onPlanToday={() => setFilter('today')}
+          onAddTask={() => window.dispatchEvent(new CustomEvent('az:open-quick-add'))}
+        />
 
         {/* Focus Card */}
         <FocusCard

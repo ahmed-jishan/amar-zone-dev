@@ -61,14 +61,23 @@ export default function BackupListDialog({ open, onClose }: Props) {
 
   const downloadRaw = async (file: GDriveBackupFile) => {
     setBusyId(file.id)
+    setMessage('Preparing backup download...')
     try {
       const raw = await syncManager.downloadRawBackup(file.id)
-      const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }))
+      const safeName = file.name.endsWith('.json') ? file.name : `${file.name}.json`
+      const url = URL.createObjectURL(new Blob([raw], { type: 'application/json;charset=utf-8' }))
       const link = document.createElement('a')
       link.href = url
-      link.download = file.name
+      link.download = safeName
+      link.rel = 'noopener'
+      link.style.display = 'none'
+      document.body.appendChild(link)
       link.click()
-      URL.revokeObjectURL(url)
+      window.setTimeout(() => {
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      }, 1000)
+      setMessage('Backup JSON download started.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Download failed.')
     } finally {

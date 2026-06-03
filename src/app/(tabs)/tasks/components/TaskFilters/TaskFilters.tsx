@@ -5,13 +5,16 @@ import { createPortal } from 'react-dom';
 import { FilterKey, SortMode, ViewMode } from '../../types';
 import { useTaskStore } from '@/lib/store/taskStore';
 
-const FILTER_CONFIG: { key: FilterKey; label: string; icon: React.ReactNode }[] = [
-  { key: 'all', label: 'All', icon: <AllIcon /> },
+const PRIMARY_FILTERS: { key: FilterKey; label: string; icon: React.ReactNode }[] = [
   { key: 'today', label: 'Today', icon: <TodayIcon /> },
-  { key: 'high', label: 'Priority', icon: <PriorityIcon /> },
   { key: 'in-progress', label: 'Active', icon: <ActiveIcon /> },
   { key: 'inbox', label: 'Inbox', icon: <InboxIcon /> },
   { key: 'completed', label: 'Done', icon: <DoneIcon /> },
+];
+
+const SECONDARY_FILTERS: { key: FilterKey; label: string; icon: React.ReactNode }[] = [
+  { key: 'all', label: 'All', icon: <AllIcon /> },
+  { key: 'high', label: 'Priority', icon: <PriorityIcon /> },
   { key: 'overdue', label: 'Overdue', icon: <OverdueIcon /> },
   { key: 'archived', label: 'Archived', icon: <ArchivedIcon /> },
 ];
@@ -161,7 +164,7 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
 
       {/* Filter pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 az-scrollbar az-scrollbar-x">
-        {FILTER_CONFIG.map((f) => (
+        {PRIMARY_FILTERS.map((f) => (
           <div key={f.key} className="flex items-center gap-1">
             <button
               onClick={() => onFilterChange(f.key)}
@@ -170,6 +173,26 @@ export default function TaskFilters({ activeFilter, onFilterChange }: Props) {
                 ${activeFilter === f.key
                   ? 'bg-[var(--az-accent)] text-white shadow-[0_0_12px_var(--az-accent-glow)]'
                   : 'bg-[var(--az-surface-2)] text-[var(--az-text-2)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] hover:text-[var(--az-text-1)]'
+                }
+              `}
+            >
+              <span className={activeFilter === f.key ? 'text-white' : ''}>{f.icon}</span>
+              {f.label}
+            </button>
+          </div>
+        ))}
+
+        <div className="w-px h-5 bg-[var(--az-border)] mx-1" />
+
+        {SECONDARY_FILTERS.map((f) => (
+          <div key={f.key} className="flex items-center gap-1">
+            <button
+              onClick={() => onFilterChange(f.key)}
+              className={`
+                flex items-center gap-1.5 px-3 py-2 rounded-[var(--az-radius-md)] text-[12px] font-semibold whitespace-nowrap transition-all duration-200
+                ${activeFilter === f.key
+                  ? 'bg-[var(--az-accent)] text-white shadow-[0_0_12px_var(--az-accent-glow)]'
+                  : 'bg-[var(--az-surface-1)] text-[var(--az-text-3)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] hover:text-[var(--az-text-1)]'
                 }
               `}
             >

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Task, Subtask, TaskReminder } from '../../types';
 import { useTaskStore } from '@/lib/store/taskStore';
 import { PRIORITIES } from '../../constants/priorities';
@@ -36,6 +37,13 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
   const [reminderTime, setReminderTime] = useState('09:00');
   const [reminderMessage, setReminderMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'reminders' | 'sessions' | 'notes'>('details');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   const syncSubtasks = useCallback((nextSubtasks: Subtask[]) => {
     setSubtasks(nextSubtasks);
@@ -120,14 +128,16 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
   const cat = CATEGORIES[category];
   const totalSessionTime = task.sessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center animate-[az-fade-in_150ms_ease-out]"
+      className="fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center p-3 sm:p-4 animate-[az-fade-in_150ms_ease-out]"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-[520px] max-h-[85vh] mx-4 rounded-[var(--az-radius-2xl)] bg-[var(--az-surface-1)] border border-[var(--az-border)] shadow-[var(--az-shadow-lg)] overflow-hidden animate-[az-scale-in_200ms_ease-out] flex flex-col"
+        className="relative w-full max-w-[520px] max-h-[calc(100dvh-1.5rem)] rounded-[var(--az-radius-2xl)] bg-[var(--az-surface-1)] border border-[var(--az-border)] shadow-[var(--az-shadow-lg)] overflow-hidden animate-[az-scale-in_200ms_ease-out] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
@@ -152,13 +162,13 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 px-5 border-b border-[var(--az-border)]">
+        <div className="flex items-center gap-0 px-2 sm:px-5 border-b border-[var(--az-border)] overflow-x-auto az-scrollbar az-scrollbar-x">
           {(['details', 'subtasks', 'reminders', 'sessions', 'notes'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`
-                px-4 py-3 text-[13px] font-semibold capitalize transition-all relative
+                px-3 sm:px-4 py-3 text-[13px] font-semibold capitalize transition-all relative whitespace-nowrap
                 ${activeTab === tab ? 'text-[var(--az-accent)]' : 'text-[var(--az-text-3)] hover:text-[var(--az-text-2)]'}
               `}
             >
@@ -580,8 +590,8 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-[var(--az-border)] bg-[var(--az-surface-1)]">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 px-4 sm:px-5 py-4 border-t border-[var(--az-border)] bg-[var(--az-surface-1)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <button
               onClick={() => { toggleComplete(task.id); onClose(); }}
               className={`
@@ -602,7 +612,7 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <button
               onClick={() => { deleteTask(task.id); onClose(); }}
               className="px-3 py-1.5 rounded-[var(--az-radius-md)] text-[13px] font-semibold text-[var(--az-danger)] border border-[var(--az-danger-border)] bg-[var(--az-danger-bg)] hover:bg-[var(--az-danger)]/20 transition-all"
@@ -618,6 +628,7 @@ export default function TaskDetailsModal({ task, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

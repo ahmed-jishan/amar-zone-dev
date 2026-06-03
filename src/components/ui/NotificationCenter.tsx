@@ -10,6 +10,7 @@ import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import {
   cancelAllAppNotifications,
+  ensureNotificationChannels,
   getNotificationPermission,
   isNativeNotificationPlatform,
   requestAppNotificationPermission,
@@ -75,6 +76,7 @@ export default function NotificationCenter() {
 
   useEffect(() => {
     const loadPermission = async () => {
+      await ensureNotificationChannels().catch((error) => console.warn('Notification channel setup failed:', error))
       const nextPermission = await getNotificationPermission()
       setPermission(nextPermission)
     }

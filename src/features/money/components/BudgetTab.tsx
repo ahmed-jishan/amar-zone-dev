@@ -23,6 +23,9 @@ export default function BudgetTab({ budgets, transactions, currency_symbol, lang
   const salary = currentBudget?.salary || 0
   const remaining = salary - totalSpent
   const pctUsed = salary > 0 ? (totalSpent / salary) * 100 : 0
+  const statusLabel = pctUsed >= 100 ? 'Over budget' : pctUsed >= 80 ? 'Watch closely' : salary > 0 ? 'On track' : 'Not set'
+  const statusColor = pctUsed >= 100 ? 'var(--mon-expense)' : pctUsed >= 80 ? 'var(--mon-gold)' : 'var(--mon-income)'
+  const topCategory = Object.entries(spending).sort((a, b) => b[1] - a[1])[0]
 
   const handleSave = () => {
     const newBudgets: Record<string, number> = {}
@@ -36,6 +39,28 @@ export default function BudgetTab({ budgets, transactions, currency_symbol, lang
 
   return (
     <div className="space-y-5 animate-[mon-slide-up_400ms_ease-out]">
+      <div className="rounded-[var(--mon-radius-xl)] p-4" style={{ background: 'var(--mon-surface-1)', border: '1px solid var(--mon-border)' }}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>Budget health</p>
+            <h3 className="mt-1 text-[18px] font-black" style={{ color: statusColor }}>{statusLabel}</h3>
+          </div>
+          <span className="rounded-full px-3 py-1 text-[12px] font-bold" style={{ background: 'var(--mon-surface-2)', color: statusColor }}>
+            {Math.round(pctUsed)}%
+          </span>
+        </div>
+        <p className="mt-2 text-[13px] leading-5" style={{ color: 'var(--mon-text-2)' }}>
+          {salary > 0
+            ? `You have spent ${formatCurrency(totalSpent, currency_symbol)} of ${formatCurrency(salary, currency_symbol)} this month.`
+            : 'Set a monthly income and category limits to see meaningful budget guidance.'}
+        </p>
+        {topCategory && (
+          <p className="mt-1 text-[12px]" style={{ color: 'var(--mon-text-3)' }}>
+            Top spending: {CATEGORY_META[topCategory[0]]?.labelEn || topCategory[0]} at {formatCurrency(topCategory[1], currency_symbol)}.
+          </p>
+        )}
+      </div>
+
       {/* Budget Header */}
       <div className="p-4 rounded-[var(--mon-radius-xl)]" style={{ background: 'var(--mon-surface-1)', border: '1px solid var(--mon-border)' }}>
         <div className="flex items-center justify-between mb-3">
@@ -92,6 +117,25 @@ export default function BudgetTab({ budgets, transactions, currency_symbol, lang
       </div>
 
       {/* Category Budgets */}
+      {!currentBudget && !editing && (
+        <div className="rounded-[var(--mon-radius-xl)] p-4 text-center" style={{ background: 'var(--mon-surface-1)', border: '1px solid var(--mon-border)' }}>
+          <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>Create your first budget</p>
+          <p className="mt-1 text-[13px]" style={{ color: 'var(--mon-text-3)' }}>Start with income, then set limits for food, transport, bills, and shopping.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setSalaryInput('')
+              setBudgetInputs({ food: '6000', transport: '2500', utilities: '2500', shopping: '3000' })
+              setEditing(true)
+            }}
+            className="mt-3 rounded-[var(--mon-radius-lg)] px-4 py-2 text-[13px] font-bold text-white"
+            style={{ background: 'linear-gradient(135deg, var(--mon-gold), var(--mon-gold-2))' }}
+          >
+            Guided setup
+          </button>
+        </div>
+      )}
+
       {currentBudget && (
         <div className="flex flex-col gap-3">
           {EXPENSE_CATEGORIES.filter((cat) => currentBudget.budgets[cat]).map((cat, i) => {

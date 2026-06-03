@@ -16,7 +16,7 @@ import { SURAHS, type SurahMeta } from '../../data/surahs';
 import { usePrefsStore } from '../../store/prefsStore';
 import { useQuranStore } from '../../store/quranStore';
 import { fetchSurahAyahs, getAyahAudioUrl, type QuranAyah } from '../../utils/quranApi';
-import { requestAppNotificationPermission, scheduleAppNotification, isNativeNotificationPlatform } from '@/lib/native/notifications';
+import { hideQuranMediaNotification, updateQuranMediaNotification } from '@/lib/native/quranMedia';
 
 export default function QuranView() {
   const [query, setQuery] = useState('');
@@ -29,7 +29,6 @@ export default function QuranView() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ayahRefs = useRef<Record<number, HTMLElement | null>>({});
-  const hasNotifiedPlaybackRef = useRef(false);
 
   const quranReciter = usePrefsStore((state) => state.quranReciter);
   const bookmarks = useQuranStore((state) => state.bookmarks);
@@ -88,6 +87,7 @@ export default function QuranView() {
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
+      void hideQuranMediaNotification().catch(() => undefined);
       if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'none';
       }
@@ -136,36 +136,18 @@ export default function QuranView() {
     navigator.mediaSession.setActionHandler('stop', () => {
       audioRef.current?.pause();
       setIsPlaying(false);
-      hasNotifiedPlaybackRef.current = false;
       navigator.mediaSession.playbackState = 'none';
     });
   };
 
-  const notifyNowPlaying = async (surah: SurahMeta, ayahNumber: number) => {
-    if (typeof window === 'undefined') return;
-    if (hasNotifiedPlaybackRef.current) return;
-    hasNotifiedPlaybackRef.current = true;
-
-    if (isNativeNotificationPlatform()) {
-      const permission = await requestAppNotificationPermission();
-      if (permission !== 'granted') return;
-      await scheduleAppNotification({
-        tag: 'quran-now-playing',
-        title: 'Quran recitation is playing',
-        body: `${surah.transliteration} - Ayah ${ayahNumber}. Use lock-screen media controls for play, pause, next and previous surah.`,
-        at: new Date(Date.now() + 100),
-      });
-      return;
-    }
-    if (!('Notification' in window)) return;
-    if (Notification.permission === 'default') await Notification.requestPermission();
-    if (Notification.permission !== 'granted') return;
-
-    new Notification('Quran recitation is playing', {
-      body: `${surah.transliteration} - Ayah ${ayahNumber}. Use media controls for play, pause, next and previous surah.`,
-      tag: 'quran-now-playing',
-      silent: true,
-    });
+  const updateNativeMediaNotification = async (surah: SurahMeta, ayahNumber: number, playing: boolean) => {
+    const ayah = ayahs.find((item) => item.numberInSurah === ayahNumber);
+    await updateQuranMediaNotification({
+      title: surah.transliteration,
+      subtitle: `Ayah ${ayahNumber} of ${surah.verses}`,
+      ayahLine: ayah?.bangla || surah.banglaMeaning,
+      playing,
+    }).catch((error) => console.warn('Quran media notification failed:', error));
   };
 
   const playAdjacentSurah = async (currentSurahNumber: number, offset: 1 | -1) => {
@@ -185,6 +167,7 @@ export default function QuranView() {
         audio.pause();
         if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
         setIsPlaying(false);
+        await updateNativeMediaNotification(surah, ayahNumber, false);
         return;
       }
 
@@ -192,7 +175,7 @@ export default function QuranView() {
         await audio.play();
         setIsPlaying(true);
         updateMediaSession(surah, ayahNumber, true);
-        await notifyNowPlaying(surah, ayahNumber);
+        await updateNativeMediaNotification(surah, ayahNumber, true);
       } catch {
         setIsPlaying(false);
       }
@@ -211,7 +194,7 @@ export default function QuranView() {
         setIsPlaying(false);
         setActiveSurah(null);
         setActiveAyah(null);
-        hasNotifiedPlaybackRef.current = false;
+        void hideQuranMediaNotification().catch(() => undefined);
         if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       }
     };
@@ -219,10 +202,11 @@ export default function QuranView() {
       await audio.play();
       setIsPlaying(true);
       updateMediaSession(surah, ayahNumber, true);
-      await notifyNowPlaying(surah, ayahNumber);
+      await updateNativeMediaNotification(surah, ayahNumber, true);
     } catch {
       setIsPlaying(false);
       updateMediaSession(surah, ayahNumber, false);
+      await updateNativeMediaNotification(surah, ayahNumber, false);
     }
   };
 
@@ -236,6 +220,32 @@ export default function QuranView() {
     const surah = SURAHS.find((item) => item.number === surahNumber);
     if (surah) void playPosition(surah, ayahNumber);
   };
+
+  useEffect(() => {
+    const handleNativeMediaAction = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      const action = typeof detail === 'string' ? JSON.parse(detail).action : detail?.action;
+      const currentSurah = activeSurah ? SURAHS.find((item) => item.number === activeSurah) : selectedSurah;
+      if (!currentSurah) return;
+      if (action === 'play') {
+        void audioRef.current?.play().then(() => {
+          setIsPlaying(true);
+          if (activeAyah) void updateNativeMediaNotification(currentSurah, activeAyah, true);
+        });
+      } else if (action === 'pause') {
+        audioRef.current?.pause();
+        setIsPlaying(false);
+        if (activeAyah) void updateNativeMediaNotification(currentSurah, activeAyah, false);
+      } else if (action === 'next') {
+        void playAdjacentSurah(currentSurah.number, 1);
+      } else if (action === 'previous') {
+        void playAdjacentSurah(currentSurah.number, -1);
+      }
+    };
+
+    window.addEventListener('quran-media-action', handleNativeMediaAction);
+    return () => window.removeEventListener('quran-media-action', handleNativeMediaAction);
+  }, [activeAyah, activeSurah, selectedSurah, ayahs]);
 
   const renderPlayIcon = (surahNumber: number, ayahNumber: number) =>
     activeSurah === surahNumber && activeAyah === ayahNumber && isPlaying ? <Pause size={16} /> : <Play size={16} />;
