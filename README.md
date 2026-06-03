@@ -379,18 +379,23 @@ NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your_android_client_id.apps.googleuserconte
 
 ## 📸 Screenshots
 
-> *Screenshots will be added here. The app features a clean, modern UI with a bottom tab navigation optimized for mobile use.*
-### Money
-![Money Screen](screenshots/money.jpeg)
+<p float="left">
+  <a href="screenshots/money.jpeg">
+    <img src="screenshots/money.jpeg" width="180"/>
+  </a>
 
-### Tasks
-![Tasks Screen](screenshots/tasks.jpeg)
+  <a href="screenshots/tasks.jpeg">
+    <img src="screenshots/tasks.jpeg" width="180"/>
+  </a>
 
-### Settings
-![Settings Screen](screenshots/settings.jpeg)
+  <a href="screenshots/settings.jpeg">
+    <img src="screenshots/settings.jpeg" width="180"/>
+  </a>
 
-### Namaz
-![Namaz Screen](screenshots/namaz.jpeg)
+  <a href="screenshots/namaz.jpeg">
+    <img src="screenshots/namaz.jpeg" width="180"/>
+  </a>
+</p>
 
 ---
 
