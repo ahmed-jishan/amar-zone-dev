@@ -27,6 +27,10 @@ type TokenState = {
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
 const GOOGLE_AUTH_SCOPE = `profile email ${DRIVE_SCOPE}`
 const TOKEN_KEY = 'amar-zone-gdrive-token'
+const BACKUP_FILE_NAME = 'selfsync-backup.json'
+const BACKUP_FILE_ID_KEY = 'amar-zone-gdrive-backup-file-id'
+const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
+const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files'
 const WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID
   || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   || process.env.GOOGLE_CLIENT_ID
@@ -180,20 +184,62 @@ export class GDriveAuth {
     return this.parseDriveResponse<GDriveBackupFile>(response)
   }
 
+  async upsertBackupFile(content: string, mimeType = 'application/json'): Promise<GDriveBackupFile> {
+    this.ensureValidJson(content)
+    const accessToken = await this.getValidToken()
+    const existing = await this.resolveBackupFile(accessToken)
+
+    if (existing?.id) {
+      const updateResponse = await fetch(`${DRIVE_UPLOAD_URL}/${encodeURIComponent(existing.id)}?uploadType=media`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': mimeType,
+        },
+        body: content,
+      })
+
+      if (updateResponse.status === 404) {
+        this.clearBackupFileId()
+      } else if (!updateResponse.ok) {
+        throw await this.toDriveError(updateResponse)
+      } else {
+        return { ...existing, modifiedTime: new Date().toISOString() }
+      }
+    }
+
+    const metadata = { name: BACKUP_FILE_NAME, parents: ['appDataFolder'], mimeType }
+    const form = new FormData()
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+    form.append('file', new Blob([content], { type: mimeType }))
+
+    const response = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name,size,createdTime,modifiedTime`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    })
+
+    const file = await this.parseDriveResponse<GDriveBackupFile>(response)
+    if (file.id) this.saveBackupFileId(file.id)
+    return file
+  }
+
   async listBackups(): Promise<GDriveBackupFile[]> {
     const accessToken = await this.getValidToken()
-    const params = new URLSearchParams({
-      spaces: 'appDataFolder',
-      fields: 'files(id,name,size,createdTime,modifiedTime)',
-      orderBy: 'createdTime desc',
-      q: "name contains 'amar-zone-backup-' and trashed=false",
-      pageSize: '50',
-    })
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
+    const file = await this.resolveBackupFile(accessToken)
+    return file ? [file] : []
+  }
+
+  async downloadBackup(): Promise<string> {
+    const accessToken = await this.getValidToken()
+    const file = await this.resolveBackupFile(accessToken)
+    if (!file?.id) throw new Error('drive_file_missing')
+
+    const response = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(file.id)}?alt=media`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
-    const data = await this.parseDriveResponse<{ files: GDriveBackupFile[] }>(response)
-    return data.files
+    if (!response.ok) throw await this.toDriveError(response)
+    return response.text()
   }
 
   async downloadFile(fileId: string): Promise<string> {
@@ -212,6 +258,55 @@ export class GDriveAuth {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
     if (!response.ok) throw await this.toDriveError(response)
+  }
+
+  private ensureValidJson(raw: string): void {
+    try {
+      JSON.parse(raw)
+    } catch {
+      throw new Error('Backup JSON is invalid and cannot be uploaded.')
+    }
+  }
+
+  private async resolveBackupFile(accessToken: string): Promise<GDriveBackupFile | null> {
+    const cachedId = this.readBackupFileId()
+    if (cachedId) {
+      const cached = await this.fetchBackupById(accessToken, cachedId)
+      if (cached) return cached
+      this.clearBackupFileId()
+    }
+
+    const params = new URLSearchParams({
+      spaces: 'appDataFolder',
+      fields: 'files(id,name,size,createdTime,modifiedTime)',
+      orderBy: 'modifiedTime desc',
+      q: `name='${BACKUP_FILE_NAME}' and 'appDataFolder' in parents and trashed=false`,
+      pageSize: '1',
+    })
+
+    const response = await fetch(`${DRIVE_FILES_URL}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await this.parseDriveResponse<{ files?: GDriveBackupFile[] }>(response)
+    const file = data.files?.[0] ?? null
+    if (file?.id) this.saveBackupFileId(file.id)
+    return file
+  }
+
+  private async fetchBackupById(accessToken: string, fileId: string): Promise<GDriveBackupFile | null> {
+    const params = new URLSearchParams({
+      fields: 'id,name,size,createdTime,modifiedTime,trashed',
+    })
+    const response = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (response.status === 404) return null
+    if (!response.ok) throw await this.toDriveError(response)
+
+    const data = await response.json() as GDriveBackupFile & { trashed?: boolean }
+    if (data.trashed || data.name !== BACKUP_FILE_NAME) return null
+    return data
   }
 
   private async requestWebToken(prompt: '' | 'consent'): Promise<{ accessToken: string; expiresAt: number }> {
@@ -549,6 +644,32 @@ export class GDriveAuth {
     } catch (error) {
       console.warn('Error reading token from storage:', error)
       return null
+    }
+  }
+
+  private readBackupFileId(): string | null {
+    if (typeof localStorage === 'undefined') return null
+    try {
+      return localStorage.getItem(BACKUP_FILE_ID_KEY)
+    } catch (error) {
+      console.warn('Error reading backup file id from storage:', error)
+      return null
+    }
+  }
+
+  private saveBackupFileId(fileId: string): void {
+    try {
+      localStorage.setItem(BACKUP_FILE_ID_KEY, fileId)
+    } catch (error) {
+      console.warn('Error saving backup file id to storage:', error)
+    }
+  }
+
+  private clearBackupFileId(): void {
+    try {
+      localStorage.removeItem(BACKUP_FILE_ID_KEY)
+    } catch (error) {
+      console.warn('Error clearing backup file id from storage:', error)
     }
   }
 

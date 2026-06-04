@@ -9,11 +9,12 @@ import { useSettingsStore } from '@/features/settings/store/settingsStore'
 type Props = {
   open: boolean
   onClose: () => void
+  onSuccess?: () => void
 }
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error'
 
-export default function SyncDialog({ open, onClose }: Props) {
+export default function SyncDialog({ open, onClose, onSuccess }: Props) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [state, setState] = useState<SyncState>('idle')
@@ -38,6 +39,7 @@ export default function SyncDialog({ open, onClose }: Props) {
       setLastSync(result.createdAt)
       setState('success')
       setMessage('Backup uploaded securely to Google Drive.')
+      onSuccess?.()
     } catch (error) {
       setState('error')
       setMessage(error instanceof Error ? error.message : 'Sync failed. Please try again.')

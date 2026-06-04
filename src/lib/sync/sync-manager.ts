@@ -19,15 +19,15 @@ export class SyncManager {
     const payload = buildBackupPayload()
     const encrypted = await encryptData(payload, password)
     const envelope: CloudBackupEnvelope = { schema: 'amar-zone.cloud-backup', version: 1, encrypted }
-    const name = `amar-zone-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-    const file = await this.withRetry(() => gdriveAuth.uploadToAppDataFolder(name, JSON.stringify(envelope)))
+    const content = JSON.stringify(envelope)
+    const file = await this.withRetry(() => gdriveAuth.upsertBackupFile(content))
     return { file, createdAt: payload.createdAt }
   }
 
-  async restoreBackup(fileId: string, password: string): Promise<string[]> {
+  async restoreBackup(password: string): Promise<string[]> {
     this.assertOnline()
-    const raw = await this.withRetry(() => gdriveAuth.downloadFile(fileId))
-    const envelope = JSON.parse(raw) as CloudBackupEnvelope
+    const raw = await this.withRetry(() => gdriveAuth.downloadBackup())
+    const envelope = this.parseEnvelope(raw)
     if (envelope.schema !== 'amar-zone.cloud-backup' || envelope.version !== 1) {
       throw new Error('This is not a valid Amar Zone cloud backup')
     }
@@ -51,14 +51,24 @@ export class SyncManager {
     await this.withRetry(() => gdriveAuth.deleteFile(fileId))
   }
 
-  async downloadRawBackup(fileId: string): Promise<string> {
+  async downloadRawBackup(): Promise<string> {
     this.assertOnline()
-    return this.withRetry(() => gdriveAuth.downloadFile(fileId))
+    const raw = await this.withRetry(() => gdriveAuth.downloadBackup())
+    this.parseEnvelope(raw)
+    return raw
   }
 
   private validatePayload(payload: BackupPayload): void {
     if (payload.version !== 1 || !payload.createdAt || typeof payload.data !== 'object') {
       throw new Error('Backup schema validation failed')
+    }
+  }
+
+  private parseEnvelope(raw: string): CloudBackupEnvelope {
+    try {
+      return JSON.parse(raw) as CloudBackupEnvelope
+    } catch {
+      throw new Error('Backup file is corrupted or unreadable')
     }
   }
 

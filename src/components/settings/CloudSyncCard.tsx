@@ -12,6 +12,7 @@ export default function CloudSyncCard() {
   const [syncOpen, setSyncOpen] = useState(false)
   const [backupsOpen, setBackupsOpen] = useState(false)
   const [error, setError] = useState('')
+  const [backupRefreshKey, setBackupRefreshKey] = useState(0)
   const settings = useSettingsStore()
 
   const connect = async () => {
@@ -102,8 +103,16 @@ export default function CloudSyncCard() {
         </div>
       </div>
 
-      <SyncDialog open={syncOpen} onClose={() => setSyncOpen(false)} />
-      <BackupListDialog open={backupsOpen} onClose={() => setBackupsOpen(false)} />
+      <SyncDialog
+        open={syncOpen}
+        onClose={() => setSyncOpen(false)}
+        onSuccess={() => setBackupRefreshKey((key) => key + 1)}
+      />
+      <BackupListDialog
+        open={backupsOpen}
+        onClose={() => setBackupsOpen(false)}
+        refreshKey={backupRefreshKey}
+      />
     </section>
   )
 }

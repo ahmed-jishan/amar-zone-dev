@@ -9,9 +9,10 @@ import type { GDriveBackupFile } from '@/lib/sync/gdrive-auth'
 type Props = {
   open: boolean
   onClose: () => void
+  refreshKey?: number
 }
 
-export default function BackupListDialog({ open, onClose }: Props) {
+export default function BackupListDialog({ open, onClose, refreshKey }: Props) {
   const [backups, setBackups] = useState<GDriveBackupFile[]>([])
   const [password, setPassword] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -32,13 +33,13 @@ export default function BackupListDialog({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) void loadBackups()
-  }, [open])
+  }, [open, refreshKey])
 
   const restore = async (fileId: string) => {
     setBusyId(fileId)
     setMessage('Restoring encrypted backup...')
     try {
-      await syncManager.restoreBackup(fileId, password)
+      await syncManager.restoreBackup(password)
       setMessage('Backup restored. Restart the app to reload all stores.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Restore failed.')
@@ -63,8 +64,8 @@ export default function BackupListDialog({ open, onClose }: Props) {
     setBusyId(file.id)
     setMessage('Preparing backup download...')
     try {
-      const raw = await syncManager.downloadRawBackup(file.id)
-      const safeName = file.name.endsWith('.json') ? file.name : `${file.name}.json`
+      const raw = await syncManager.downloadRawBackup()
+      const safeName = 'selfsync-backup.json'
       const url = URL.createObjectURL(new Blob([raw], { type: 'application/json;charset=utf-8' }))
       const link = document.createElement('a')
       link.href = url
@@ -116,7 +117,13 @@ export default function BackupListDialog({ open, onClose }: Props) {
             <div key={file.id} className="rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{file.name}</div>
-                <div className="mt-1 text-xs text-slate-500">{file.createdTime ? new Date(file.createdTime).toLocaleString() : 'Backup'}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {file.modifiedTime
+                    ? new Date(file.modifiedTime).toLocaleString()
+                    : file.createdTime
+                      ? new Date(file.createdTime).toLocaleString()
+                      : 'Backup'}
+                </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <button type="button" disabled={!password || busyId === file.id} onClick={() => restore(file.id)} className="btn-primary px-2 py-2 text-xs">Restore</button>
