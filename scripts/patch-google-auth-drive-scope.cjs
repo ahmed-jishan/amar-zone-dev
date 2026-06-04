@@ -66,7 +66,27 @@ replaceOnce(
 
 replaceOnce(
   '    String configClientId = getConfig().getString("androidClientId",\n      getConfig().getString("clientId",\n        this.getContext().getString(R.string.server_client_id)));\n',
-  '    String configClientId = getConfig().getString("serverClientId",\n      getConfig().getString("clientId",\n        getConfig().getString("androidClientId",\n          this.getContext().getString(R.string.server_client_id))));\n'
+  '    String configClientId = getConfig().getString("serverClientId",\n      getConfig().getString("clientId",\n        this.getContext().getString(R.string.server_client_id)));\n'
+)
+
+replaceOnce(
+  '    String configClientId = getConfig().getString("serverClientId",\n      getConfig().getString("clientId",\n        getConfig().getString("androidClientId",\n          this.getContext().getString(R.string.server_client_id))));\n',
+  '    String configClientId = getConfig().getString("serverClientId",\n      getConfig().getString("clientId",\n        this.getContext().getString(R.string.server_client_id)));\n'
+)
+
+replaceOnce(
+  '          call.reject("Something went wrong while retrieving access token", e);\n',
+  '          call.reject("Google Drive access token retrieval failed. Verify Drive API, OAuth project, package name, and SHA-1 fingerprint.", e);\n'
+)
+
+replaceOnce(
+  '        call.reject("Something went wrong while retrieving access token", e);\n',
+  '        call.reject("Google Drive access token refresh failed. Reconnect Google Drive.", e);\n'
+)
+
+replaceOnce(
+  '    Log.d("AuthenticatedBackend", "token: " + authToken + ", verification: " + stringResponse);\n',
+  ''
 )
 
 if (!source.includes('private String buildAccountManagerScope')) {

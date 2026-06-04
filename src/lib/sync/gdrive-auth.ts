@@ -95,10 +95,11 @@ export class GDriveAuth {
       // Clear token on any connection failure
       try {
         localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(BACKUP_FILE_ID_KEY)
       } catch (e) {
         console.warn('Could not clear token on error:', e)
       }
-      throw error
+      throw this.toUserFacingAuthError(error)
     } finally {
       this.isConnecting = false
     }
@@ -406,6 +407,14 @@ export class GDriveAuth {
       this.nativeInitialized = true
     }
 
+    if (!silent && typeof GoogleAuth.signOut === 'function') {
+      try {
+        await GoogleAuth.signOut()
+      } catch {
+        // Fresh sign-in should still continue even if no prior session exists.
+      }
+    }
+
     // Handle silent refresh if requested
     if (silent && typeof GoogleAuth.refresh === 'function') {
       try {
@@ -458,6 +467,13 @@ export class GDriveAuth {
         throw new Error(
           `Google authentication error: ${message}. ` +
           'Please ensure your app is properly configured in Google Cloud Console.'
+        )
+      }
+      if (message.includes('retrieving access token') || message.includes('Something went wrong')) {
+        throw new Error(
+          'Google connected, but Drive token permission failed. ' +
+          'Enable Google Drive API, keep the Web and Android OAuth clients in the same Google Cloud project, ' +
+          'and rebuild the APK after adding the APK SHA-1 fingerprint.'
         )
       }
 
@@ -680,6 +696,28 @@ export class GDriveAuth {
       console.error('Error saving token to storage:', error)
       throw new Error('Could not save authentication token to device storage')
     }
+  }
+
+  private toUserFacingAuthError(error: unknown): Error {
+    const message = error instanceof Error ? error.message : String(error || 'Google sign-in failed')
+
+    if (message.includes('status code 10') || message.includes('DEVELOPER_ERROR')) {
+      return new Error(
+        'Google sign-in configuration mismatch. Add this APK keystore SHA-1 to the Android OAuth client for package com.selfsync.app, then rebuild and reinstall the APK.'
+      )
+    }
+
+    if (message.includes('retrieving access token') || message.includes('Something went wrong')) {
+      return new Error(
+        'Google Drive permission token failed after account selection. Enable Google Drive API, verify both OAuth clients are in the same project, add the APK SHA-1, then rebuild the APK.'
+      )
+    }
+
+    if (message.includes('Missing Google')) {
+      return new Error(`${message} The APK must be rebuilt after updating GitHub secrets or .env.local.`)
+    }
+
+    return error instanceof Error ? error : new Error(message)
   }
 }
 

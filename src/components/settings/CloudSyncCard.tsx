@@ -57,7 +57,17 @@ export default function CloudSyncCard() {
                   Your data is encrypted on your device before uploading. We never see your data.
                 </p>
               </div>
-              {error && <p className="rounded-xl bg-red-500/10 p-3 text-xs text-red-400">{error}</p>}
+              {error && (
+                <div className="rounded-xl bg-red-500/10 p-3 text-xs leading-5 text-red-400">
+                  <p className="font-semibold">Google Drive connection failed</p>
+                  <p className="mt-1">{error}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px] text-red-300/90">
+                    <li>Google Drive API must be enabled in the same Google Cloud project.</li>
+                    <li>Android OAuth client must use package com.selfsync.app and this APK keystore SHA-1.</li>
+                    <li>Rebuild and reinstall the APK after changing OAuth secrets.</li>
+                  </ul>
+                </div>
+              )}
               <button type="button" onClick={connect} disabled={connecting} className="mo-submit mo-submit--neu flex items-center justify-center gap-2">
                 {connecting ? <Loader2 className="animate-spin" size={16} /> : <Cloud size={16} />}
                 Connect Google Drive
