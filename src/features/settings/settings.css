@@ -1152,6 +1152,93 @@ html:not(.dark) {
   color: var(--st-text-1);
 }
 
+/* ── Cloud Health ── */
+.st-cloud-health-banner {
+  border-bottom: 1px solid var(--st-border-strong);
+}
+
+.st-health-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--st-success) 20%, transparent 80%);
+  color: var(--st-success);
+}
+
+.st-cloud-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--st-border-strong);
+  background: color-mix(in srgb, var(--st-surface-2) 60%, transparent 40%);
+  color: var(--st-text-2);
+}
+
+.st-cloud-stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--st-text-1);
+}
+
+.st-cloud-stat-label {
+  font-size: 10px;
+  color: var(--st-text-3);
+  margin-top: 1px;
+}
+
+.st-cloud-breakdown {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid var(--st-border-strong);
+  background: color-mix(in srgb, var(--st-surface-2) 60%, transparent 40%);
+  overflow: hidden;
+}
+
+.st-cloud-breakdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--st-text-1);
+  transition: background var(--st-transition-fast);
+}
+
+.st-cloud-breakdown-head:hover {
+  background: color-mix(in srgb, var(--st-surface-hover) 60%, transparent 40%);
+}
+
+.st-cloud-breakdown-head:active {
+  transform: scale(0.99);
+}
+
+.st-cloud-breakdown-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px 12px;
+  animation: st-slide-down 0.2s ease-out;
+}
+
+.st-cloud-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--st-text-2);
+  padding: 3px 0;
+}
+
 /* ── Backup Drive ── */
 .st-backup-drive {
   padding: 12px 14px;
