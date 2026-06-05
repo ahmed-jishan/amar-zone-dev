@@ -27,6 +27,7 @@ import '@/features/settings/settings.css'
 import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
 import CloudSyncCard from '@/components/settings/CloudSyncCard'
+import BackupManagerDialog from '@/components/settings/BackupManagerDialog'
 import { requestAppNotificationPermission } from '@/lib/native/notifications'
 
 const PRIVACY_URL = "https://ahmed-jishan.github.io/selfsync-privacy/";
@@ -350,6 +351,7 @@ export default function SettingsPage() {
   const [showClearModal, setShowClearModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showBackupSyncModal, setShowBackupSyncModal] = useState(false)
+  const [showBackupManager, setShowBackupManager] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
@@ -681,6 +683,12 @@ export default function SettingsPage() {
           <RowArrow label={t.restore} sub={t.restoreSub} onClick={() => setShowRestoreModal(true)} />
           <div className="st-divider" />
           <RowArrow label={t.clearData} sub={t.clearSub} danger onClick={() => setShowClearModal(true)} />
+          <div className="st-divider" />
+          <RowArrow
+            label={language === 'bn' ? '💼 অ্যাডভান্সড ব্যাকআপ' : '💼 Advanced Backup'}
+            sub={language === 'bn' ? 'ভ্যালিডেট, মার্জ, রিপ্লেস, স্ন্যাপশট' : 'Validate, Merge, Replace, Snapshot'}
+            onClick={() => setShowBackupManager(true)}
+          />
         </Section>
 
         {/* About */}
@@ -784,6 +792,13 @@ export default function SettingsPage() {
           language={language}
           onClose={() => setShowBackupSyncModal(false)}
           onToast={showToast}
+        />
+      )}
+
+      {showBackupManager && (
+        <BackupManagerDialog
+          open={showBackupManager}
+          onClose={() => setShowBackupManager(false)}
         />
       )}
 
