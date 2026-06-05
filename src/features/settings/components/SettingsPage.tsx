@@ -28,6 +28,7 @@ import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
 import CloudSyncCard from '@/components/settings/CloudSyncCard'
 import BackupManagerDialog from '@/components/settings/BackupManagerDialog'
+import QuickTransferDialog from '@/components/sync/QuickTransferDialog'
 import { requestAppNotificationPermission } from '@/lib/native/notifications'
 
 const PRIVACY_URL = "https://ahmed-jishan.github.io/selfsync-privacy/";
@@ -352,6 +353,7 @@ export default function SettingsPage() {
   const [showExportModal, setShowExportModal] = useState(false)
   const [showBackupSyncModal, setShowBackupSyncModal] = useState(false)
   const [showBackupManager, setShowBackupManager] = useState(false)
+  const [showQuickTransfer, setShowQuickTransfer] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
@@ -674,6 +676,12 @@ export default function SettingsPage() {
 
         {/* Data Management */}
         <Section icon={<Download size={15} />} title={t.dataManage}>
+          <RowArrow
+            label={language === 'bn' ? '⚡ কুইক ট্রান্সফার' : '⚡ Quick Transfer'}
+            sub={language === 'bn' ? 'QR এর মাধ্যমে ডিভাইসে ডেটা স্থানান্তর' : 'Transfer data between devices via QR'}
+            onClick={() => setShowQuickTransfer(true)}
+          />
+          <div className="st-divider" />
           <RowArrow label={t.backupSync} sub={t.backupSyncSub} onClick={() => setShowBackupSyncModal(true)} />
           <div className="st-divider" />
           <RowArrow label={t.clearData} sub={t.clearSub} danger onClick={() => setShowClearModal(true)} />
@@ -793,6 +801,13 @@ export default function SettingsPage() {
         <BackupManagerDialog
           open={showBackupManager}
           onClose={() => setShowBackupManager(false)}
+        />
+      )}
+
+      {showQuickTransfer && (
+        <QuickTransferDialog
+          open={showQuickTransfer}
+          onClose={() => setShowQuickTransfer(false)}
         />
       )}
 
