@@ -179,6 +179,42 @@ export function mergeBackupPayload(payload: BackupPayload): string[] {
   return mergedKeys
 }
 
+/**
+ * Replace all local data with the backup data (overwrite, not merge).
+ * This is the correct behavior for "Restore" operations.
+ */
+export function replaceBackupPayload(payload: BackupPayload): string[] {
+  ensureBrowser()
+  const replacedKeys: string[] = []
+
+  if (payload.data.settings) {
+    writePersisted(BACKUP_STORAGE_KEYS.settings, payload.data.settings)
+    replacedKeys.push(BACKUP_STORAGE_KEYS.settings)
+  }
+
+  if (payload.data.tasks) {
+    writePersisted(BACKUP_STORAGE_KEYS.tasks, payload.data.tasks)
+    replacedKeys.push(BACKUP_STORAGE_KEYS.tasks)
+  }
+
+  if (payload.data.money) {
+    writePersisted(BACKUP_STORAGE_KEYS.money, payload.data.money)
+    replacedKeys.push(BACKUP_STORAGE_KEYS.money)
+  }
+
+  if (payload.data.namaz) {
+    writePersisted(BACKUP_STORAGE_KEYS.namaz, payload.data.namaz)
+    replacedKeys.push(BACKUP_STORAGE_KEYS.namaz)
+  }
+
+  if (payload.data.namazPrefs) {
+    writePersisted(BACKUP_STORAGE_KEYS.namazPrefs, payload.data.namazPrefs)
+    replacedKeys.push(BACKUP_STORAGE_KEYS.namazPrefs)
+  }
+
+  return replacedKeys
+}
+
 function mergeSettings(local: PersistedState<AppSettings> | null, incoming: PersistedState<AppSettings>): PersistedState<AppSettings> {
   if (!local) return incoming
   return {

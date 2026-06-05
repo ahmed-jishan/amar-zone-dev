@@ -1,4 +1,4 @@
-import { buildBackupPayload, mergeBackupPayload, type BackupPayload } from '@/lib/utils/encryptedBackup'
+import { buildBackupPayload, replaceBackupPayload, type BackupPayload } from '@/lib/utils/encryptedBackup'
 import { encryptData, decryptData } from './crypto'
 import { gdriveAuth, type GDriveBackupFile } from './gdrive-auth'
 
@@ -13,14 +13,31 @@ type CloudBackupEnvelope = {
   encrypted: string
 }
 
+function buildBackupFileName(payload: BackupPayload): string {
+  const now = new Date()
+  const dateStr = `${now.getMonth() + 1}-${now.getDate()}-${now.getFullYear()}`
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const parts: string[] = []
+  if (payload.data.tasks?.state?.tasks?.length) parts.push(`task-${payload.data.tasks.state.tasks.length}`)
+  if (payload.data.money?.state?.transactions?.length) parts.push(`money-${payload.data.money.state.transactions.length}`)
+  if (payload.data.money?.state?.loans?.length) parts.push(`loan-${payload.data.money.state.loans.length}`)
+  if (payload.data.money?.state?.budgets?.length) parts.push(`budget-${payload.data.money.state.budgets.length}`)
+  if (payload.data.money?.state?.savingsGoals?.length) parts.push(`goal-${payload.data.money.state.savingsGoals.length}`)
+  if (payload.data.money?.state?.subscriptions?.length) parts.push(`sub-${payload.data.money.state.subscriptions.length}`)
+  if (payload.data.namaz?.state?.records?.length) parts.push(`namaz-${payload.data.namaz.state.records.length}`)
+  const countStr = parts.join('-')
+  return `selfsync-backup-${dateStr}-${timeStr}${countStr ? `-${countStr}` : ''}.json`
+}
+
 export class SyncManager {
   async createBackup(password: string): Promise<SyncResult> {
     this.assertOnline()
     const payload = buildBackupPayload()
+    const backupName = buildBackupFileName(payload)
     const encrypted = await encryptData(payload, password)
     const envelope: CloudBackupEnvelope = { schema: 'amar-zone.cloud-backup', version: 1, encrypted }
     const content = JSON.stringify(envelope)
-    const file = await this.withRetry(() => gdriveAuth.upsertBackupFile(content))
+    const file = await this.withRetry(() => gdriveAuth.upsertBackupFile(content, backupName))
     return { file, createdAt: payload.createdAt }
   }
 
@@ -33,7 +50,7 @@ export class SyncManager {
     }
     const payload = await decryptData<BackupPayload>(envelope.encrypted, password)
     this.validatePayload(payload)
-    return mergeBackupPayload(payload)
+    return replaceBackupPayload(payload)
   }
 
   async autoSync(password?: string): Promise<SyncResult | null> {

@@ -45,23 +45,20 @@ export default function CloudSyncCard() {
         <span className="st-section-title">Cloud & Backup</span>
       </div>
       <div className="p-4">
-        <div
-          className="rounded-[18px] border border-[var(--border,#1a2535)] p-4"
-          style={{ background: 'color-mix(in srgb, var(--bg-secondary, #0f1520) 88%, white 12%)' }}
-        >
+        <div className="st-cloud-card p-4">
           {!settings.gdriveConnected ? (
             <div className="space-y-4">
               <div>
-                <div className="text-[15px] font-bold text-[var(--text-primary,#e8f4f0)]">Google Drive sync</div>
-                <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted,#667788)]">
+                <div className="st-cloud-title">Google Drive sync</div>
+                <p className="st-cloud-sub">
                   Your data is encrypted on your device before uploading. We never see your data.
                 </p>
               </div>
               {error && (
-                <div className="rounded-xl bg-red-500/10 p-3 text-xs leading-5 text-red-400">
+                <div className="st-cloud-error">
                   <p className="font-semibold">Google Drive connection failed</p>
                   <p className="mt-1">{error}</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px] text-red-300/90">
+                  <ul className="st-cloud-error-ul">
                     <li>Google Drive API must be enabled in the same Google Cloud project.</li>
                     <li>Android OAuth client must use package com.selfsync.app and this APK keystore SHA-1.</li>
                     <li>Rebuild and reinstall the APK after changing OAuth secrets.</li>
@@ -79,14 +76,14 @@ export default function CloudSyncCard() {
                 {settings.gdriveUserPicture ? (
                   <img src={settings.gdriveUserPicture} alt="" className="h-11 w-11 rounded-2xl object-cover" />
                 ) : (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400">
+                  <div className="st-cloud-avatar-icon">
                     <ShieldCheck size={20} />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-bold text-[var(--text-primary,#e8f4f0)]">{settings.gdriveUserName || 'Google Drive connected'}</div>
-                  <div className="truncate text-[12px] text-[var(--text-muted,#667788)]">{settings.gdriveEmail}</div>
-                  <div className="mt-1 text-[11px] text-[var(--text-muted,#667788)]">
+                  <div className="st-cloud-user-name">{settings.gdriveUserName || 'Google Drive connected'}</div>
+                  <div className="st-cloud-user-email">{settings.gdriveEmail}</div>
+                  <div className="st-cloud-last-sync">
                     Last sync: {settings.lastSyncAt ? new Date(settings.lastSyncAt).toLocaleString() : 'Never'}
                   </div>
                 </div>
@@ -99,7 +96,7 @@ export default function CloudSyncCard() {
                 <button type="button" onClick={() => setBackupsOpen(true)} className="mo-submit mo-submit--cancel px-3 py-3 text-sm">View Backups</button>
               </div>
 
-              <div className="space-y-2 rounded-2xl border border-[var(--border,#1a2535)] p-3">
+              <div className="st-cloud-toggle-section">
                 <ToggleRow label="Auto sync" checked={settings.autoSync} onChange={settings.setAutoSync} />
                 <ToggleRow label="WiFi only" checked={settings.wifiOnlySync} onChange={(value) => settings.update({ wifiOnlySync: value })} />
               </div>
@@ -130,7 +127,7 @@ export default function CloudSyncCard() {
 function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[13px] font-semibold text-[var(--text-secondary,#c8d4e0)]">{label}</span>
+      <span className="st-toggle-label">{label}</span>
       <button type="button" onClick={() => onChange(!checked)} className={`st-switch ${checked ? 'st-switch--on' : ''}`} aria-pressed={checked}>
         <span className="st-switch-thumb" />
       </button>

@@ -27,7 +27,7 @@ type TokenState = {
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
 const GOOGLE_AUTH_SCOPE = `profile email ${DRIVE_SCOPE}`
 const TOKEN_KEY = 'amar-zone-gdrive-token'
-const BACKUP_FILE_NAME = 'selfsync-backup.json'
+const BACKUP_FILE_PREFIX = 'selfsync-backup'
 const BACKUP_FILE_ID_KEY = 'amar-zone-gdrive-backup-file-id'
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files'
@@ -185,7 +185,7 @@ export class GDriveAuth {
     return this.parseDriveResponse<GDriveBackupFile>(response)
   }
 
-  async upsertBackupFile(content: string, mimeType = 'application/json'): Promise<GDriveBackupFile> {
+  async upsertBackupFile(content: string, backupName: string, mimeType = 'application/json'): Promise<GDriveBackupFile> {
     this.ensureValidJson(content)
     const accessToken = await this.getValidToken()
     const existing = await this.resolveBackupFile(accessToken)
@@ -209,7 +209,7 @@ export class GDriveAuth {
       }
     }
 
-    const metadata = { name: BACKUP_FILE_NAME, parents: ['appDataFolder'], mimeType }
+    const metadata = { name: backupName, parents: ['appDataFolder'], mimeType }
     const form = new FormData()
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
     form.append('file', new Blob([content], { type: mimeType }))
@@ -227,8 +227,19 @@ export class GDriveAuth {
 
   async listBackups(): Promise<GDriveBackupFile[]> {
     const accessToken = await this.getValidToken()
-    const file = await this.resolveBackupFile(accessToken)
-    return file ? [file] : []
+    const params = new URLSearchParams({
+      spaces: 'appDataFolder',
+      fields: 'files(id,name,size,createdTime,modifiedTime)',
+      orderBy: 'modifiedTime desc',
+      q: `name contains '${BACKUP_FILE_PREFIX}' and 'appDataFolder' in parents and trashed=false`,
+      pageSize: '10',
+    })
+
+    const response = await fetch(`${DRIVE_FILES_URL}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await this.parseDriveResponse<{ files?: GDriveBackupFile[] }>(response)
+    return data.files ?? []
   }
 
   async downloadBackup(): Promise<string> {
@@ -281,7 +292,7 @@ export class GDriveAuth {
       spaces: 'appDataFolder',
       fields: 'files(id,name,size,createdTime,modifiedTime)',
       orderBy: 'modifiedTime desc',
-      q: `name='${BACKUP_FILE_NAME}' and 'appDataFolder' in parents and trashed=false`,
+      q: `name contains '${BACKUP_FILE_PREFIX}' and 'appDataFolder' in parents and trashed=false`,
       pageSize: '1',
     })
 
@@ -306,7 +317,7 @@ export class GDriveAuth {
     if (!response.ok) throw await this.toDriveError(response)
 
     const data = await response.json() as GDriveBackupFile & { trashed?: boolean }
-    if (data.trashed || data.name !== BACKUP_FILE_NAME) return null
+    if (data.trashed || !data.name?.startsWith(BACKUP_FILE_PREFIX)) return null
     return data
   }
 
