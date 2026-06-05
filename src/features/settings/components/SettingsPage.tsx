@@ -676,12 +676,6 @@ export default function SettingsPage() {
         <Section icon={<Download size={15} />} title={t.dataManage}>
           <RowArrow label={t.backupSync} sub={t.backupSyncSub} onClick={() => setShowBackupSyncModal(true)} />
           <div className="st-divider" />
-          <RowArrow label={t.backup} sub={t.backupSub} onClick={() => setShowBackupModal(true)} />
-          <div className="st-divider" />
-          <RowArrow label={t.exportCsv} sub={t.exportCsvSub} onClick={() => setShowExportModal(true)} />
-          <div className="st-divider" />
-          <RowArrow label={t.restore} sub={t.restoreSub} onClick={() => setShowRestoreModal(true)} />
-          <div className="st-divider" />
           <RowArrow label={t.clearData} sub={t.clearSub} danger onClick={() => setShowClearModal(true)} />
           <div className="st-divider" />
           <RowArrow
