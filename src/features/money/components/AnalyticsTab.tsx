@@ -21,7 +21,8 @@ import {
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { CATEGORY_META } from '../constants'
-import { formatCurrency, getCurrentMonth } from '../utils'
+import { formatCurrency, getCurrentMonth, parseLocalDate, toLocalDateISO } from '../utils'
+import { saveBlobFile } from '@/lib/native/fileSave'
 import type { Transaction } from '@/lib/types'
 
 type Props = {
@@ -46,7 +47,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
       : new Date(now.getFullYear(), now.getMonth(), 1)
 
     const current = transactions.filter((txn) => {
-      const date = new Date(`${txn.date}T00:00:00`)
+      const date = parseLocalDate(txn.date)
       return txn.status === 'completed' && date >= start && date <= now
     })
 
@@ -74,7 +75,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
       const date = range === 'week'
         ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - index - 1))
         : new Date(now.getFullYear(), now.getMonth(), index + 1)
-      const iso = date.toISOString().slice(0, 10)
+      const iso = toLocalDateISO(date)
       const dayTxns = transactions.filter((txn) => txn.status === 'completed' && txn.date === iso)
       return {
         day: range === 'week' ? date.toLocaleDateString('en-US', { weekday: 'short' }) : String(date.getDate()),
@@ -86,7 +87,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
     const previousStart = new Date(start)
     previousStart.setDate(previousStart.getDate() - days)
     const previous = transactions.filter((txn) => {
-      const date = new Date(`${txn.date}T00:00:00`)
+      const date = parseLocalDate(txn.date)
       return txn.status === 'completed' && date >= previousStart && date < start
     })
     const previousExpense = previous.filter((txn) => txn.type === 'expense').reduce((sum, txn) => sum + txn.amount, 0)
@@ -106,14 +107,14 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
     }
   }, [transactions, month, range, language])
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     const doc = new jsPDF()
     doc.setFillColor(11, 12, 14)
     doc.rect(0, 0, 210, 34, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(18)
-    doc.text('Amar Zone Money Report', 14, 16)
+    doc.text('SelfSync Money Report', 14, 16)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
     doc.text(`${range === 'week' ? 'Weekly' : 'Monthly'} analytics • ${new Date().toLocaleDateString()}`, 14, 25)
@@ -142,7 +143,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
       headStyles: { fillColor: [99, 102, 241] },
     })
 
-    doc.save(`amar-zone-money-${range}-${new Date().toISOString().slice(0, 10)}.pdf`)
+    await saveBlobFile(`selfsync-money-${range}-${toLocalDateISO()}.pdf`, doc.output('blob'), 'application/pdf')
   }
 
   return (

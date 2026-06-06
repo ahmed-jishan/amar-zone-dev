@@ -32,6 +32,11 @@ const permissions = [
   'android.permission.USE_FINGERPRINT',
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.ACCESS_COARSE_LOCATION',
+  'android.permission.CAMERA',
+  'android.permission.WAKE_LOCK',
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+  'android.permission.POST_NOTIFICATIONS',
 ]
 
 let changed = false
@@ -80,4 +85,20 @@ if (fs.existsSync(stringsPath)) {
   }
 
   if (stringsChanged) fs.writeFileSync(stringsPath, strings)
+}
+
+if (!manifest.includes('android.permission.WRITE_EXTERNAL_STORAGE')) {
+  manifest = manifest.replace(
+    /<manifest([^>]*)>/,
+    `<manifest$1>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />`
+  )
+  changed = true
+}
+
+if (!manifest.includes('android.hardware.camera')) {
+  manifest = manifest.replace(
+    /<application/,
+    `    <uses-feature android:name="android.hardware.camera" android:required="false" />\n\n    <application`
+  )
+  changed = true
 }

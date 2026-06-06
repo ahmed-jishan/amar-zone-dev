@@ -7,7 +7,7 @@ import { useMoneyStore } from '../store/moneyStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { CATEGORY_META, TRANSLATIONS } from '../constants'
-import { formatCurrency, getCurrentMonth, getMonthName, getWeekData, getHealthScore } from '../utils'
+import { formatCurrency, getCurrentMonth, getMonthName, getWeekData, getHealthScore, todayISO } from '../utils'
 import type { Transaction, Loan } from '@/lib/types'
 import '../money.css'
 import AddGoalModal from './AddGoalModal'
@@ -101,7 +101,7 @@ export default function MoneyPage() {
       description: `${subscription.billingCycle} bill · ${formatCurrency(subscription.amount, currency_symbol)}`,
       priority: 'high',
       category: 'finance',
-      status: subscription.nextBillingDate <= new Date().toISOString().split('T')[0] ? 'today' : 'upcoming',
+      status: subscription.nextBillingDate <= todayISO() ? 'today' : 'upcoming',
       completed: false,
       recurring: 'none',
       dueDate: subscription.nextBillingDate,
@@ -116,7 +116,7 @@ export default function MoneyPage() {
       description: 'Savings goal from Money tab',
       priority: 'medium',
       category: 'finance',
-      status: dueDate && dueDate <= new Date().toISOString().split('T')[0] ? 'today' : 'upcoming',
+      status: dueDate && dueDate <= todayISO() ? 'today' : 'upcoming',
       completed: false,
       recurring: 'none',
       dueDate,
@@ -134,7 +134,7 @@ export default function MoneyPage() {
       status: 'today',
       completed: false,
       recurring: 'none',
-      dueDate: dueDate || new Date().toISOString().split('T')[0],
+      dueDate: dueDate || todayISO(),
       timeEstimate: 15,
       tags: ['money', 'budget'],
     })

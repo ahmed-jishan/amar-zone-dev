@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EXPENSE_CATEGORIES, CATEGORY_META } from '../constants'
+import { todayISO } from '../utils'
 import type { ExpenseCategory, Subscription } from '@/lib/types'
 
 export default function AddSubscriptionModal({
@@ -20,7 +21,7 @@ export default function AddSubscriptionModal({
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState<ExpenseCategory>('utilities')
   const [billingCycle, setBillingCycle] = useState<Subscription['billingCycle']>('monthly')
-  const [nextBillingDate, setNextBillingDate] = useState(new Date().toISOString().split('T')[0])
+  const [nextBillingDate, setNextBillingDate] = useState(todayISO())
   const [note, setNote] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)

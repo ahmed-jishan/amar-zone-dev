@@ -2,7 +2,19 @@ export const formatCurrency = (amount: number, symbol = '৳') => {
   return `${symbol}${amount.toLocaleString('en-BD', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
-export const todayISO = () => new Date().toISOString().split('T')[0]
+export const toLocalDateISO = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export const parseLocalDate = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+export const todayISO = () => toLocalDateISO()
 
 export const getCurrentMonth = () => todayISO().slice(0, 7)
 
@@ -12,9 +24,9 @@ export const getMonthName = (monthStr: string) => {
 }
 
 export const getRelativeDate = (dateStr: string) => {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  const date = parseLocalDate(dateStr)
+  const today = parseLocalDate(todayISO())
+  const diff = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   if (diff < 0) return { label: 'Overdue', isOverdue: true }
   if (diff === 0) return { label: 'Today', isOverdue: false }
   if (diff === 1) return { label: 'Tomorrow', isOverdue: false }
@@ -23,8 +35,8 @@ export const getRelativeDate = (dateStr: string) => {
 }
 
 export const getDaysLeft = (dateStr: string) => {
-  const date = new Date(dateStr)
-  const now = new Date()
+  const date = parseLocalDate(dateStr)
+  const now = parseLocalDate(todayISO())
   return Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 }
 
@@ -34,7 +46,7 @@ export const getWeekData = (transactions: any[]) => {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
-    const iso = d.toISOString().split('T')[0]
+    const iso = toLocalDateISO(d)
     const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
     const dayTxns = transactions.filter((t) => t.date === iso)
     data.push({

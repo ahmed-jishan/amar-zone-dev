@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Download, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/shared/Modal'
 import { syncManager } from '@/lib/sync/sync-manager'
+import { deserializeBackup } from '@/lib/backup'
+import { saveTextFile } from '@/lib/native/fileSave'
 import type { GDriveBackupFile } from '@/lib/sync/gdrive-auth'
 
 type Props = {
@@ -65,20 +67,10 @@ export default function BackupListDialog({ open, onClose, refreshKey }: Props) {
     setMessage('Preparing backup download...')
     try {
       const raw = await syncManager.downloadRawBackup()
+      if (!deserializeBackup(raw)) throw new Error('Downloaded content is not a valid SelfSync backup JSON.')
       const safeName = 'selfsync-backup.json'
-      const url = URL.createObjectURL(new Blob([raw], { type: 'application/json;charset=utf-8' }))
-      const link = document.createElement('a')
-      link.href = url
-      link.download = safeName
-      link.rel = 'noopener'
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      window.setTimeout(() => {
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-      }, 1000)
-      setMessage('Backup JSON download started.')
+      await saveTextFile(safeName, raw, 'application/json;charset=utf-8')
+      setMessage('Backup JSON saved to Downloads.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Download failed.')
     } finally {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react'
 import {
   ArrowUpFromLine, ArrowDownToLine, Loader2,
   CheckCircle2, AlertTriangle, XCircle, ArrowLeft, ArrowRight,
@@ -124,6 +124,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const scannerRef = useRef<BrowserQRCodeReader | null>(null)
   const scannerControlsRef = useRef<IScannerControls | null>(null)
+  const scannerStreamRef = useRef<MediaStream | null>(null)
   const scannedChunksRef = useRef(new Map<string, { total: number; parts: Map<number, string> }>())
 
   // File restore
@@ -209,6 +210,9 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     scannerControlsRef.current?.stop()
     scannerControlsRef.current = null
     scannerRef.current = null
+    scannerStreamRef.current?.getTracks().forEach((track) => track.stop())
+    scannerStreamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
     setScanActive(false)
   }, [])
 
@@ -273,18 +277,33 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     setError('')
     setScannedPayload(null)
     setScanStatus(null)
+    scannedChunksRef.current.clear()
     setScanActive(true)
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera is not available on this device.')
+      }
+
+      const video = await waitForVideoElement(videoRef)
+      const permissionStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
+      scannerStreamRef.current = permissionStream
+      permissionStream.getTracks().forEach((track) => track.stop())
+      scannerStreamRef.current = null
+
       const mod = await import('@zxing/browser')
       const reader = new mod.BrowserQRCodeReader()
       scannerRef.current = reader
-      if (!videoRef.current) return
-      const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-        if (!result) return
-        const text = result.getText()
+      const controls = await startQrDecodeWithRetry(reader, video, (text) => {
         const parsed = safeParseChunk(text)
         if (!parsed) return
         const entry = scannedChunksRef.current.get(parsed.id) || { total: parsed.total, parts: new Map<number, string>() }
+        if (entry.total !== parsed.total || parsed.index < 0 || parsed.index >= parsed.total) {
+          console.warn('Quick Transfer ignored invalid QR frame metadata', parsed)
+          return
+        }
         if (!entry.parts.has(parsed.index)) entry.parts.set(parsed.index, parsed.data)
         scannedChunksRef.current.set(parsed.id, entry)
         setScanStatus({ total: parsed.total, received: entry.parts.size })
@@ -292,12 +311,14 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
           const ordered = Array.from(entry.parts.entries()).sort((a, b) => a[0] - b[0]).map(([, d]) => d).join('')
           setScannedPayload(ordered)
           stopScanner()
-          handleReceiveData(ordered)
+          void handleReceiveData(ordered)
         }
       })
       scannerControlsRef.current = controls
-    } catch {
-      setError('Camera access failed')
+    } catch (error) {
+      console.error('Quick Transfer scanner startup failed:', error)
+      setError(cameraErrorMessage(error))
+      stopScanner()
       setScanActive(false)
     }
   }
@@ -701,4 +722,68 @@ function safeParseChunk(text: string): { id: string; index: number; total: numbe
     if (!parsed || typeof parsed.id !== 'string' || typeof parsed.index !== 'number' || typeof parsed.total !== 'number' || typeof parsed.data !== 'string') return null
     return parsed
   } catch { return null }
+}
+
+function waitForVideoElement(ref: RefObject<HTMLVideoElement>, timeoutMs = 1500): Promise<HTMLVideoElement> {
+  const started = Date.now()
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      if (ref.current) {
+        ref.current.setAttribute('playsinline', 'true')
+        ref.current.muted = true
+        resolve(ref.current)
+        return
+      }
+      if (Date.now() - started > timeoutMs) {
+        reject(new Error('Camera preview did not initialize.'))
+        return
+      }
+      window.requestAnimationFrame(tick)
+    }
+    tick()
+  })
+}
+
+async function startQrDecodeWithRetry(
+  reader: BrowserQRCodeReader,
+  video: HTMLVideoElement,
+  onText: (text: string) => void,
+  attempts = 2
+) {
+  let lastError: unknown
+  const constraints: MediaStreamConstraints = {
+    video: {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+    audio: false,
+  }
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await reader.decodeFromConstraints(constraints, video, (result) => {
+        if (result) onText(result.getText())
+      })
+    } catch (error) {
+      lastError = error
+      await new Promise((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)))
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Camera access failed')
+}
+
+function cameraErrorMessage(error: unknown) {
+  const name = error instanceof DOMException ? error.name : ''
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return 'Camera permission denied. Allow camera access for SelfSync from Android app settings, then try again.'
+  }
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+    return 'No usable camera was found. Try again or check device camera settings.'
+  }
+  if (name === 'NotReadableError') {
+    return 'Camera is busy in another app. Close other camera apps and retry.'
+  }
+  return error instanceof Error ? error.message : 'Camera access failed. Please retry.'
 }

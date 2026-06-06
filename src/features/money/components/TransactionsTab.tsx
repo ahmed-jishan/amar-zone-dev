@@ -1,14 +1,14 @@
 'use client'
 
 import { CATEGORY_META } from '../constants'
-import { formatCurrency } from '../utils'
+import { formatCurrency, toLocalDateISO, todayISO } from '../utils'
 import type { Transaction } from '@/lib/types'
 
 function transactionGroup(date: string) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   const yesterdayDate = new Date()
   yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  const yesterday = yesterdayDate.toISOString().split('T')[0]
+  const yesterday = toLocalDateISO(yesterdayDate)
   if (date === today) return 'Today'
   if (date === yesterday) return 'Yesterday'
   return date

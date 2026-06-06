@@ -6,6 +6,7 @@ import type { BackupEnvelope, BackupPayload } from './types'
 import { BACKUP_SCHEMA_VERSION, BACKUP_SCHEMA_NAME } from './types'
 import { collectBackupPayload } from './collector'
 import { computeChecksum } from './validator'
+import { saveTextFile } from '@/lib/native/fileSave'
 
 // ─── The app version from package.json or a constant ───
 const APP_VERSION = '1.0.0'
@@ -48,10 +49,7 @@ export function createBackupBlob(envelope: BackupEnvelope): Blob {
 }
 
 // ─── Trigger a file download ───
-export function downloadBackupFile(envelope: BackupEnvelope, filename?: string) {
-  const blob = createBackupBlob(envelope)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
+export async function downloadBackupFile(envelope: BackupEnvelope, filename?: string) {
   const now = new Date()
   const dateStr = `${now.getMonth() + 1}-${now.getDate()}-${now.getFullYear()}`
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
@@ -68,10 +66,11 @@ export function downloadBackupFile(envelope: BackupEnvelope, filename?: string) 
   if (p.namaz.records.length > 0) parts.push(`namaz-${p.namaz.records.length}`)
   const countStr = parts.join('-')
   
-  a.download = filename ?? `selfsync-backup-${dateStr}-${timeStr}${countStr ? `-${countStr}` : ''}.json`
-  a.href = url
-  a.click()
-  URL.revokeObjectURL(url)
+  await saveTextFile(
+    filename ?? `selfsync-backup-${dateStr}-${timeStr}${countStr ? `-${countStr}` : ''}.json`,
+    serializeBackup(envelope),
+    'application/json;charset=utf-8'
+  )
 }
 
 // ─── Read a backup file from a File object ───

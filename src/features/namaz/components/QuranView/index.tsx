@@ -16,7 +16,7 @@ import { SURAHS, type SurahMeta } from '../../data/surahs';
 import { usePrefsStore } from '../../store/prefsStore';
 import { useQuranStore } from '../../store/quranStore';
 import { fetchSurahAyahs, getAyahAudioUrl, type QuranAyah } from '../../utils/quranApi';
-import { hideQuranMediaNotification, updateQuranMediaNotification } from '@/lib/native/quranMedia';
+import { addQuranMediaActionListener, hideQuranMediaNotification, updateQuranMediaNotification } from '@/lib/native/quranMedia';
 
 export default function QuranView() {
   const [query, setQuery] = useState('');
@@ -232,17 +232,18 @@ export default function QuranView() {
   };
 
   useEffect(() => {
-    const handleNativeMediaAction = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      const action = typeof detail === 'string' ? JSON.parse(detail).action : detail?.action;
+    let disposed = false;
+    let nativeHandle: { remove: () => Promise<void> } | undefined;
+    const handleNativeMediaAction = (detail: { action?: string; playing?: boolean }) => {
+      const action = detail?.action;
       const currentSurah = activeSurah ? SURAHS.find((item) => item.number === activeSurah) : selectedSurah;
       if (!currentSurah) return;
-      if (action === 'play') {
+      if (action === 'playPause' && detail.playing) {
         void audioRef.current?.play().then(() => {
           setIsPlaying(true);
           if (activeAyah) void updateNativeMediaNotification(currentSurah, activeAyah, true);
         });
-      } else if (action === 'pause') {
+      } else if (action === 'playPause' && !detail.playing) {
         audioRef.current?.pause();
         setIsPlaying(false);
         if (activeAyah) void updateNativeMediaNotification(currentSurah, activeAyah, false);
@@ -253,8 +254,14 @@ export default function QuranView() {
       }
     };
 
-    window.addEventListener('quran-media-action', handleNativeMediaAction);
-    return () => window.removeEventListener('quran-media-action', handleNativeMediaAction);
+    void addQuranMediaActionListener(handleNativeMediaAction).then((handle) => {
+      if (disposed) void handle?.remove();
+      else nativeHandle = handle;
+    });
+    return () => {
+      disposed = true;
+      void nativeHandle?.remove();
+    };
   }, [activeAyah, activeSurah, selectedSurah, ayahs]);
 
   const renderPlayIcon = (surahNumber: number, ayahNumber: number) =>

@@ -2,7 +2,7 @@
 
 import type { Loan, MonthlyBudget, Subscription, Transaction } from '@/lib/types'
 import type { Task } from '@/app/(tabs)/tasks/types'
-import { formatCurrency } from '../utils'
+import { formatCurrency, todayISO } from '../utils'
 
 interface Props {
   tasks: Task[]
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function DailyBrief({ tasks, transactions, budget, subscriptions, loans, month, currencySymbol, onOpenTasks }: Props) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   const todayTasks = tasks.filter((task) => !task.completed && task.status !== 'archived' && (task.status === 'today' || task.dueDate === today))
   const topTask = todayTasks.sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))[0]
   const todaySpend = transactions

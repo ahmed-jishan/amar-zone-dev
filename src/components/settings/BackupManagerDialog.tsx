@@ -111,7 +111,7 @@ export default function BackupManagerDialog({
     setStep('export')
     try {
       const env = await buildBackupEnvelope()
-      downloadBackupFile(env)
+      await downloadBackupFile(env)
     } catch {
       setError('Failed to create backup')
     }

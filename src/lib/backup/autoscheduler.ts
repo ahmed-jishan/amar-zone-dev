@@ -19,7 +19,7 @@ export function triggerAutoBackup(): void {
     isRunning = true
     try {
       const envelope = await buildBackupEnvelope()
-      downloadBackupFile(envelope)
+      await downloadBackupFile(envelope)
     } catch {
       // Silently fail for auto-backup
     } finally {

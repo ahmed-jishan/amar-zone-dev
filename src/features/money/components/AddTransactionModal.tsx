@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_META } from '../constants'
+import { todayISO } from '../utils'
 import type { ExpenseCategory, IncomeCategory, Transaction, TransactionType, Wallet } from '@/lib/types'
 
 type TransactionCategory = ExpenseCategory | IncomeCategory
@@ -15,7 +16,7 @@ export default function AddTransactionModal({ onClose, onAdd, translations: t, c
   const [amount, setAmount] = useState(initialTransaction?.amount ? String(initialTransaction.amount) : '')
   const [category, setCategory] = useState<TransactionCategory>(initialTransaction?.category || 'food')
   const [note, setNote] = useState(initialTransaction?.note || '')
-  const [date, setDate] = useState(initialTransaction?.date || new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(initialTransaction?.date || todayISO())
   const [walletId, setWalletId] = useState(initialTransaction?.walletId || selectedWalletId || wallets[0]?.id || 'default')
 
   const handleSubmit = (e: React.FormEvent) => {
