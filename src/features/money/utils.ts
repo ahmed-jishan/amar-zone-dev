@@ -10,11 +10,17 @@ export const toLocalDateISO = (date = new Date()) => {
 }
 
 export const parseLocalDate = (dateStr: string) => {
-  const [year, month, day] = dateStr.split('-').map(Number)
+  const [year, month, day] = normalizeMoneyDateKey(dateStr).split('-').map(Number)
   return new Date(year, (month || 1) - 1, day || 1)
 }
 
 export const todayISO = () => toLocalDateISO()
+
+export const normalizeMoneyDateKey = (value: string) => {
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10)
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? todayISO() : toLocalDateISO(parsed)
+}
 
 export const getCurrentMonth = () => todayISO().slice(0, 7)
 

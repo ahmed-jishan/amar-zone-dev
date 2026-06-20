@@ -5,11 +5,14 @@ import { useMemo } from 'react';
 import { BellRing, BookOpen, Clock3 } from 'lucide-react';
 import CurrentPrayerCard from './CurrentPrayerCard';
 import PrayerTimeCard from './PrayerTimeCardList';
+import AzanJamatConfigPanel from './AzanJamatConfigPanel';
 import DailyStreakWidget from './StreakWidget';
 import QuickActions from './QuickActions';
 import { useLogsStore, TRACKED_PRAYERS } from '../../store/logsStore';
+import { usePrefsStore } from '../../store/prefsStore';
 import { calculateStreak } from '../../utils/streakCalculator';
 import { formatLocalDateKey } from '../../utils/dateHelpers';
+import { computePrayerTimeConfig } from '../../utils/azanJamatConfig';
 import type { useAzanScheduler } from '../../hooks/useAzanScheduler';
 import type { PrayerTimesResponse } from '../../types/prayer.types';
 
@@ -58,40 +61,46 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
   const t = COPY[language];
   const logs = useLogsStore((state) => state.logs);
   const updatePrayer = useLogsStore((state) => state.updatePrayer);
+  const prayerTimePreferences = usePrefsStore((state) => state.prayerTimePreferences);
   const today = formatLocalDateKey(new Date());
 
   const prayerData = useMemo(() => prayerTimesResponse ? ({
     Fajr: {
-      adhan: prayerTimesResponse.rawTimings.Fajr,
-      jamaat: prayerTimesResponse.rawTimings.Fajr,
+      prayerStart: prayerTimesResponse.rawTimings.Fajr,
+      adhan: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Fajr, prayerTimePreferences.fajr).azanTime,
+      jamaat: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Fajr, prayerTimePreferences.fajr).jamatTime,
       endTime: prayerTimesResponse.rawTimings.Sunrise ?? prayerTimesResponse.rawTimings.Dhuhr,
       status: logs[today]?.Fajr?.status || 'pending' as PrayerStatus,
     },
     Dhuhr: {
-      adhan: prayerTimesResponse.rawTimings.Dhuhr,
-      jamaat: prayerTimesResponse.rawTimings.Dhuhr,
+      prayerStart: prayerTimesResponse.rawTimings.Dhuhr,
+      adhan: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Dhuhr, prayerTimePreferences.dhuhr).azanTime,
+      jamaat: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Dhuhr, prayerTimePreferences.dhuhr).jamatTime,
       endTime: prayerTimesResponse.rawTimings.Asr,
       status: logs[today]?.Dhuhr?.status || 'pending' as PrayerStatus,
     },
     Asr: {
-      adhan: prayerTimesResponse.rawTimings.Asr,
-      jamaat: prayerTimesResponse.rawTimings.Asr,
+      prayerStart: prayerTimesResponse.rawTimings.Asr,
+      adhan: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Asr, prayerTimePreferences.asr).azanTime,
+      jamaat: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Asr, prayerTimePreferences.asr).jamatTime,
       endTime: prayerTimesResponse.rawTimings.Maghrib,
       status: logs[today]?.Asr?.status || 'pending' as PrayerStatus,
     },
     Maghrib: {
-      adhan: prayerTimesResponse.rawTimings.Maghrib,
-      jamaat: prayerTimesResponse.rawTimings.Maghrib,
+      prayerStart: prayerTimesResponse.rawTimings.Maghrib,
+      adhan: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Maghrib, prayerTimePreferences.maghrib).azanTime,
+      jamaat: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Maghrib, prayerTimePreferences.maghrib).jamatTime,
       endTime: prayerTimesResponse.rawTimings.Isha,
       status: logs[today]?.Maghrib?.status || 'pending' as PrayerStatus,
     },
     Isha: {
-      adhan: prayerTimesResponse.rawTimings.Isha,
-      jamaat: prayerTimesResponse.rawTimings.Isha,
+      prayerStart: prayerTimesResponse.rawTimings.Isha,
+      adhan: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Isha, prayerTimePreferences.isha).azanTime,
+      jamaat: computePrayerTimeConfig(prayerTimesResponse.rawTimings.Isha, prayerTimePreferences.isha).jamatTime,
       endTime: prayerTimesResponse.rawTimings.Fajr,
       status: logs[today]?.Isha?.status || 'pending' as PrayerStatus,
     },
-  }) : null, [logs, prayerTimesResponse, today]);
+  }) : null, [logs, prayerTimesResponse, prayerTimePreferences, today]);
 
   const streak = useMemo(() => calculateStreak(logs), [logs]);
   const totalPrayedToday = TRACKED_PRAYERS.filter((prayer) => {
@@ -112,6 +121,7 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
           prayerTimesResponse={prayerTimesResponse}
           locationLabel={locationLabel}
           language={language}
+          prayerTimePreferences={prayerTimePreferences}
         />
       ) : (
         <div className="rounded-2xl p-5 text-sm font-semibold nz-card nz-text">
@@ -161,6 +171,8 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
           </p>
         </button>
       </section>
+
+      {prayerTimesResponse && <AzanJamatConfigPanel prayerTimesResponse={prayerTimesResponse} />}
 
       {/* 5 Prayer Time Cards */}
       {prayerData && (

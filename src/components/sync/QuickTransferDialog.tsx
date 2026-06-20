@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react'
 import {
-  ArrowUpFromLine, ArrowDownToLine, Loader2,
-  CheckCircle2, AlertTriangle, XCircle, ArrowLeft, ArrowRight,
+  Loader2,
+  CheckCircle2, AlertTriangle, XCircle, ArrowLeft,
   Lock, Eye, EyeOff, FileText, Smartphone,
-  QrCode, ScanLine,
+  QrCode, ScanLine, Shield, Zap, Camera,
+  CameraOff, CircleDot, Radio, Wifi,
+  Pause, Play, RefreshCw, Signal,
 } from 'lucide-react'
 import { Modal } from '@/components/shared/Modal'
 import { useSettingsStore, type Language } from '@/features/settings/store/settingsStore'
@@ -15,7 +17,6 @@ import {
   deserializeBackup,
   validateFullBackup,
   getBackupCounts,
-  getTotalAmount,
   restoreBackup,
   mergeBackup,
   computeDifferences,
@@ -27,26 +28,110 @@ import {
   serializeEncryptedBackup,
   parseEncryptedBackup,
 } from '@/lib/utils/encryptedBackup'
+import { compressText, decompressText } from '@/lib/utils/compress'
 import QRCode from 'qrcode'
 import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser'
 import type { BackupEnvelope, BackupCounts, BackupPayload, RestoreStrategy } from '@/lib/backup'
+import {
+  createSenderPeer,
+  createReceiverConnection,
+  sendBackupViaWebRTC,
+  receiveBackupViaWebRTC,
+  type WebRTCTransferState,
+  type WebRTCProgress,
+  type WebRTCQRPayload,
+} from '@/lib/sync/webrtc-transfer'
 
-type Step = 'landing' | 'send-prepare' | 'send-qr' | 'receive-scan' | 'receive-preview' | 'receive-merging' | 'receive-done'
-type SendStage = 'preparing' | 'encrypting' | 'generating' | 'scanning' | 'complete'
+type Step = 'landing' | 'send-prepare' | 'send-qr' | 'send-webrtc' | 'receive-scan' | 'receive-webrtc' | 'receive-preview' | 'receive-merging' | 'receive-done'
+type SendStage = 'preparing' | 'encrypting' | 'generating' | 'ready' | 'complete'
 type MergeStage = 'merging' | 'finalizing' | 'complete' | 'error'
+type ScanPhase = 'starting' | 'scanning' | 'detected' | 'transferring' | 'done' | 'failed'
+type TransferMode = 'qr' | 'webrtc' | 'file'
+
+// ─── Constants ───
+const QR_CHUNK_SIZE = 2400
+const QR_WIDTH = 340
+const AUTO_ADVANCE_INTERVAL_MS = 3000  // 3 seconds per QR frame
+
+// Fast base64 helper
+function fastBtoa(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+function yieldToUI(): Promise<void> {
+  return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))
+}
 
 const tr = (lang: Language) => ({
   title: lang === 'bn' ? 'কুইক ট্রান্সফার' : 'Quick Transfer',
-  send: lang === 'bn' ? '📤 অন্য ডিভাইসে পাঠান' : '📤 Send To Another Device',
-  sendSub: lang === 'bn' ? 'QR কোড স্ক্যান করে ডেটা ট্রান্সফার' : 'Transfer data by scanning QR codes',
-  receive: lang === 'bn' ? '📥 অন্য ডিভাইস থেকে নিন' : '📥 Receive From Another Device',
-  receiveSub: lang === 'bn' ? 'পাঠানো ডিভাইসের QR কোড স্ক্যান করুন' : 'Scan QR code from the sending device',
-  restoreFile: lang === 'bn' ? '📂 ব্যাকআপ ফাইল থেকে রিস্টোর' : '📂 Restore From Backup File',
-  restoreSub: lang === 'bn' ? 'JSON ব্যাকআপ ফাইল নির্বাচন করুন' : 'Select a JSON backup file',
+  // Tabs
+  qrTransfer: lang === 'bn' ? 'QR ট্রান্সফার' : 'QR Transfer',
+  webrtcTransfer: lang === 'bn' ? 'ফাস্ট ট্রান্সফার (WebRTC)' : 'Fast Transfer (WebRTC)',
+  fileRestore: lang === 'bn' ? 'ফাইল রিস্টোর' : 'File Restore',
+  qrDesc: lang === 'bn' ? 'একাধিক QR কোড — কোনো নেটওয়ার্ক লাগে না' : 'Multiple QR codes — no network needed',
+  webrtcDesc: lang === 'bn' ? '১ বার স্ক্যান — যেকোনো সাইজ, দ্রুত' : 'One scan — any size, super fast',
+  fileDesc: lang === 'bn' ? 'JSON ফাইল থেকে ডেটা রিস্টোর' : 'Restore from JSON backup file',
+  // Common
   passphrase: lang === 'bn' ? 'পাসফ্রেজ' : 'Passphrase',
-  confirmPass: lang === 'bn' ? 'পাসফ্রেজ নিশ্চিত করুন' : 'Confirm Passphrase',
   passHint: lang === 'bn' ? 'কমপক্ষে ৮ অক্ষর' : 'At least 8 characters',
-  encryptBadge: lang === 'bn' ? 'AES-256 এনক্রিপশন সক্রিয়' : 'AES-256 Encryption Active',
+  cancel: lang === 'bn' ? 'বাতিল' : 'Cancel',
+  // QR Send
+  send: lang === 'bn' ? 'QR কোড দেখান' : 'Show QR Code',
+  startTransfer: lang === 'bn' ? 'ট্রান্সফার শুরু করুন' : 'Start Transfer',
+  preparing: lang === 'bn' ? 'ডেটা প্রস্তুত হচ্ছে...' : 'Preparing data...',
+  encrypting: lang === 'bn' ? 'এনক্রিপ্ট হচ্ছে...' : 'Encrypting...',
+  generating: lang === 'bn' ? 'QR কোড তৈরি হচ্ছে...' : 'Generating QR code...',
+  scanReady: lang === 'bn' ? 'স্ক্যানের জন্য প্রস্তুত' : 'Ready to scan',
+  qrHint: lang === 'bn' ? 'অন্য ডিভাইসে "QR Transfer → Receive" সিলেক্ট করে স্ক্যান করুন' : 'On the other device, select "QR Transfer → Receive" and scan',
+  // QR Auto-Advance
+  autoAdvance: lang === 'bn' ? 'অটো-এডভান্স' : 'Auto-Advance',
+  autoPaused: lang === 'bn' ? 'থেমে গেছে' : 'Paused',
+  frame: (c: number, t: number) => lang === 'bn' ? `${c}/${t} ফ্রেম` : `Frame ${c}/${t}`,
+  nextIn: (s: number) => lang === 'bn' ? `পরবর্তী ${s}সে` : `Next in ${s}s`,
+  // QR Receive
+  receive: lang === 'bn' ? 'QR স্ক্যানার' : 'QR Scanner',
+  cameraStarting: lang === 'bn' ? 'ক্যামেরা চালু হচ্ছে...' : 'Starting camera...',
+  pointCamera: lang === 'bn' ? 'QR কোডের দিকে ক্যামেরা লক্ষ্য করুন' : 'Point camera at the QR code',
+  scanning: lang === 'bn' ? 'স্ক্যান করা হচ্ছে...' : 'Scanning...',
+  qrDetected: lang === 'bn' ? 'QR কোড শনাক্ত! ✓' : 'QR Code Detected! ✓',
+  decrypting: lang === 'bn' ? 'ডিক্রিপ্ট হচ্ছে...' : 'Decrypting...',
+  dataReady: lang === 'bn' ? 'ডেটা প্রস্তুত!' : 'Data ready!',
+  cameraError: lang === 'bn' ? 'ক্যামেরা অ্যাক্সেস ব্যর্থ' : 'Camera access failed',
+  tryAgain: lang === 'bn' ? 'পুনরায় চেষ্টা করুন' : 'Try Again',
+  framesReceived: (r: number, t: number) => lang === 'bn' ? `${r}/${t} ফ্রেম পাওয়া গেছে` : `Received ${r}/${t} frames`,
+  // WebRTC
+  webrtcSend: lang === 'bn' ? 'ফাস্ট পাঠান' : 'Fast Send',
+  webrtcReceive: lang === 'bn' ? 'ফাস্ট নিন' : 'Fast Receive',
+  creatingPeer: lang === 'bn' ? 'কানেকশন তৈরি হচ্ছে...' : 'Creating connection...',
+  waitingConnection: lang === 'bn' ? 'অন্য ডিভাইস কানেক্ট হওয়ার অপেক্ষায়...' : 'Waiting for other device to connect...',
+  connecting: lang === 'bn' ? 'কানেক্ট হচ্ছে...' : 'Connecting...',
+  connected: lang === 'bn' ? 'কানেক্টেড!' : 'Connected!',
+  sending: lang === 'bn' ? 'ডেটা পাঠানো হচ্ছে...' : 'Sending data...',
+  receiving: lang === 'bn' ? 'ডেটা আসছে...' : 'Receiving data...',
+  webrtcDone: lang === 'bn' ? 'ট্রান্সফার সম্পূর্ণ!' : 'Transfer Complete!',
+  webrtcFailed: lang === 'bn' ? 'কানেকশন ব্যর্থ' : 'Connection failed',
+  webrtcTimeout: lang === 'bn' ? 'কানেকশন টাইম আউট। নেটওয়ার্ক চেক করুন অথবা QR মোড ব্যবহার করুন।' : 'Connection timed out. Check network or use QR mode.',
+  webrtcFallback: lang === 'bn' ? 'QR মোডে সুইচ করুন' : 'Switch to QR mode',
+  webrtcProgress: (p: WebRTCProgress) => {
+    const pct = p.bytesTotal > 0 ? Math.round((p.bytesTransferred / p.bytesTotal) * 100) : 0
+    return lang === 'bn' ? `${pct}% (${(p.bytesTransferred / 1024).toFixed(1)}/${(p.bytesTotal / 1024).toFixed(1)} KB)` : `${pct}% (${(p.bytesTransferred / 1024).toFixed(1)}/${(p.bytesTotal / 1024).toFixed(1)} KB)`
+  },
+  webrtcScanInfo: (name: string) => lang === 'bn' ? `"${name}" কানেক্ট হবে — QR স্ক্যান করুন` : `Connect to "${name}" — scan the QR code`,
+  // Preview
+  records: lang === 'bn' ? 'রেকর্ড' : 'Records',
+  merge: lang === 'bn' ? 'মার্জ (সুপারিশকৃত)' : 'Merge (Recommended)',
+  mergeDesc: lang === 'bn' ? 'ব্যাকআপ ও বর্তমান ডেটা উভয়ই রাখে' : 'Keeps both backup and current data',
+  replace: lang === 'bn' ? 'রিপ্লেস' : 'Replace',
+  replaceDesc: lang === 'bn' ? 'বর্তমান ডেটা ব্যাকআপ দিয়ে প্রতিস্থাপন' : 'Replaces current data with backup',
+  doneMsg: lang === 'bn' ? 'ট্রান্সফার সম্পূর্ণ!' : 'Transfer Complete!',
+  refresh: lang === 'bn' ? 'রিফ্রেশ করুন' : 'Refresh',
+  corrupted: lang === 'bn' ? 'ফাইল নষ্ট!' : 'Corrupted file!',
+  rollbackOk: lang === 'bn' ? 'রোলব্যাক সফল। কোনো ডেটা হারায়নি।' : 'Rolled back. No data lost.',
+  invalidPass: lang === 'bn' ? 'পাসফ্রেজ ভুল' : 'Invalid passphrase',
+  differences: lang === 'bn' ? 'পার্থক্য' : 'Differences',
+  syncReady: lang === 'bn' ? 'সিঙ্ক প্রস্তুত' : 'Sync Ready',
   modules: lang === 'bn' ? 'যা যা ট্রান্সফার হবে' : 'Modules to Transfer',
   selectAll: lang === 'bn' ? 'সব নির্বাচন' : 'Select All',
   tasks: lang === 'bn' ? 'টাস্ক' : 'Tasks',
@@ -59,31 +144,12 @@ const tr = (lang: Language) => ({
   namaz: lang === 'bn' ? 'নামাজ লগ' : 'Namaz Logs',
   namazDays: lang === 'bn' ? 'নামাজের দিন' : 'Prayer Days',
   size: lang === 'bn' ? 'সাইজ' : 'Size',
-  startTransfer: lang === 'bn' ? 'ট্রান্সফার শুরু করুন' : 'Start Transfer',
-  cancel: lang === 'bn' ? 'বাতিল' : 'Cancel',
-  startScanning: lang === 'bn' ? 'স্ক্যান শুরু করুন' : 'Start Scanning',
-  stopScan: lang === 'bn' ? 'স্ক্যান বন্ধ করুন' : 'Stop Scanning',
-  frame: (c: number, t: number) => lang === 'bn' ? `ফ্রেম ${c}/${t}` : `Frame ${c}/${t}`,
-  autoCycle: lang === 'bn' ? 'অটো-সাইক্লিং চলছে' : 'Auto-cycling active',
-  scanReady: lang === 'bn' ? 'স্ক্যানের জন্য প্রস্তুত' : 'Ready to scan',
-  preparing: lang === 'bn' ? 'ডেটা প্রস্তুত হচ্ছে...' : 'Preparing data...',
-  encrypting: lang === 'bn' ? 'এনক্রিপ্ট হচ্ছে...' : 'Encrypting...',
-  generating: lang === 'bn' ? 'QR ফ্রেম তৈরি হচ্ছে...' : 'Generating QR frames...',
+  encrypted: lang === 'bn' ? 'এনক্রিপ্টেড' : 'Encrypted',
+  compressed: lang === 'bn' ? 'কম্প্রেসড' : 'Compressed',
+  frames: (c: number) => lang === 'bn' ? `${c}টি ফ্রেম` : `${c} frame${c > 1 ? 's' : ''}`,
+  startNow: lang === 'bn' ? 'এখনই স্ক্যান শুরু হবে' : 'Scanning will start automatically',
   mergingLabel: lang === 'bn' ? 'ডেটা মার্জ হচ্ছে...' : 'Merging data...',
   finalizing: lang === 'bn' ? 'চূড়ান্ত হচ্ছে...' : 'Finalizing...',
-  merge: lang === 'bn' ? '🔄 মার্জ (সুপারিশকৃত)' : '🔄 Merge (Recommended)',
-  mergeDesc: lang === 'bn' ? 'ব্যাকআপ ও বর্তমান ডেটা উভয়ই রাখে' : 'Keeps both backup and current data',
-  replace: lang === 'bn' ? '⬇️ রিপ্লেস' : '⬇️ Replace',
-  replaceDesc: lang === 'bn' ? 'বর্তমান ডেটা ব্যাকআপ দিয়ে প্রতিস্থাপন' : 'Replaces current data with backup',
-  doneMsg: lang === 'bn' ? '✅ ট্রান্সফার সম্পূর্ণ!' : '✅ Transfer Complete!',
-  refresh: lang === 'bn' ? 'রিফ্রেশ করুন' : 'Refresh',
-  corrupted: lang === 'bn' ? 'ফাইল নষ্ট!' : 'Corrupted file!',
-  rollbackOk: lang === 'bn' ? 'রোলব্যাক সফল। কোনো ডেটা হারায়নি।' : 'Rolled back. No data lost.',
-  invalidPass: lang === 'bn' ? 'পাসফ্রেজ ভুল' : 'Invalid passphrase',
-  passMismatch: lang === 'bn' ? 'পাসফ্রেজ মেলেনি' : 'Passphrases do not match',
-  verifying: lang === 'bn' ? 'ভেরিফাই হচ্ছে...' : 'Verifying...',
-  records: lang === 'bn' ? 'রেকর্ড' : 'Records',
-  differences: lang === 'bn' ? 'পার্থক্য' : 'Differences',
 })
 
 interface QuickTransferProps {
@@ -100,7 +166,6 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
 
   // Passphrase
   const [passphrase, setPassphrase] = useState('')
-  const [confirmPass, setConfirmPass] = useState('')
   const [showPass, setShowPass] = useState(false)
 
   // Module selection
@@ -108,24 +173,35 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     tasks: true, money: true, namaz: true, settings: true, prefs: true,
   })
 
-  // Send flow
+  // ── QR Send ──
   const [sendStage, setSendStage] = useState<SendStage>('preparing')
   const [qrChunks, setQrChunks] = useState<string[]>([])
   const [qrIndex, setQrIndex] = useState(0)
   const [qrSessionId, setQrSessionId] = useState('')
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
-  const [autoCycleEnabled, setAutoCycleEnabled] = useState(true)
-  const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [originalSize, setOriginalSize] = useState(0)
+  const [compressedSize, setCompressedSize] = useState(0)
+  const [autoAdvance, setAutoAdvance] = useState(true)
+  const [countdown, setCountdown] = useState(3)
+  const autoAdvanceRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Receive flow
-  const [scanActive, setScanActive] = useState(false)
+  // ── QR Receive ──
+  const [scanPhase, setScanPhase] = useState<ScanPhase>('starting')
   const [scanStatus, setScanStatus] = useState<{ total: number; received: number } | null>(null)
   const [scannedPayload, setScannedPayload] = useState<string | null>(null)
+  const [detectedFlash, setDetectedFlash] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const scannerRef = useRef<BrowserQRCodeReader | null>(null)
   const scannerControlsRef = useRef<IScannerControls | null>(null)
-  const scannerStreamRef = useRef<MediaStream | null>(null)
   const scannedChunksRef = useRef(new Map<string, { total: number; parts: Map<number, string> }>())
+  const cameraStartedRef = useRef(false)
+
+  // ── WebRTC ──
+  const [webrtcState, setWebrtcState] = useState<WebRTCTransferState>('idle')
+  const [webrtcProgress, setWebrtcProgress] = useState<WebRTCProgress | null>(null)
+  const [webrtcQRPayload, setWebrtcQRPayload] = useState<WebRTCQRPayload | null>(null)
+  const [webrtcQRDataUrl, setWebrtcQRDataUrl] = useState<string | null>(null)
+  const webrtcPeerRef = useRef<ReturnType<typeof createSenderPeer> | null>(null)
 
   // File restore
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -134,14 +210,14 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   const [localCountsData, setLocalCountsData] = useState<BackupCounts | null>(null)
   const [differences, setDifferences] = useState<ReturnType<typeof computeDifferences> | null>(null)
 
-  // Merge stage
+  // Merge
   const [mergeStage, setMergeStage] = useState<MergeStage>('merging')
 
   // Error / message
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
-  // Local counts for send preview
+  // Local counts
   const localCounts = useMemo(() => {
     const p = collectBackupPayload()
     return { counts: getBackupCounts(p), payload: p }
@@ -155,74 +231,191 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     } catch { return '0 B' }
   }, [localCounts])
 
+  // ── Auto-advance timer ──
+  useEffect(() => {
+    if (step === 'send-qr' && sendStage === 'ready' && autoAdvance && qrChunks.length > 1) {
+      setCountdown(AUTO_ADVANCE_INTERVAL_MS / 1000)
+      autoAdvanceRef.current = setInterval(() => {
+        setQrIndex((prev) => {
+          const next = prev + 1
+          if (next >= qrChunks.length) return 0 // loop back
+          return next
+        })
+        setCountdown(AUTO_ADVANCE_INTERVAL_MS / 1000)
+      }, AUTO_ADVANCE_INTERVAL_MS)
+
+      // Countdown tick
+      const countdownInterval = setInterval(() => {
+        setCountdown((prev) => Math.max(0, prev - 1))
+      }, 1000)
+
+      return () => {
+        if (autoAdvanceRef.current) clearInterval(autoAdvanceRef.current)
+        clearInterval(countdownInterval)
+      }
+    }
+  }, [step, sendStage, autoAdvance, qrChunks.length])
+
+  // Update countdown reset when QR index changes manually
+  useEffect(() => {
+    if (autoAdvance && qrChunks.length > 1) {
+      setCountdown(AUTO_ADVANCE_INTERVAL_MS / 1000)
+    }
+  }, [qrIndex, autoAdvance, qrChunks.length])
+
+  // ── Camera management ──
+  const stopScanner = useCallback(() => {
+    scannerControlsRef.current?.stop()
+    scannerControlsRef.current = null
+    scannerRef.current = null
+    if (videoRef.current) {
+      if (videoRef.current.srcObject instanceof MediaStream) {
+        videoRef.current.srcObject.getTracks().forEach((track) => track.stop())
+      }
+      videoRef.current.srcObject = null
+    }
+    cameraStartedRef.current = false
+  }, [])
+
+  const startCamera = useCallback(async () => {
+    if (cameraStartedRef.current) return
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Camera not available on this device.')
+    }
+    const video = await waitForVideoElement(videoRef)
+    const mod = await import('@zxing/browser')
+    const reader = new mod.BrowserQRCodeReader()
+    scannerRef.current = reader
+
+    const controls = await startQrDecodeWithRetry(reader, video, (text) => {
+      const parsed = safeParseChunk(text)
+      if (!parsed) return
+
+      try { navigator.vibrate?.(80) } catch { /* noop */ }
+
+      setDetectedFlash(true)
+      setTimeout(() => setDetectedFlash(false), 400)
+      setScanPhase('detected')
+
+      const entry = scannedChunksRef.current.get(parsed.id) || { total: parsed.total, parts: new Map<number, string>() }
+      if (entry.total !== parsed.total || parsed.index < 0 || parsed.index >= parsed.total) {
+        return
+      }
+      if (!entry.parts.has(parsed.index)) entry.parts.set(parsed.index, parsed.data)
+      scannedChunksRef.current.set(parsed.id, entry)
+      setScanStatus({ total: parsed.total, received: entry.parts.size })
+
+      if (entry.parts.size === parsed.total) {
+        const ordered = Array.from(entry.parts.entries()).sort((a, b) => a[0] - b[0]).map(([, d]) => d).join('')
+        setScannedPayload(ordered)
+        setScanPhase('transferring')
+        stopScanner()
+        void handleReceiveData(ordered)
+      }
+    })
+
+    scannerControlsRef.current = controls
+    await waitForVideoPlayback(video)
+    cameraStartedRef.current = true
+    setScanPhase('scanning')
+  }, [])
+
+  // Auto-start camera when entering QR receive screen
+  useEffect(() => {
+    if (step === 'receive-scan') {
+      setScanPhase('starting')
+      setError('')
+      setScannedPayload(null)
+      setScanStatus(null)
+      scannedChunksRef.current.clear()
+      cameraStartedRef.current = false
+      startCamera().catch((err) => {
+        console.error('Camera start failed:', err)
+        setScanPhase('failed')
+        setError(cameraErrorMessage(err))
+      })
+    } else {
+      stopScanner()
+    }
+  }, [step, startCamera, stopScanner])
+
   // Cleanup
   const cleanup = useCallback(() => {
-    if (qrIntervalRef.current) clearInterval(qrIntervalRef.current)
     stopScanner()
+    webrtcPeerRef.current = null
     setStep('landing')
     setError('')
     setMessage('')
     setPassphrase('')
-    setConfirmPass('')
     setQrChunks([])
     setQrIndex(0)
     setQrDataUrl(null)
     setScannedPayload(null)
     setScanStatus(null)
+    setScanPhase('starting')
     setEnvelope(null)
     setBackupCounts(null)
     setLocalCountsData(null)
     setDifferences(null)
     setSendStage('preparing')
     setMergeStage('merging')
+    setOriginalSize(0)
+    setCompressedSize(0)
+    setDetectedFlash(false)
+    setAutoAdvance(true)
+    setCountdown(3)
+    setWebrtcState('idle')
+    setWebrtcProgress(null)
+    setWebrtcQRPayload(null)
+    setWebrtcQRDataUrl(null)
     setSelectedModules({ tasks: true, money: true, namaz: true, settings: true, prefs: true })
-  }, [])
+    if (autoAdvanceRef.current) clearInterval(autoAdvanceRef.current)
+  }, [stopScanner])
 
   useEffect(() => cleanup, [cleanup])
 
-  // Auto-cycle QR frames
-  useEffect(() => {
-    if (qrChunks.length > 0 && autoCycleEnabled && !qrIntervalRef.current) {
-      qrIntervalRef.current = setInterval(() => {
-        setQrIndex((prev) => (prev + 1 >= qrChunks.length ? 0 : prev + 1))
-      }, 5000)
-    }
-    if (!autoCycleEnabled && qrIntervalRef.current) {
-      clearInterval(qrIntervalRef.current)
-      qrIntervalRef.current = null
-    }
-    return () => {
-      if (qrIntervalRef.current) { clearInterval(qrIntervalRef.current); qrIntervalRef.current = null }
-    }
-  }, [qrChunks.length, autoCycleEnabled])
-
-  // Generate QR image when chunk changes
+  // Generate QR image
   useEffect(() => {
     if (qrChunks.length === 0) { setQrDataUrl(null); return }
     const chunk = qrChunks[qrIndex]
     QRCode.toDataURL(
       JSON.stringify({ id: qrSessionId, index: qrIndex, total: qrChunks.length, data: chunk }),
-      { errorCorrectionLevel: 'H', margin: 2, width: 280 }
+      {
+        errorCorrectionLevel: 'L',
+        margin: 1,
+        width: QR_WIDTH,
+        color: { dark: '#000000', light: '#ffffff' },
+      }
     ).then((url: string) => setQrDataUrl(url)).catch(() => setQrDataUrl(null))
   }, [qrChunks, qrIndex, qrSessionId])
 
-  const stopScanner = useCallback(() => {
-    scannerControlsRef.current?.stop()
-    scannerControlsRef.current = null
-    scannerRef.current = null
-    scannerStreamRef.current?.getTracks().forEach((track) => track.stop())
-    scannerStreamRef.current = null
-    if (videoRef.current) videoRef.current.srcObject = null
-    setScanActive(false)
-  }, [])
+  // Generate WebRTC QR code
+  useEffect(() => {
+    if (!webrtcQRPayload) { setWebrtcQRDataUrl(null); return }
+    const qrContent = JSON.stringify({
+      type: 'webrtc-handshake',
+      peerId: webrtcQRPayload.peerId,
+      deviceName: webrtcQRPayload.deviceName,
+      appVersion: webrtcQRPayload.appVersion,
+    })
+    QRCode.toDataURL(
+      qrContent,
+      {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: QR_WIDTH,
+        color: { dark: '#000000', light: '#ffffff' },
+      }
+    ).then((url: string) => setWebrtcQRDataUrl(url)).catch(() => setWebrtcQRDataUrl(null))
+  }, [webrtcQRPayload])
 
-  // ── SEND ──
+  // ── QR SEND ──
   const handleStartSend = async () => {
     if (passphrase.trim().length < 8) { setError(strings.passHint); return }
-    if (passphrase !== confirmPass) { setError(strings.passMismatch); return }
     setError('')
     setSendStage('preparing')
     setStep('send-qr')
+    await yieldToUI()
 
     try {
       setSendStage('encrypting')
@@ -239,104 +432,193 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       }
 
       setSendStage('generating')
+      await yieldToUI()
+
       const backupEnvelope = await buildBackupEnvelope(filtered)
       const content = JSON.stringify(backupEnvelope)
+      setOriginalSize(content.length)
 
-      // Encrypt the envelope content with AES-GCM
+      const compressed = compressText(content)
+      setCompressedSize(compressed.length)
+
       const enc = new TextEncoder()
-      const data = enc.encode(content)
+      const data = enc.encode(compressed)
       const salt = crypto.getRandomValues(new Uint8Array(16))
       const iv = crypto.getRandomValues(new Uint8Array(12))
       const key = await crypto.subtle.importKey('raw', enc.encode(passphrase.padEnd(16, ' ').slice(0, 16)), 'AES-GCM', false, ['encrypt'])
       const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data))
 
-      const toBase64 = (bytes: Uint8Array) => btoa(Array.from(bytes).map(b => String.fromCharCode(b)).join(''))
       const finalEncrypted = {
         v: 1 as const, alg: 'AES-GCM' as const, kdf: 'PBKDF2' as const,
         iterations: 150000,
-        salt: toBase64(salt),
-        iv: toBase64(iv),
-        ciphertext: toBase64(ct),
+        compressed: true as const,
+        salt: fastBtoa(salt),
+        iv: fastBtoa(iv),
+        ciphertext: fastBtoa(ct),
       }
 
       const text = serializeEncryptedBackup(finalEncrypted)
-      const chunks = chunkString(text, 700)
-      setQrSessionId(`${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+      const chunks = chunkString(text, QR_CHUNK_SIZE)
+      const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      setQrSessionId(sessionId)
       setQrChunks(chunks)
       setQrIndex(0)
-      setSendStage('scanning')
+      setSendStage('ready')
+      await yieldToUI()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Transfer failed')
     }
   }
 
-  // ── RECEIVE SCAN ──
-  const startScanning = async () => {
-    if (scanActive) return
-    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
-    setError('')
-    setScannedPayload(null)
-    setScanStatus(null)
-    scannedChunksRef.current.clear()
-    setScanActive(true)
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Camera is not available on this device.')
-      }
-
-      const video = await waitForVideoElement(videoRef)
-      const permissionStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false,
-      })
-      scannerStreamRef.current = permissionStream
-      permissionStream.getTracks().forEach((track) => track.stop())
-      scannerStreamRef.current = null
-
-      const mod = await import('@zxing/browser')
-      const reader = new mod.BrowserQRCodeReader()
-      scannerRef.current = reader
-      const controls = await startQrDecodeWithRetry(reader, video, (text) => {
-        const parsed = safeParseChunk(text)
-        if (!parsed) return
-        const entry = scannedChunksRef.current.get(parsed.id) || { total: parsed.total, parts: new Map<number, string>() }
-        if (entry.total !== parsed.total || parsed.index < 0 || parsed.index >= parsed.total) {
-          console.warn('Quick Transfer ignored invalid QR frame metadata', parsed)
-          return
-        }
-        if (!entry.parts.has(parsed.index)) entry.parts.set(parsed.index, parsed.data)
-        scannedChunksRef.current.set(parsed.id, entry)
-        setScanStatus({ total: parsed.total, received: entry.parts.size })
-        if (entry.parts.size === parsed.total) {
-          const ordered = Array.from(entry.parts.entries()).sort((a, b) => a[0] - b[0]).map(([, d]) => d).join('')
-          setScannedPayload(ordered)
-          stopScanner()
-          void handleReceiveData(ordered)
-        }
-      })
-      scannerControlsRef.current = controls
-    } catch (error) {
-      console.error('Quick Transfer scanner startup failed:', error)
-      setError(cameraErrorMessage(error))
-      stopScanner()
-      setScanActive(false)
-    }
-  }
-
-  // ── RECEIVE DATA ──
+  // ── QR RECEIVE DATA ──
   const handleReceiveData = async (raw: string) => {
     try {
       const encrypted = parseEncryptedBackup(raw)
+      await new Promise(r => setTimeout(r, 200))
       const decrypted = await decryptBackup(passphrase, encrypted)
-      const parsed = deserializeBackup(decrypted as unknown as string)
-      if (!parsed) { setError(strings.corrupted); return }
-      setEnvelope(parsed)
-      setBackupCounts(getBackupCounts(parsed.data))
-      setLocalCountsData(getLocalCounts())
-      setDifferences(computeDifferences(parsed.data))
-      setStep('receive-preview')
+
+      if (encrypted.compressed) {
+        const decompressed = decompressText(decrypted as unknown as string)
+        const parsed = deserializeBackup(decompressed)
+        if (!parsed) { setError(strings.corrupted); setScanPhase('failed'); return }
+        const validation = await validateFullBackup(parsed)
+        if (!validation.valid) {
+          setError(validation.errors.map((item) => item.message).join('\n'))
+          setScanPhase('failed')
+          return
+        }
+        setEnvelope(parsed)
+        setBackupCounts(getBackupCounts(parsed.data))
+        setLocalCountsData(getLocalCounts())
+        setDifferences(computeDifferences(parsed.data))
+        setScanPhase('done')
+        setStep('receive-preview')
+      } else {
+        const parsed = deserializeBackup(decrypted as unknown as string)
+        if (!parsed) { setError(strings.corrupted); setScanPhase('failed'); return }
+        const validation = await validateFullBackup(parsed)
+        if (!validation.valid) {
+          setError(validation.errors.map((item) => item.message).join('\n'))
+          setScanPhase('failed')
+          return
+        }
+        setEnvelope(parsed)
+        setBackupCounts(getBackupCounts(parsed.data))
+        setLocalCountsData(getLocalCounts())
+        setDifferences(computeDifferences(parsed.data))
+        setScanPhase('done')
+        setStep('receive-preview')
+      }
     } catch {
+      setScanPhase('failed')
       setError(strings.invalidPass)
+    }
+  }
+
+  // ── WEBRTC SEND ──
+  const handleWebRTCSend = async () => {
+    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+    setError('')
+    setStep('send-webrtc')
+    setWebrtcState('creating-peer')
+    setWebrtcProgress(null)
+
+    try {
+      const { peer, qrPayload, whenConnected } = await createSenderPeer(
+        (state) => setWebrtcState(state),
+        (errMsg) => setError(errMsg),
+      )
+
+      setWebrtcQRPayload(qrPayload)
+
+      // Wait for receiver to connect
+      setWebrtcState('waiting-connection')
+      const conn = await whenConnected
+
+      // Prepare and encrypt backup data
+      setWebrtcState('sending')
+      const payload = collectBackupPayload()
+      const backupEnvelope = await buildBackupEnvelope(payload)
+      const content = JSON.stringify(backupEnvelope)
+      const compressed = compressText(content)
+
+      const enc = new TextEncoder()
+      const data = enc.encode(compressed)
+      const salt = crypto.getRandomValues(new Uint8Array(16))
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const key = await crypto.subtle.importKey('raw', enc.encode(passphrase.padEnd(16, ' ').slice(0, 16)), 'AES-GCM', false, ['encrypt'])
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data))
+
+      const encryptedData = JSON.stringify({
+        v: 1, alg: 'AES-GCM', kdf: 'PBKDF2',
+        iterations: 150000, compressed: true,
+        salt: fastBtoa(salt), iv: fastBtoa(iv),
+        ciphertext: fastBtoa(ct),
+      })
+
+      await sendBackupViaWebRTC(conn, encryptedData,
+        (progress) => setWebrtcProgress(progress),
+        (state) => setWebrtcState(state),
+      )
+
+      setMessage(strings.webrtcDone)
+    } catch (e) {
+      if (!error) setError(e instanceof Error ? e.message : 'WebRTC transfer failed')
+    }
+  }
+
+  // ── WEBRTC RECEIVE ──
+  const handleWebRTCPeerId = async (peerId: string) => {
+    setError('')
+    setStep('receive-webrtc')
+    setWebrtcState('creating-peer')
+
+    try {
+      const conn = await createReceiverConnection(
+        peerId,
+        (state) => setWebrtcState(state),
+        (errMsg) => setError(errMsg),
+      )
+
+      const data = await receiveBackupViaWebRTC(conn,
+        (progress) => setWebrtcProgress(progress),
+        (state) => setWebrtcState(state),
+      )
+
+      // Data received, now decrypt
+      const encrypted = parseEncryptedBackup(data)
+      const decrypted = await decryptBackup(passphrase, encrypted)
+
+      if (encrypted.compressed) {
+        const decompressed = decompressText(decrypted as unknown as string)
+        const parsed = deserializeBackup(decompressed)
+        if (!parsed) { setError(strings.corrupted); return }
+        const validation = await validateFullBackup(parsed)
+        if (!validation.valid) {
+          setError(validation.errors.map((item) => item.message).join('\n'))
+          return
+        }
+        setEnvelope(parsed)
+        setBackupCounts(getBackupCounts(parsed.data))
+        setLocalCountsData(getLocalCounts())
+        setDifferences(computeDifferences(parsed.data))
+        setStep('receive-preview')
+      } else {
+        const parsed = deserializeBackup(decrypted as unknown as string)
+        if (!parsed) { setError(strings.corrupted); return }
+        const validation = await validateFullBackup(parsed)
+        if (!validation.valid) {
+          setError(validation.errors.map((item) => item.message).join('\n'))
+          return
+        }
+        setEnvelope(parsed)
+        setBackupCounts(getBackupCounts(parsed.data))
+        setLocalCountsData(getLocalCounts())
+        setDifferences(computeDifferences(parsed.data))
+        setStep('receive-preview')
+      }
+    } catch (e) {
+      if (!error) setError(e instanceof Error ? e.message : 'WebRTC receive failed')
     }
   }
 
@@ -388,7 +670,6 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
 
   const goBack = () => {
     stopScanner()
-    if (qrIntervalRef.current) { clearInterval(qrIntervalRef.current); qrIntervalRef.current = null }
     setStep('landing')
     setError('')
     setMessage('')
@@ -406,77 +687,132 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     </div>
   )
 
+  const qrSizeInfo = useMemo(() => {
+    if (originalSize === 0) return ''
+    const savings = originalSize - compressedSize
+    const pct = ((savings / originalSize) * 100).toFixed(0)
+    const qrCount = qrChunks.length
+    const sizeKB = (originalSize / 1024).toFixed(1)
+    return `${sizeKB} KB · ${strings.frames(qrCount)} · ${pct}% ${strings.compressed}`
+  }, [originalSize, compressedSize, qrChunks.length, strings])
+
+  const handleWebRTCReceiveScan = async () => {
+    setError('')
+    setStep('receive-scan')
+    // After QR scan with webrtc type, handleWebRTCPeerId will be called
+  }
+
   return (
     <Modal open={open} onClose={() => { cleanup(); onClose() }} title={strings.title}>
       <div className="space-y-4">
         {error && (
-          <div className="rounded-xl bg-[var(--st-danger-bg)] p-3 text-xs text-[var(--st-danger)]">
+          <div className="rounded-xl bg-[var(--st-danger-bg)] p-3 text-xs text-[var(--st-danger)] transition-all duration-300">
             <div className="flex items-start gap-2">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span className="whitespace-pre-wrap">{error}</span>
+              <span className="whitespace-pre-wrap break-all">{error}</span>
             </div>
           </div>
         )}
         {message && (
-          <div className="rounded-xl bg-[var(--st-success-bg)] p-3 text-xs text-[var(--st-success)]">
+          <div className="rounded-xl bg-[var(--st-success-bg)] p-3 text-xs text-[var(--st-success)] transition-all duration-300">
             <div className="flex items-center gap-2"><CheckCircle2 size={14} /><span>{message}</span></div>
           </div>
         )}
 
-        {/* ═══ LANDING ═══ */}
+        {/* ═══ LANDING ═══ — 3 tabs */}
         {step === 'landing' && (
-          <div className="space-y-4">
-            <div className="rounded-xl bg-[var(--st-accent-bg)] p-3 text-xs text-[var(--st-accent)] flex items-center gap-2">
-              <Lock size={14} /><span className="font-semibold">{strings.encryptBadge}</span>
+          <div className="space-y-3">
+            {/* Security badge */}
+            <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--st-accent-bg)] to-[var(--st-success-bg)] p-2.5 text-xs">
+              <Shield size={14} className="text-[var(--st-accent)] shrink-0" />
+              <span className="font-semibold text-[var(--st-text-1)]">
+                AES-256-GCM + gzip · {lang === 'bn' ? 'এন্ড-টু-এন্ড এনক্রিপ্টেড' : 'End-to-End Encrypted'}
+              </span>
             </div>
 
-            <button onClick={() => setStep('send-prepare')} className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-border-strong)] p-4 text-left hover:bg-[var(--st-surface-hover)] transition-colors">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--st-accent-bg)] text-[var(--st-accent)] shrink-0"><ArrowUpFromLine size={20} /></div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.send}</div>
-                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.sendSub}</div>
+            {/* Passphrase — once per session */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-[var(--st-text-2)]">{strings.passphrase}</label>
+              <div className="flex gap-2">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={passphrase}
+                  onChange={(e) => setPassphrase(e.target.value)}
+                  className="mo-inp flex-1 mb-0"
+                  placeholder={strings.passHint}
+                  autoComplete="off"
+                />
+                <button onClick={() => setShowPass(!showPass)} className="st-eye" tabIndex={-1}>
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-              <ArrowRight size={16} className="text-[var(--st-text-3)] shrink-0" />
+            </div>
+
+            {/* Tab 1: QR Transfer */}
+            <button
+              onClick={() => {
+                if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+                setError('')
+                setStep('send-prepare')
+              }}
+              className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-border-strong)] p-3.5 text-left hover:bg-[var(--st-surface-hover)] transition-all active:scale-[0.99]"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--st-accent-bg)] text-[var(--st-accent)] shrink-0"><QrCode size={18} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.qrTransfer}</div>
+                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.qrDesc}</div>
+              </div>
+              <ArrowLeft size={16} className="text-[var(--st-text-3)] shrink-0 rotate-180" />
             </button>
 
-            <button onClick={() => setStep('receive-scan')} className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-border-strong)] p-4 text-left hover:bg-[var(--st-surface-hover)] transition-colors">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--st-success-bg)] text-[var(--st-success)] shrink-0"><ArrowDownToLine size={20} /></div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.receive}</div>
-                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.receiveSub}</div>
+            {/* Tab 2: WebRTC Fast Transfer */}
+            <button
+              onClick={() => {
+                if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+                setError('')
+                if (typeof window === 'undefined' || !navigator.onLine) {
+                  setError(lang === 'bn' ? 'ইন্টারনেট কানেকশন প্রয়োজন' : 'Internet connection required for Fast Transfer')
+                  return
+                }
+                setStep('send-webrtc')
+              }}
+              className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-accent-border)] bg-[var(--st-accent-bg)] p-3.5 text-left hover:brightness-110 transition-all active:scale-[0.99]"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shrink-0">
+                <Signal size={18} />
               </div>
-              <ArrowRight size={16} className="text-[var(--st-text-3)] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-[var(--st-accent)]">{strings.webrtcTransfer}</div>
+                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.webrtcDesc}</div>
+              </div>
+              <ArrowLeft size={16} className="text-[var(--st-text-3)] shrink-0 rotate-180" />
             </button>
 
-            <button onClick={() => { fileInputRef.current?.click() }} className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-border-strong)] p-4 text-left hover:bg-[var(--st-surface-hover)] transition-colors">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--st-gold-bg)] text-[var(--st-gold)] shrink-0"><FileText size={20} /></div>
+            {/* Tab 3: File Restore */}
+            <button
+              onClick={() => {
+                if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+                fileInputRef.current?.click()
+              }}
+              className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-border-strong)] p-3.5 text-left hover:bg-[var(--st-surface-hover)] transition-all active:scale-[0.99]"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--st-gold-bg)] text-[var(--st-gold)] shrink-0"><FileText size={18} /></div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.restoreFile}</div>
-                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.restoreSub}</div>
+                <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.fileRestore}</div>
+                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.fileDesc}</div>
               </div>
-              <ArrowRight size={16} className="text-[var(--st-text-3)] shrink-0" />
+              <ArrowLeft size={16} className="text-[var(--st-text-3)] shrink-0 rotate-180" />
             </button>
             <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)} />
           </div>
         )}
 
-        {/* ═══ SEND: PREPARE ═══ */}
+        {/* ═══ SEND: PREPARE (Module selection) ═══ */}
         {step === 'send-prepare' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[var(--st-accent-bg)] p-3 text-xs text-[var(--st-accent)] flex items-center gap-2">
-              <Lock size={14} /><span className="font-semibold">AES-256 · Passphrase Protected</span>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-[var(--st-text-2)]">{strings.passphrase}</label>
-              <div className="flex gap-2">
-                <input type={showPass ? 'text' : 'password'} value={passphrase} onChange={(e) => setPassphrase(e.target.value)} className="mo-inp flex-1 mb-0" placeholder={strings.passHint} />
-                <button onClick={() => setShowPass(!showPass)} className="st-eye">{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-[var(--st-text-2)]">{strings.confirmPass}</label>
-              <input type={showPass ? 'text' : 'password'} value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} className="mo-inp" placeholder={strings.passHint} />
+            <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--st-accent-bg)] to-[var(--st-success-bg)] p-2.5 text-xs">
+              <Lock size={14} className="text-[var(--st-accent)] shrink-0" />
+              <span className="font-semibold text-[var(--st-text-1)]">AES-256-GCM · gzip {lang === 'bn' ? 'কম্প্রেশন' : 'Compression'}</span>
             </div>
 
             <div>
@@ -514,114 +850,527 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
               </div>
             </div>
 
-            <button onClick={handleStartSend} className="mo-submit mo-submit--neu flex items-center justify-center gap-2"><QrCode size={16} /> {strings.startTransfer}</button>
+            <button onClick={handleStartSend} className="mo-submit mo-submit--neu flex items-center justify-center gap-2">
+              <QrCode size={16} /> {strings.startTransfer}
+            </button>
           </div>
         )}
 
-        {/* ═══ SEND: QR ═══ */}
+        {/* ═══ SEND: QR (with auto-advance) ═══ */}
         {step === 'send-qr' && (
           <div className="space-y-4">
-            {sendStage !== 'scanning' && sendStage !== 'complete' && (
-              <div className="flex flex-col items-center gap-4 py-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--st-accent-bg)] text-[var(--st-accent)]"><Loader2 size={22} className="animate-spin" /></div>
-                <p className="text-sm text-[var(--st-text-2)]">{sendStage === 'preparing' ? strings.preparing : sendStage === 'encrypting' ? strings.encrypting : sendStage === 'generating' ? strings.generating : ''}</p>
+            {sendStage !== 'ready' && sendStage !== 'complete' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--st-accent-bg)] text-[var(--st-accent)]">
+                  <Loader2 size={22} className="animate-spin" />
+                </div>
+                <p className="text-sm text-[var(--st-text-2)]">
+                  {sendStage === 'preparing' ? strings.preparing : sendStage === 'encrypting' ? strings.encrypting : strings.generating}
+                </p>
               </div>
             )}
-            {sendStage === 'scanning' && qrDataUrl && (
+
+            {sendStage === 'ready' && qrDataUrl && (
               <div className="flex flex-col items-center gap-3">
-                <div className="text-xs text-[var(--st-text-3)] flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-[var(--st-accent)] animate-pulse" />
-                  <Smartphone size={12} />
-                  {strings.scanReady}
+                {/* Status + Auto-advance indicator */}
+                <div className="flex items-center justify-between w-full px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                    <span className="text-xs font-semibold text-emerald-500">{strings.scanReady}</span>
+                  </div>
+                  {qrChunks.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setAutoAdvance(!autoAdvance)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border border-[var(--st-border)] bg-[var(--st-surface-2)] hover:bg-[var(--st-surface-hover)] transition-colors"
+                        title={autoAdvance ? strings.autoAdvance : strings.autoPaused}
+                      >
+                        {autoAdvance ? (
+                          <><Pause size={10} /> {strings.autoAdvance}</>
+                        ) : (
+                          <><Play size={10} /> {strings.autoPaused}</>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="relative w-72 h-72 rounded-2xl border-2 border-[var(--st-border-strong)] bg-white p-2 shadow-lg flex items-center justify-center">
-                  {/* Outer glow ring */}
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[var(--st-accent)]/5 via-transparent to-[var(--st-success)]/5 pointer-events-none" />
-                  <div className="relative w-full h-full rounded-xl bg-white flex items-center justify-center">
-                    <img src={qrDataUrl} alt="QR" className="w-56 h-56" />
-                    {/* Center mark — SS brand logo */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-9 h-9 rounded-lg bg-white shadow-md border border-gray-200 flex items-center justify-center">
-                        <span className="text-[11px] font-extrabold text-[#0a0e18] tracking-tight">SS</span>
-                      </div>
+
+                {/* QR Code Card */}
+                <div className="relative rounded-2xl bg-white shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-center justify-center">
+                      <img
+                        src={qrDataUrl}
+                        alt="Quick Transfer QR Code"
+                        className="w-[340px] h-[340px]"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
                     </div>
                   </div>
-                  {/* Corner decorations */}
-                  <div className="absolute -top-1 -left-1 w-3 h-3 rounded-full bg-[var(--st-accent)]/20" />
-                  <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--st-success)]/20" />
-                  <div className="absolute -bottom-1 -left-1 w-3 h-3 rounded-full bg-[var(--st-success)]/20" />
-                  <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[var(--st-accent)]/20" />
+                  <div className="border-t border-gray-100 px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Lock size={11} className="text-[var(--st-text-3)]" />
+                      <span className="text-[10px] text-[var(--st-text-3)] font-medium">{strings.encrypted}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Zap size={11} className="text-[var(--st-text-3)]" />
+                      <span className="text-[10px] text-[var(--st-text-3)] font-medium">{qrSizeInfo}</span>
+                    </div>
+                  </div>
                 </div>
-                {/* Auto/Manual Toggle */}
-                <button
-                  onClick={() => setAutoCycleEnabled(!autoCycleEnabled)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border ${
-                    autoCycleEnabled
-                      ? 'bg-[var(--st-accent-bg)] text-[var(--st-accent)] border-[var(--st-accent-border)]'
-                      : 'bg-[var(--st-surface-2)] text-[var(--st-text-3)] border-[var(--st-border)]'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${autoCycleEnabled ? 'bg-[var(--st-accent)] animate-pulse' : 'bg-[var(--st-text-3)]'}`} />
-                  {autoCycleEnabled ? (lang === 'bn' ? 'অটো' : 'Auto') : (lang === 'bn' ? 'ম্যানুয়াল' : 'Manual')}
-                </button>
-                {/* Prev/Next controls */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setQrIndex(Math.max(0, qrIndex - 1))}
-                    disabled={qrIndex === 0}
-                    className="px-3 py-1.5 rounded-lg border border-[var(--st-border)] bg-[var(--st-surface-2)] text-[var(--st-text-2)] text-xs font-semibold disabled:opacity-30 transition-colors hover:border-[var(--st-accent-border)]"
-                  >
-                    ← {lang === 'bn' ? 'আগে' : 'Prev'}
-                  </button>
-                  <div className="text-xs font-semibold text-[var(--st-text-1)] min-w-[60px] text-center">
+
+                {/* Frame navigation + countdown */}
+                {qrChunks.length > 1 && (
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <button
+                      onClick={() => {
+                        setAutoAdvance(false)
+                        setQrIndex(Math.max(0, qrIndex - 1))
+                      }}
+                      disabled={qrIndex === 0}
+                      className="px-3 py-1.5 rounded-lg border border-[var(--st-border)] bg-[var(--st-surface-2)] text-[var(--st-text-2)] text-xs font-semibold disabled:opacity-30 transition-colors"
+                    >
+                      ← {lang === 'bn' ? 'আগে' : 'Prev'}
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {/* Frame dots */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: qrChunks.length }, (_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => { setAutoAdvance(false); setQrIndex(i) }}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                              i === qrIndex
+                                ? 'bg-[var(--st-accent)] w-4'
+                                : 'bg-[var(--st-border-strong)] hover:bg-[var(--st-text-3)]'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {/* Countdown badge */}
+                      {autoAdvance && (
+                        <span className="text-[10px] text-[var(--st-text-3)] font-mono min-w-[48px] text-right">
+                          {strings.nextIn(countdown)}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setAutoAdvance(false)
+                        setQrIndex(Math.min(qrChunks.length - 1, qrIndex + 1))
+                      }}
+                      disabled={qrIndex >= qrChunks.length - 1}
+                      className="px-3 py-1.5 rounded-lg border border-[var(--st-border)] bg-[var(--st-surface-2)] text-[var(--st-text-2)] text-xs font-semibold disabled:opacity-30 transition-colors"
+                    >
+                      {lang === 'bn' ? 'পর' : 'Next'} →
+                    </button>
+                  </div>
+                )}
+
+                {/* Frame number */}
+                {qrChunks.length > 1 && (
+                  <div className="text-[10px] text-[var(--st-text-3)] font-semibold">
                     {strings.frame(qrIndex + 1, qrChunks.length)}
                   </div>
-                  <button
-                    onClick={() => setQrIndex(Math.min(qrChunks.length - 1, qrIndex + 1))}
-                    disabled={qrIndex >= qrChunks.length - 1}
-                    className="px-3 py-1.5 rounded-lg border border-[var(--st-border)] bg-[var(--st-surface-2)] text-[var(--st-text-2)] text-xs font-semibold disabled:opacity-30 transition-colors hover:border-[var(--st-accent-border)]"
-                  >
-                    {lang === 'bn' ? 'পর' : 'Next'} →
-                  </button>
-                </div>
+                )}
+
+                <p className="text-[10px] text-[var(--st-text-3)] text-center px-4">
+                  <Smartphone size={10} className="inline mr-1" />
+                  {strings.qrHint}
+                </p>
               </div>
             )}
-            {sendStage === 'scanning' && !qrDataUrl && (
-              <div className="flex flex-col items-center gap-4 py-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--st-accent-bg)] text-[var(--st-accent)]"><Loader2 size={22} className="animate-spin" /></div>
+
+            {sendStage === 'ready' && !qrDataUrl && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--st-accent-bg)] text-[var(--st-accent)]">
+                  <Loader2 size={22} className="animate-spin" />
+                </div>
                 <p className="text-sm text-[var(--st-text-2)]">{strings.generating}</p>
               </div>
             )}
+
             {sendStage === 'complete' && (
-              <div className="flex flex-col items-center gap-4 py-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--st-success-bg)] text-[var(--st-success)]"><CheckCircle2 size={28} /></div>
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--st-success-bg)] text-[var(--st-success)]">
+                  <CheckCircle2 size={28} />
+                </div>
                 <p className="text-sm font-bold text-[var(--st-success)]">{strings.doneMsg}</p>
               </div>
             )}
+
             <button onClick={goBack} className="mo-submit mo-submit--cancel">{strings.cancel}</button>
           </div>
         )}
 
-        {/* ═══ RECEIVE: SCAN ═══ */}
+        {/* ═══ SEND: WEBRTC ═══ */}
+        {step === 'send-webrtc' && (
+          <div className="space-y-4">
+            {/* WebRTC header */}
+            <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-2.5 text-xs border border-blue-200/30">
+              <Signal size={14} className="text-blue-500 shrink-0" />
+              <span className="font-semibold text-[var(--st-text-1)]">
+                {lang === 'bn' ? 'ফাস্ট ট্রান্সফার — WebRTC' : 'Fast Transfer — WebRTC'}
+              </span>
+            </div>
+
+            {/* State machine */}
+            {webrtcState === 'creating-peer' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-blue-500">
+                  <Loader2 size={26} className="animate-spin" />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-text-2)]">{strings.creatingPeer}</p>
+              </div>
+            )}
+
+            {webrtcState === 'waiting-connection' && webrtcQRDataUrl && (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_6px_rgba(59,130,246,0.6)]" />
+                  <span className="text-xs font-semibold text-blue-500">{strings.waitingConnection}</span>
+                </div>
+
+                {/* QR Code Card */}
+                <div className="rounded-2xl bg-white shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-center justify-center">
+                      <img
+                        src={webrtcQRDataUrl}
+                        alt="WebRTC Handshake QR"
+                        className="w-[340px] h-[340px]"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-100 px-4 py-3 flex items-center justify-center">
+                    <div className="flex items-center gap-1.5">
+                      <Radio size={11} className="text-[var(--st-text-3)]" />
+                      <span className="text-[10px] text-[var(--st-text-3)] font-medium">
+                        {webrtcQRPayload && strings.webrtcScanInfo(webrtcQRPayload.deviceName)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-[var(--st-text-3)] text-center px-4">
+                  <Smartphone size={10} className="inline mr-1" />
+                  {lang === 'bn'
+                    ? 'অন্য ডিভাইসে "Fast Transfer → Scan" সিলেক্ট করে এই QR স্ক্যান করুন'
+                    : 'On the other device, select "Fast Transfer" and scan this QR code'}
+                </p>
+              </div>
+            )}
+
+            {webrtcState === 'connected' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-500">
+                  <Wifi size={26} />
+                </div>
+                <p className="text-sm font-bold text-emerald-500">{strings.connected}</p>
+                {webrtcProgress && (
+                  <p className="text-xs text-[var(--st-text-3)]">{strings.webrtcProgress(webrtcProgress)}</p>
+                )}
+              </div>
+            )}
+
+            {webrtcState === 'sending' && webrtcProgress && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-500">
+                  <Loader2 size={26} className="animate-spin" />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-text-2)]">{strings.sending}</p>
+                {/* Progress bar */}
+                <div className="w-full max-w-[250px]">
+                  <div className="flex justify-between text-xs text-[var(--st-text-3)] mb-1">
+                    <span>{strings.webrtcProgress(webrtcProgress)}</span>
+                    <span>{webrtcProgress.received}/{webrtcProgress.total} {lang === 'bn' ? 'খণ্ড' : 'chunks'}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--st-border)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                      style={{ width: `${Math.min(100, (webrtcProgress.bytesTransferred / webrtcProgress.bytesTotal) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {webrtcState === 'complete' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-500">
+                  <CheckCircle2 size={28} />
+                </div>
+                <p className="text-sm font-bold text-emerald-500">{strings.webrtcDone}</p>
+              </div>
+            )}
+
+            {webrtcState === 'failed' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/20 text-red-500">
+                  <XCircle size={28} />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-danger)]">{error || strings.webrtcFailed}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => handleWebRTCSend()} className="px-4 py-2 rounded-xl bg-[var(--st-accent)] text-white text-xs font-semibold hover:brightness-110">
+                    <RefreshCw size={12} className="inline mr-1" />{lang === 'bn' ? 'পুনরায় চেষ্টা' : 'Retry'}
+                  </button>
+                  <button onClick={goBack} className="px-4 py-2 rounded-xl border border-[var(--st-border)] text-[var(--st-text-2)] text-xs font-semibold">
+                    {strings.webrtcFallback}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {webrtcState === 'idle' && (
+              <button onClick={handleWebRTCSend} className="mo-submit mo-submit--neu flex items-center justify-center gap-2">
+                <Signal size={16} /> {lang === 'bn' ? 'ফাস্ট ট্রান্সফার শুরু করুন' : 'Start Fast Transfer'}
+              </button>
+            )}
+
+            {(webrtcState === 'creating-peer' || webrtcState === 'waiting-connection') && (
+              <button onClick={goBack} className="mo-submit mo-submit--cancel">{strings.cancel}</button>
+            )}
+          </div>
+        )}
+
+        {/* ═══ RECEIVE: QR SCAN ═══ */}
         {step === 'receive-scan' && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[var(--st-accent-bg)] p-3 text-xs text-[var(--st-accent)] flex items-center gap-2">
-              <Lock size={14} /><span className="font-semibold">AES-256 · End-to-End Encrypted</span>
+            <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--st-accent-bg)] to-[var(--st-success-bg)] p-2.5 text-xs">
+              <Shield size={14} className="text-[var(--st-accent)] shrink-0" />
+              <span className="font-semibold text-[var(--st-text-1)]">AES-256-GCM · {lang === 'bn' ? 'এন্ড-টু-এন্ড এনক্রিপ্টেড' : 'End-to-End Encrypted'}</span>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-[var(--st-text-2)]">{strings.passphrase}</label>
-              <input type="password" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} className="mo-inp" placeholder={strings.passHint} />
-            </div>
-            <div className="relative rounded-2xl overflow-hidden border border-[var(--st-border-strong)] bg-black/5 min-h-[200px] flex items-center justify-center">
-              {scanActive ? <video ref={videoRef} className="w-full max-h-[260px]" /> : (
-                <div className="flex flex-col items-center gap-3 py-8 text-[var(--st-text-3)]"><ScanLine size={40} /><p className="text-sm">{strings.startScanning}</p></div>
+
+            <div
+              className={`relative aspect-[3/4] w-full overflow-hidden rounded-2xl border-2 bg-black flex items-center justify-center transition-all duration-300 ${
+                detectedFlash
+                  ? 'border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.5)]'
+                  : 'border-[var(--st-border-strong)]'
+              }`}
+            >
+              <video ref={videoRef} className="h-full w-full object-cover" autoPlay muted playsInline />
+
+              {scanPhase === 'starting' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white mb-3">
+                    <Camera size={22} className="animate-pulse" />
+                  </div>
+                  <p className="text-sm text-white/90 font-semibold">{strings.cameraStarting}</p>
+                  <p className="text-xs text-white/60 mt-1">{strings.pointCamera}</p>
+                </div>
+              )}
+
+              {scanPhase === 'failed' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm z-10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/20 text-red-400 mb-3">
+                    <CameraOff size={22} />
+                  </div>
+                  <p className="text-sm text-red-400 font-semibold">{strings.cameraError}</p>
+                  <button
+                    onClick={() => {
+                      stopScanner()
+                      cameraStartedRef.current = false
+                      setScanPhase('starting')
+                      setError('')
+                      startCamera().catch((err) => {
+                        setScanPhase('failed')
+                        setError(cameraErrorMessage(err))
+                      })
+                    }}
+                    className="mt-3 px-4 py-2 rounded-lg bg-white/10 text-white text-xs font-semibold hover:bg-white/20 transition-colors"
+                  >
+                    {strings.tryAgain}
+                  </button>
+                </div>
+              )}
+
+              {scanPhase === 'done' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 mb-2">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <p className="text-sm text-white font-semibold">{strings.syncReady}</p>
+                </div>
+              )}
+
+              {scanPhase === 'transferring' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm z-10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white mb-3">
+                    <Loader2 size={22} className="animate-spin" />
+                  </div>
+                  <p className="text-sm text-white/90 font-semibold">{strings.decrypting}</p>
+                </div>
+              )}
+
+              {(scanPhase === 'scanning' || scanPhase === 'detected') && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative h-[65%] w-[80%] max-w-[300px] rounded-2xl border-2 border-white/60 shadow-[0_0_0_999px_rgba(0,0,0,0.45)] transition-all duration-300">
+                    <div className={`absolute left-3 right-3 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_14px_rgba(52,211,153,0.8)] transition-all duration-300 ${
+                      scanPhase === 'detected' ? 'top-1/2 opacity-0' : 'top-1/2 animate-pulse'
+                    }`} />
+                    <div className="absolute -top-[2px] -left-[2px] w-8 h-8 rounded-tl-[18px] border-l-[3px] border-t-[3px] border-emerald-400" />
+                    <div className="absolute -top-[2px] -right-[2px] w-8 h-8 rounded-tr-[18px] border-r-[3px] border-t-[3px] border-emerald-400" />
+                    <div className="absolute -bottom-[2px] -left-[2px] w-8 h-8 rounded-bl-[18px] border-l-[3px] border-b-[3px] border-emerald-400" />
+                    <div className="absolute -bottom-[2px] -right-[2px] w-8 h-8 rounded-br-[18px] border-r-[3px] border-b-[3px] border-emerald-400" />
+                  </div>
+                </div>
+              )}
+
+              {scanPhase === 'detected' && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="flex items-center gap-1.5 bg-emerald-500/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-[bounce_0.3s_ease-out]">
+                    <CheckCircle2 size={12} />
+                    {strings.qrDetected}
+                  </div>
+                </div>
+              )}
+
+              {scanStatus && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+                    <div className="flex gap-1">
+                      {Array.from({ length: scanStatus.total }, (_, i) => (
+                        <div
+                          key={i}
+                          className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                            i < scanStatus.received ? 'bg-emerald-400 scale-110' : 'bg-white/30'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="font-semibold">{strings.framesReceived(scanStatus.received, scanStatus.total)}</span>
+                  </div>
+                </div>
               )}
             </div>
-            {scanStatus && <div className="text-xs text-center text-[var(--st-text-2)]">{strings.frame(scanStatus.received, scanStatus.total)}</div>}
-            {!scanActive ? (
-              <button onClick={startScanning} className="mo-submit mo-submit--neu flex items-center justify-center gap-2"><ScanLine size={16} />{strings.startScanning}</button>
-            ) : (
-              <button onClick={() => { stopScanner(); }} className="mo-submit mo-submit--cancel">{strings.stopScan}</button>
+
+            <div className="rounded-xl bg-[var(--st-surface-2)] px-3 py-2.5 text-center transition-all duration-300">
+              {scanPhase === 'starting' && (
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[var(--st-text-2)]">
+                  <Loader2 size={12} className="animate-spin" />
+                  {strings.cameraStarting}
+                </div>
+              )}
+              {scanPhase === 'scanning' && (
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-500">
+                  <CircleDot size={12} className="animate-pulse" />
+                  {strings.pointCamera}
+                </div>
+              )}
+              {scanPhase === 'detected' && (
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-500 animate-[pulse_0.5s_ease-in-out]">
+                  <CheckCircle2 size={12} />
+                  {strings.qrDetected}
+                </div>
+              )}
+              {scanPhase === 'transferring' && (
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[var(--st-accent)]">
+                  <Loader2 size={12} className="animate-spin" />
+                  {strings.decrypting}
+                </div>
+              )}
+              {scanPhase === 'done' && (
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-500">
+                  <CheckCircle2 size={12} />
+                  {strings.dataReady}
+                </div>
+              )}
+              {scanPhase === 'failed' && (
+                <span className="text-xs font-semibold text-[var(--st-danger)]">
+                  {strings.cameraError}
+                </span>
+              )}
+            </div>
+
+            {/* Cancel button */}
+            {scanPhase !== 'starting' && scanPhase !== 'transferring' && (
+              <button onClick={goBack} className="mo-submit mo-submit--cancel">{strings.cancel}</button>
+            )}
+          </div>
+        )}
+
+        {/* ═══ RECEIVE: WEBRTC ═══ */}
+        {step === 'receive-webrtc' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-2.5 text-xs border border-blue-200/30">
+              <Signal size={14} className="text-blue-500 shrink-0" />
+              <span className="font-semibold text-[var(--st-text-1)]">
+                {lang === 'bn' ? 'ফাস্ট ট্রান্সফার — সংযোগ হচ্ছে' : 'Fast Transfer — Connecting'}
+              </span>
+            </div>
+
+            {webrtcState === 'creating-peer' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-blue-500">
+                  <Loader2 size={26} className="animate-spin" />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-text-2)]">{strings.creatingPeer}</p>
+              </div>
+            )}
+
+            {webrtcState === 'connecting' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-500">
+                  <Wifi size={26} className="animate-pulse" />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-text-2)]">{strings.connecting}</p>
+              </div>
+            )}
+
+            {webrtcState === 'connected' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-500">
+                  <CheckCircle2 size={26} />
+                </div>
+                <p className="text-sm font-bold text-emerald-500">{strings.connected}</p>
+              </div>
+            )}
+
+            {webrtcState === 'receiving' && webrtcProgress && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-500">
+                  <Loader2 size={26} className="animate-spin" />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-text-2)]">{strings.receiving}</p>
+                <div className="w-full max-w-[250px]">
+                  <div className="flex justify-between text-xs text-[var(--st-text-3)] mb-1">
+                    <span>{strings.webrtcProgress(webrtcProgress)}</span>
+                    <span>{webrtcProgress.received}/{webrtcProgress.total} {lang === 'bn' ? 'খণ্ড' : 'chunks'}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--st-border)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                      style={{ width: `${Math.min(100, (webrtcProgress.bytesTransferred / webrtcProgress.bytesTotal) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {webrtcState === 'complete' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-500">
+                  <CheckCircle2 size={28} />
+                </div>
+                <p className="text-sm font-bold text-emerald-500">{strings.webrtcDone}</p>
+              </div>
+            )}
+
+            {webrtcState === 'failed' && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/20 text-red-500">
+                  <XCircle size={28} />
+                </div>
+                <p className="text-sm font-semibold text-[var(--st-danger)]">{error || strings.webrtcFailed}</p>
+                <div className="flex gap-2">
+                  <button onClick={goBack} className="px-4 py-2 rounded-xl border border-[var(--st-border)] text-[var(--st-text-2)] text-xs font-semibold">
+                    {strings.webrtcFallback}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -702,13 +1451,21 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
         )}
 
         {/* Back/Cancel */}
-        {step !== 'landing' && step !== 'receive-done' && step !== 'receive-merging' && (
-          <button onClick={goBack} className="mo-submit mo-submit--cancel flex items-center justify-center gap-2"><ArrowLeft size={16} />{strings.cancel}</button>
+        {step !== 'landing' && step !== 'receive-done' && step !== 'receive-merging' && step !== 'receive-scan' && step !== 'receive-webrtc' && (
+          <button onClick={goBack} className="mo-submit mo-submit--cancel flex items-center justify-center gap-2">
+            <ArrowLeft size={16} />{strings.cancel}
+          </button>
+        )}
+        {/* Cancel for receive-webrtc */}
+        {step === 'receive-webrtc' && webrtcState !== 'receiving' && webrtcState !== 'complete' && (
+          <button onClick={goBack} className="mo-submit mo-submit--cancel">{strings.cancel}</button>
         )}
       </div>
     </Modal>
   )
 }
+
+// ─── Helpers ───
 
 function chunkString(value: string, size: number): string[] {
   const out: string[] = []
@@ -744,6 +1501,24 @@ function waitForVideoElement(ref: RefObject<HTMLVideoElement>, timeoutMs = 1500)
   })
 }
 
+function waitForVideoPlayback(video: HTMLVideoElement, timeoutMs = 2500): Promise<void> {
+  const started = Date.now()
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+        resolve()
+        return
+      }
+      if (Date.now() - started > timeoutMs) {
+        reject(new Error('Camera preview did not initialize.'))
+        return
+      }
+      window.requestAnimationFrame(tick)
+    }
+    tick()
+  })
+}
+
 async function startQrDecodeWithRetry(
   reader: BrowserQRCodeReader,
   video: HTMLVideoElement,
@@ -751,18 +1526,21 @@ async function startQrDecodeWithRetry(
   attempts = 2
 ) {
   let lastError: unknown
-  const constraints: MediaStreamConstraints = {
-    video: {
-      facingMode: { ideal: 'environment' },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+  const constraintOptions: MediaStreamConstraints[] = [
+    {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
     },
-    audio: false,
-  }
+    { video: { facingMode: 'environment' }, audio: false },
+  ]
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      return await reader.decodeFromConstraints(constraints, video, (result) => {
+      return await reader.decodeFromConstraints(constraintOptions[attempt] ?? constraintOptions[constraintOptions.length - 1], video, (result) => {
         if (result) onText(result.getText())
       })
     } catch (error) {
@@ -777,7 +1555,7 @@ async function startQrDecodeWithRetry(
 function cameraErrorMessage(error: unknown) {
   const name = error instanceof DOMException ? error.name : ''
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-    return 'Camera permission denied. Allow camera access for SelfSync from Android app settings, then try again.'
+    return 'Camera permission denied. Allow camera access from settings, then try again.'
   }
   if (name === 'NotFoundError' || name === 'OverconstrainedError') {
     return 'No usable camera was found. Try again or check device camera settings.'

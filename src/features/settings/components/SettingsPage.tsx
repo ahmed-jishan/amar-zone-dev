@@ -13,16 +13,6 @@ import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { NAMAZ_STORAGE_KEYS } from '@/features/namaz/constants/storageKeys'
-import {
-  buildBackupPayload,
-  decryptBackup,
-  encryptBackup,
-  mergeBackupPayload,
-  parseEncryptedBackup,
-  serializeEncryptedBackup,
-} from '@/lib/utils/encryptedBackup'
-import QRCode from 'qrcode'
-import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser'
 import '@/features/settings/settings.css'
 import { getBiometricStatus } from '@/features/settings/utils/biometricAuth'
 import { hashPin } from '@/features/settings/utils/security'
@@ -94,33 +84,6 @@ const translations = {
     storageUsed: 'স্টোরেজ ব্যবহার',
     dataSummary: 'ডেটা সারাংশ',
     localNote: 'সমস্ত ডেটা শুধু আপনার ডিভাইসে সংরক্ষিত। কোনো সার্ভারে পাঠানো হয় না।',
-    backupSync: 'এনক্রিপ্টেড ব্যাকআপ ও সিঙ্ক',
-    backupSyncSub: 'QR ভিত্তিক এনক্রিপ্টেড ট্রান্সফার',
-    backupSyncTitle: 'এনক্রিপ্টেড ব্যাকআপ ও সিঙ্ক',
-    backupPassphrase: 'পাসফ্রেজ',
-    backupPassphraseConfirm: 'পাসফ্রেজ নিশ্চিত করুন',
-    backupPassphraseHint: 'কমপক্ষে ৮ অক্ষর দিন',
-    backupExport: 'এনক্রিপ্টেড ব্যাকআপ ডাউনলোড',
-    backupImport: 'এনক্রিপ্টেড ব্যাকআপ ইম্পোর্ট',
-    backupImportHint: 'JSON ব্যাকআপ ফাইল নির্বাচন করুন',
-    backupExported: 'এনক্রিপ্টেড ব্যাকআপ ডাউনলোড হয়েছে ✓',
-    backupMergeSuccess: 'ব্যাকআপ মর্জ হয়েছে ✓',
-    backupDecryptError: 'ডিক্রিপ্ট করতে সমস্যা হয়েছে',
-    backupPassMismatch: 'পাসফ্রেজ মেলেনি',
-    backupDrive: 'গুগল ড্রাইভ (শিগগিরই)',
-    driveConnect: 'ড্রাইভ কানেক্ট করুন',
-    driveConnected: 'ড্রাইভ কানেক্টেড',
-    driveUpload: 'ড্রাইভে আপলোড',
-    driveDownload: 'ড্রাইভ থেকে রিস্টোর',
-    driveMissing: 'ড্রাইভ সংযুক্ত নেই',
-    backupQrTitle: 'QR ট্রান্সফার',
-    backupQrGenerate: 'QR তৈরি করুন',
-    backupQrScan: 'QR স্ক্যান করুন',
-    backupQrNext: 'পরের',
-    backupQrPrev: 'আগের',
-    backupQrProgress: 'QR অগ্রগতি',
-    backupQrReady: 'স্ক্যান শেষ। ইম্পোর্ট করতে ডিক্রিপ্ট করুন',
-    backupQrStop: 'স্ক্যান বন্ধ করুন',
     backupTitle: 'ব্যাকআপ করুন',
     backupBody: 'সমস্ত ডেটা একটি JSON ফাইলে সংরক্ষিত হবে।',
     backupIncludes: 'যা যা সংরক্ষিত হবে',
@@ -214,33 +177,6 @@ const translations = {
     storageUsed: 'Storage used',
     dataSummary: 'Data summary',
     localNote: 'All data is stored only on your device. No data is sent to any server.',
-    backupSync: 'Encrypted Backup & Sync',
-    backupSyncSub: 'Optional, QR-based encrypted transfer',
-    backupSyncTitle: 'Encrypted Backup & Sync',
-    backupPassphrase: 'Passphrase',
-    backupPassphraseConfirm: 'Confirm passphrase',
-    backupPassphraseHint: 'Use at least 8 characters',
-    backupExport: 'Download encrypted backup',
-    backupImport: 'Import encrypted backup',
-    backupImportHint: 'Select encrypted JSON backup',
-    backupExported: 'Encrypted backup downloaded ✓',
-    backupMergeSuccess: 'Backup merged ✓',
-    backupDecryptError: 'Failed to decrypt backup',
-    backupPassMismatch: 'Passphrases do not match',
-    backupDrive: 'Google Drive',
-    driveConnect: 'Connect Drive',
-    driveConnected: 'Drive connected',
-    driveUpload: 'Upload to Drive',
-    driveDownload: 'Restore from Drive',
-    driveMissing: 'Drive is not connected',
-    backupQrTitle: 'QR Transfer',
-    backupQrGenerate: 'Generate QR',
-    backupQrScan: 'Scan QR',
-    backupQrNext: 'Next',
-    backupQrPrev: 'Previous',
-    backupQrProgress: 'QR progress',
-    backupQrReady: 'Scan complete. Decrypt to import',
-    backupQrStop: 'Stop scanning',
     backupTitle: 'Backup',
     backupBody: 'All data will be saved as a JSON file.',
     backupIncludes: 'What will be included',
@@ -351,7 +287,6 @@ export default function SettingsPage() {
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
-  const [showBackupSyncModal, setShowBackupSyncModal] = useState(false)
   const [showBackupManager, setShowBackupManager] = useState(false)
   const [showQuickTransfer, setShowQuickTransfer] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -682,8 +617,6 @@ export default function SettingsPage() {
             onClick={() => setShowQuickTransfer(true)}
           />
           <div className="st-divider" />
-          <RowArrow label={t.backupSync} sub={t.backupSyncSub} onClick={() => setShowBackupSyncModal(true)} />
-          <div className="st-divider" />
           <RowArrow label={t.clearData} sub={t.clearSub} danger onClick={() => setShowClearModal(true)} />
           <div className="st-divider" />
           <RowArrow
@@ -786,14 +719,6 @@ export default function SettingsPage() {
           onClose={() => setShowExportModal(false)}
           onExportTasks={handleExportTasksCsv}
           onExportMoney={handleExportMoneyCsv}
-        />
-      )}
-
-      {showBackupSyncModal && (
-        <EncryptedBackupModal
-          language={language}
-          onClose={() => setShowBackupSyncModal(false)}
-          onToast={showToast}
         />
       )}
 
@@ -905,250 +830,6 @@ function RowExternalLink({ label, sub, href }: { label: string; sub?: string; hr
   )
 }
 
-
-function EncryptedBackupModal({ language, onClose, onToast }: { language: Language; onClose: () => void; onToast: (msg: string) => void }) {
-  const t = translations[language]
-  const [passphrase, setPassphrase] = useState('')
-  const [confirmPassphrase, setConfirmPassphrase] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [qrSessionId, setQrSessionId] = useState('')
-  const [qrChunks, setQrChunks] = useState<string[]>([])
-  const [qrIndex, setQrIndex] = useState(0)
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
-  const [scanActive, setScanActive] = useState(false)
-  const [scanStatus, setScanStatus] = useState<{ id: string; total: number; received: number } | null>(null)
-  const [scannedPayload, setScannedPayload] = useState<string | null>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const scannerRef = useRef<BrowserQRCodeReader | null>(null)
-  const scannerControlsRef = useRef<IScannerControls | null>(null)
-  const scannedChunksRef = useRef(new Map<string, { total: number; parts: Map<number, string> }>())
-
-  useEffect(() => {
-    if (qrChunks.length === 0) {
-      setQrDataUrl(null)
-      return
-    }
-    const chunk = qrChunks[qrIndex]
-    const payload = JSON.stringify({
-      id: qrSessionId,
-      index: qrIndex,
-      total: qrChunks.length,
-      data: chunk,
-    })
-    QRCode.toDataURL(payload, { errorCorrectionLevel: 'H', margin: 2, width: 220 })
-      .then((url: string) => setQrDataUrl(url))
-      .catch(() => setQrDataUrl(null))
-  }, [qrChunks, qrIndex, qrSessionId])
-
-
-  useEffect(() => () => stopScan(), [])
-
-  const validatePassphrase = () => {
-    if (passphrase.trim().length < 8) {
-      setError(t.backupPassphraseHint)
-      return false
-    }
-    return true
-  }
-
-  const handleImportText = async (text: string) => {
-    setError('')
-    if (!validatePassphrase()) return
-    setBusy(true)
-    try {
-      const encrypted = parseEncryptedBackup(text)
-      const payload = await decryptBackup(passphrase, encrypted)
-      mergeBackupPayload(payload)
-      onToast(t.backupMergeSuccess)
-      setTimeout(() => window.location.reload(), 600)
-    } catch (e) {
-      setError(t.backupDecryptError)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleGenerateQr = async () => {
-    setError('')
-    if (!validatePassphrase()) return
-    if (confirmPassphrase && passphrase !== confirmPassphrase) {
-      setError(t.backupPassMismatch)
-      return
-    }
-    setBusy(true)
-    try {
-      const payload = buildBackupPayload()
-      const encrypted = await encryptBackup(passphrase, payload)
-      const text = serializeEncryptedBackup(encrypted)
-      const chunks = chunkString(text, 900)
-      setQrSessionId(generateQrSessionId())
-      setQrChunks(chunks)
-      setQrIndex(0)
-      setScannedPayload(null)
-      setScanStatus(null)
-    } catch (e) {
-      setError(t.backupDecryptError)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const startScan = async () => {
-    if (scanActive) return
-    setError('')
-    setScannedPayload(null)
-    setScanStatus(null)
-    setScanActive(true)
-    try {
-      const mod = await import('@zxing/browser')
-      const reader = new mod.BrowserQRCodeReader()
-      scannerRef.current = reader
-      if (!videoRef.current) return
-      const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-        if (!result) return
-        const text = result.getText()
-        const parsed = safeParseQrChunk(text)
-        if (!parsed) return
-        const entry = scannedChunksRef.current.get(parsed.id) || { total: parsed.total, parts: new Map<number, string>() }
-        if (!entry.parts.has(parsed.index)) entry.parts.set(parsed.index, parsed.data)
-        scannedChunksRef.current.set(parsed.id, entry)
-        setScanStatus({ id: parsed.id, total: parsed.total, received: entry.parts.size })
-        if (entry.parts.size === parsed.total) {
-          const ordered = Array.from(entry.parts.entries())
-            .sort((a, b) => a[0] - b[0])
-            .map(([, data]) => data)
-            .join('')
-          setScannedPayload(ordered)
-          stopScan()
-        }
-      })
-      scannerControlsRef.current = controls
-    } catch (e) {
-      setError(t.backupDecryptError)
-      setScanActive(false)
-    }
-  }
-
-  const stopScan = () => {
-    scannerControlsRef.current?.stop()
-    scannerControlsRef.current = null
-    scannerRef.current = null
-    setScanActive(false)
-  }
-
-  const handleImportScanned = async () => {
-    if (!scannedPayload) return
-    await handleImportText(scannedPayload)
-  }
-
-  return (
-    <ModalShell title={t.backupSyncTitle} onClose={onClose}>
-      <div className="st-backup-sync">
-        <div className="st-backup-field">
-          <label className="st-backup-label">{t.backupPassphrase}</label>
-          <input
-            className="mo-inp"
-            type="password"
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-            placeholder={t.backupPassphraseHint}
-          />
-        </div>
-        <div className="st-backup-field">
-          <label className="st-backup-label">{t.backupPassphraseConfirm}</label>
-          <input
-            className="mo-inp"
-            type="password"
-            value={confirmPassphrase}
-            onChange={(e) => setConfirmPassphrase(e.target.value)}
-            placeholder={t.backupPassphraseHint}
-          />
-        </div>
-
-        {error && <p className="st-error">{error}</p>}
-
-
-        <div className="st-backup-qr">
-          <div className="st-backup-qr-head">
-            <span>{t.backupQrTitle}</span>
-            <div className="st-backup-qr-actions">
-              <button className="st-qr-btn" onClick={handleGenerateQr} disabled={busy}>{t.backupQrGenerate}</button>
-              <button className="st-qr-btn" onClick={scanActive ? stopScan : startScan}>{scanActive ? t.backupQrStop : t.backupQrScan}</button>
-            </div>
-          </div>
-
-          {qrDataUrl && (
-            <div className="st-qr-preview">
-              <div className="st-qr-frame">
-                <img src={qrDataUrl} alt="QR" />
-                <div className="st-qr-mark" aria-hidden="true">JA</div>
-              </div>
-              <div className="st-qr-nav">
-                <button className="st-qr-nav-btn" onClick={() => setQrIndex(Math.max(0, qrIndex - 1))} disabled={qrIndex === 0}>{t.backupQrPrev}</button>
-                <span>{t.backupQrProgress}: {qrIndex + 1}/{qrChunks.length}</span>
-                <button className="st-qr-nav-btn" onClick={() => setQrIndex(Math.min(qrChunks.length - 1, qrIndex + 1))} disabled={qrIndex >= qrChunks.length - 1}>{t.backupQrNext}</button>
-              </div>
-            </div>
-          )}
-
-          {scanActive && (
-            <div className="st-qr-scan">
-              <video ref={videoRef} className="st-qr-video" />
-              {scanStatus && (
-                <div className="st-qr-status">
-                  {t.backupQrProgress}: {scanStatus.received}/{scanStatus.total}
-                </div>
-              )}
-            </div>
-          )}
-
-          {scannedPayload && (
-            <div className="st-qr-ready">
-              <p>{t.backupQrReady}</p>
-              <button className="mo-submit mo-submit--neu" onClick={handleImportScanned} disabled={busy}>{t.backupImport}</button>
-            </div>
-          )}
-        </div>
-      </div>
-      <button className="mo-submit mo-submit--cancel" onClick={onClose}>{t.cancel}</button>
-    </ModalShell>
-  )
-}
-
-function chunkString(value: string, size: number): string[] {
-  const out: string[] = []
-  for (let i = 0; i < value.length; i += size) {
-    out.push(value.slice(i, i + size))
-  }
-  return out
-}
-
-function generateQrSessionId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
-function safeParseQrChunk(text: string): { id: string; index: number; total: number; data: string } | null {
-  try {
-    const parsed = JSON.parse(text) as { id: string; index: number; total: number; data: string }
-    if (!parsed || typeof parsed.id !== 'string' || typeof parsed.index !== 'number' || typeof parsed.total !== 'number' || typeof parsed.data !== 'string') {
-      return null
-    }
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-function downloadText(filename: string, text: string) {
-  const blob = new Blob([text], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
 
 // ==================== Modals ====================
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {

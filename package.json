@@ -31,6 +31,8 @@
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.383.0",
     "next": "^14.2.0",
+    "pako": "^2.1.0",
+    "peerjs": "^1.5.5",
     "qrcode": "^1.5.3",
     "react": "^18",
     "react-dom": "^18",
@@ -41,6 +43,7 @@
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
     "@types/node": "^20",
+    "@types/pako": "^2.0.4",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",

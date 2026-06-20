@@ -63,6 +63,8 @@ export type EncryptedBackup = {
   alg: 'AES-GCM'
   kdf: 'PBKDF2'
   iterations: number
+  /** Whether the data was gzip-compressed before encryption. Optional for legacy compatibility. */
+  compressed?: boolean
   salt: string
   iv: string
   ciphertext: string

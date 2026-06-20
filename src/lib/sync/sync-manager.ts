@@ -46,7 +46,7 @@ export class SyncManager {
     const raw = await this.withRetry(() => gdriveAuth.downloadBackup())
     const envelope = this.parseEnvelope(raw)
     if (envelope.schema !== 'amar-zone.cloud-backup' || envelope.version !== 1) {
-      throw new Error('This is not a valid Amar Zone cloud backup')
+      throw new Error('This is not a valid SelfSync cloud backup')
     }
     const payload = await decryptData<BackupPayload>(envelope.encrypted, password)
     this.validatePayload(payload)
@@ -68,9 +68,9 @@ export class SyncManager {
     await this.withRetry(() => gdriveAuth.deleteFile(fileId))
   }
 
-  async downloadRawBackup(): Promise<string> {
+  async downloadRawBackup(fileId?: string): Promise<string> {
     this.assertOnline()
-    const raw = await this.withRetry(() => gdriveAuth.downloadBackup())
+    const raw = await this.withRetry(() => fileId ? gdriveAuth.downloadFile(fileId) : gdriveAuth.downloadBackup())
     this.parseEnvelope(raw)
     return raw
   }

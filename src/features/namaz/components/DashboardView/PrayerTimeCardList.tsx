@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, ChevronDown, Circle, Clock, Moon, Sunrise, Sun, Sunset, Users, XCircle } from 'lucide-react';
+import { BellRing, CheckCircle, ChevronDown, Circle, Clock, Moon, Sunrise, Sun, Sunset, Users, UsersRound, XCircle } from 'lucide-react';
 import {
   buildPrayerWindows,
   formatPrayerTime12h,
@@ -14,6 +14,7 @@ import { PRAYER_NAME_LABELS } from '../../constants/prayerNames';
 type PrayerStatus = 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
 
 interface PrayerEntry {
+  prayerStart: string;
   adhan: string;
   jamaat: string;
   endTime: string;
@@ -273,7 +274,7 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
           <p className="mt-1 text-xs font-medium nz-muted">
             {language === 'bn'
               ? 'শুরুর সময় আজান, শেষ সময় পরবর্তী ওয়াক্তের সীমা।'
-              : 'Start time is azan time. End time follows the next prayer boundary.'}
+              : 'Prayer start stays calculated. Azan and Jamat follow your saved settings.'}
           </p>
         </div>
         <span className="rounded-full px-3 py-1 text-xs font-bold nz-chip">
@@ -320,11 +321,17 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
 
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold nz-text">
                   <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 nz-soft">
-                    <Clock size={12} />
+                    <BellRing size={12} />
                     {displayTime(entry.adhan, language)}
                     <span className="nz-muted">{language === 'bn' ? 'আজান' : 'Azan'}</span>
                   </span>
+                  <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-800/30 dark:bg-amber-900/20 dark:text-amber-200">
+                    <UsersRound size={12} />
+                    {displayTime(entry.jamaat, language)}
+                    <span className="text-amber-600 dark:text-amber-400">{language === 'bn' ? 'জামাত' : 'Jamat'}</span>
+                  </span>
                   <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 nz-soft">
+                    <Clock size={12} />
                     {displayTime(entry.endTime, language)}
                     <span className="text-amber-600">
                       {language === 'bn' ? 'শেষ' : 'Ends'}{key === 'Isha' ? (language === 'bn' ? ' (কাল)' : ' (tomorrow)') : ''}

@@ -4,6 +4,7 @@ import type {
   Transaction, Loan, MonthlyBudget, SavingsGoal, Wallet, Subscription, LoanEntry, FinancialInsight
 } from '@/lib/types'
 import { generateId } from '@/lib/utils/helpers'
+import { toLocalDateISO } from '@/features/money/utils'
 
 // ─── Undo Action Types ───
 type MoneyUndoAction =
@@ -400,7 +401,7 @@ export const useMoneyStore = create<MoneyState>()(
         const s = get()
         const insights: FinancialInsight[] = []
         const now = new Date()
-        const month = now.toISOString().slice(0, 7)
+        const month = toLocalDateISO(now).slice(0, 7)
         const summary = s.getMonthSummary(month)
 
         // Overspending warning

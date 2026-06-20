@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePrefsStore } from '../store/prefsStore';
 import type { PrayerTimesResponse } from '../types/prayer.types';
 import { AZAN_PRAYER_ORDER, buildPrayerDate, formatRemaining, getNextAzan } from '../utils/prayerSchedule';
+import { computePrayerTimeConfig } from '../utils/azanJamatConfig';
+import type { ConfigurablePrayerName } from '../store/prefsStore';
 import { isNativeNotificationPlatform, requestAppNotificationPermission, scheduleAppNotification } from '@/lib/native/notifications';
 import { cancelNativeAzan, isNativeAzanSupported, scheduleNativeAzan } from '@/lib/native/azan';
 
@@ -46,6 +48,7 @@ function playAzan(label: string): void {
 
 export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   const azanEnabled = usePrefsStore((state) => state.azanEnabled);
+  const prayerTimePreferences = usePrefsStore((state) => state.prayerTimePreferences);
   const [now, setNow] = useState(new Date());
   const firedRef = useRef<Set<string>>(new Set());
 
@@ -59,9 +62,12 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
 
     const timers = AZAN_PRAYER_ORDER.map((prayer) => {
       const entry = prayerTimes.timings[prayer];
-      const target = buildPrayerDate(entry.time, new Date(), prayerTimes.timezone);
+      // Use user's configured azan time instead of prayer start time
+      const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
+      const azanTimeStr = config.azanTime;
+      const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
       const delay = target.getTime() - Date.now();
-      const key = `${prayerTimes.date}:${prayer}:${entry.time}`;
+      const key = `${prayerTimes.date}:${prayer}:${azanTimeStr}`;
 
       if (delay <= 0 || firedRef.current.has(key)) return null;
 
@@ -72,7 +78,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
           await scheduleAppNotification({
             tag: key,
             title: `${entry.label} Azan`,
-            body: 'Prayer time has started. Use mobile media controls to pause or resume.',
+            body: `Azan time at ${azanTimeStr}. Use mobile media controls to pause or resume.`,
             at: target,
             channelId: 'selfsync_azan',
           });
@@ -98,15 +104,18 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         if (timer) window.clearTimeout(timer);
       });
     };
-  }, [azanEnabled, prayerTimes]);
+  }, [azanEnabled, prayerTimes, prayerTimePreferences]);
 
   useEffect(() => {
     if (!azanEnabled || !prayerTimes || !isNativeAzanSupported()) return;
     const items = AZAN_PRAYER_ORDER.map((prayer) => {
       const entry = prayerTimes.timings[prayer];
-      const target = buildPrayerDate(entry.time, new Date(), prayerTimes.timezone);
+      // Use user's configured azan time
+      const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
+      const azanTimeStr = config.azanTime;
+      const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
       return {
-        id: `${prayerTimes.date}:${prayer}:${entry.time}`,
+        id: `${prayerTimes.date}:${prayer}:${azanTimeStr}`,
         label: entry.label,
         time: target.getTime(),
       };
@@ -116,9 +125,29 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
     return () => {
       void cancelNativeAzan(items.map((item) => item.id)).catch((error) => console.warn('Native azan cancel failed:', error));
     };
-  }, [azanEnabled, prayerTimes]);
+  }, [azanEnabled, prayerTimes, prayerTimePreferences]);
 
-  const nextAzan = useMemo(() => getNextAzan(prayerTimes, now), [prayerTimes, now]);
+  // Custom getNextAzan that uses user's configured azan times
+  const nextAzan = useMemo(() => {
+    if (!prayerTimes) return null;
+    const timeZone = prayerTimes.timezone || 'Asia/Dhaka';
+
+    for (const prayer of AZAN_PRAYER_ORDER) {
+      const entry = prayerTimes.timings[prayer];
+      const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
+      const azanTarget = buildPrayerDate(config.azanTime, now, timeZone);
+      if (azanTarget.getTime() > now.getTime()) {
+        return { prayer, label: entry.label, time: config.azanTime, displayTime: config.azanDisplay, target: azanTarget };
+      }
+    }
+
+    // Next day Fajr
+    const fajr = prayerTimes.timings.fajr;
+    const config = computePrayerTimeConfig(fajr.time, prayerTimePreferences.fajr);
+    const target = buildPrayerDate(config.azanTime, now, timeZone);
+    target.setUTCDate(target.getUTCDate() + 1);
+    return { prayer: 'fajr' as const, label: fajr.label, time: config.azanTime, displayTime: config.azanDisplay, target };
+  }, [prayerTimes, now, prayerTimePreferences]);
 
   return {
     enabled: azanEnabled,

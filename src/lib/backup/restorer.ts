@@ -6,9 +6,10 @@ import { BACKUP_STORAGE_KEYS, BACKUP_META_KEYS } from './types'
 import { collectBackupPayload, getBackupCounts, getTotalAmount } from './collector'
 import { computeDifferences } from './merger'
 import { getBackupFileSize } from './serializer'
+import { validateBackupData } from './validator'
 
 // ─── Create emergency snapshot before any destructive operation ───
-export function createEmergencySnapshot(): EmergencySnapshot {
+export function createEmergencySnapshot(snapshotKey = `${BACKUP_META_KEYS.snapshotPrefix}${Date.now()}`): EmergencySnapshot {
   const keys = Object.values(BACKUP_STORAGE_KEYS)
   const data: Record<string, string> = {}
   
@@ -28,7 +29,6 @@ export function createEmergencySnapshot(): EmergencySnapshot {
   }
 
   // Store snapshot in localStorage
-  const snapshotKey = `${BACKUP_META_KEYS.snapshotPrefix}${Date.now()}`
   try {
     localStorage.setItem(snapshotKey, JSON.stringify(snapshot))
   } catch {
@@ -73,11 +73,21 @@ export async function restoreBackup(
 ): Promise<RestoreResult> {
   // Step 1: Create emergency snapshot
   const snapshotKey = `${BACKUP_META_KEYS.snapshotPrefix}${Date.now()}`
-  const snapshot = createEmergencySnapshot()
+  createEmergencySnapshot(snapshotKey)
   
   try {
+    const validation = validateBackupData(payload)
+    if (!validation.valid) {
+      throw new Error(validation.errors.map((error) => error.message).join(' '))
+    }
+
     // Step 2: Persist data back to localStorage
     const restoredKeys = writePayloadToStorage(payload, options)
+    const restored = collectBackupPayload()
+    const integrity = verifyRestoredPayload(payload, restored, options)
+    if (!integrity.ok) {
+      throw new Error(integrity.message)
+    }
     
     return {
       success: true,
@@ -254,4 +264,31 @@ function cleanupOldSnapshots(): void {
       }
     }
   }
+}
+
+function verifyRestoredPayload(expected: BackupPayload, actual: BackupPayload, options: RestoreOptions): { ok: boolean; message: string } {
+  if (options.selectedModules?.tasks !== false && actual.tasks.tasks.length !== expected.tasks.tasks.length) {
+    return { ok: false, message: 'Task restore verification failed.' }
+  }
+  if (options.selectedModules?.money !== false) {
+    const expectedCounts = getBackupCounts(expected)
+    const actualCounts = getBackupCounts(actual)
+    const fields: (keyof ReturnType<typeof getBackupCounts>)[] = ['transactions', 'loans', 'budgets', 'savingsGoals', 'wallets', 'subscriptions', 'insights']
+    for (const field of fields) {
+      if (actualCounts[field] !== expectedCounts[field]) {
+        return { ok: false, message: `Money restore verification failed for ${field}.` }
+      }
+    }
+    if (getTotalAmount(actual) !== getTotalAmount(expected)) {
+      return { ok: false, message: 'Money balance verification failed.' }
+    }
+  }
+  if (options.selectedModules?.namaz !== false) {
+    const expectedCounts = getBackupCounts(expected)
+    const actualCounts = getBackupCounts(actual)
+    if (actualCounts.namazDays !== expectedCounts.namazDays || actualCounts.namazRecords !== expectedCounts.namazRecords) {
+      return { ok: false, message: 'Prayer restore verification failed.' }
+    }
+  }
+  return { ok: true, message: '' }
 }

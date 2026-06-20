@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Download, TrendingDown, TrendingUp } from 'lucide-react'
+import { Download, Loader2, TrendingDown, TrendingUp } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -21,7 +21,7 @@ import {
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { CATEGORY_META } from '../constants'
-import { formatCurrency, getCurrentMonth, parseLocalDate, toLocalDateISO } from '../utils'
+import { formatCurrency, getCurrentMonth, normalizeMoneyDateKey, parseLocalDate, toLocalDateISO } from '../utils'
 import { saveBlobFile } from '@/lib/native/fileSave'
 import type { Transaction } from '@/lib/types'
 
@@ -38,6 +38,8 @@ const COLORS = ['#c9a84c', '#22c55e', '#6366f1', '#ef4444', '#0ea5e9', '#f59e0b'
 
 export default function AnalyticsTab({ transactions, currency_symbol, language, t }: Props) {
   const [range, setRange] = useState<Range>('month')
+  const [exporting, setExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
   const month = getCurrentMonth()
 
   const analytics = useMemo(() => {
@@ -51,7 +53,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
       return txn.status === 'completed' && date >= start && date <= now
     })
 
-    const monthly = transactions.filter((txn) => txn.status === 'completed' && txn.date.startsWith(month))
+    const monthly = transactions.filter((txn) => txn.status === 'completed' && normalizeMoneyDateKey(txn.date).startsWith(month))
     const income = current.filter((txn) => txn.type === 'income').reduce((sum, txn) => sum + txn.amount, 0)
     const expense = current.filter((txn) => txn.type === 'expense').reduce((sum, txn) => sum + txn.amount, 0)
     const net = income - expense
@@ -76,7 +78,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
         ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - index - 1))
         : new Date(now.getFullYear(), now.getMonth(), index + 1)
       const iso = toLocalDateISO(date)
-      const dayTxns = transactions.filter((txn) => txn.status === 'completed' && txn.date === iso)
+      const dayTxns = transactions.filter((txn) => txn.status === 'completed' && normalizeMoneyDateKey(txn.date) === iso)
       return {
         day: range === 'week' ? date.toLocaleDateString('en-US', { weekday: 'short' }) : String(date.getDate()),
         income: dayTxns.filter((txn) => txn.type === 'income').reduce((sum, txn) => sum + txn.amount, 0),
@@ -108,6 +110,11 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
   }, [transactions, month, range, language])
 
   const exportPdf = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportMessage('Generating analytics PDF...')
+    const filename = `selfsync-money-${range}-${toLocalDateISO()}.pdf`
+    try {
     const doc = new jsPDF()
     doc.setFillColor(11, 12, 14)
     doc.rect(0, 0, 210, 34, 'F')
@@ -143,7 +150,13 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
       headStyles: { fillColor: [99, 102, 241] },
     })
 
-    await saveBlobFile(`selfsync-money-${range}-${toLocalDateISO()}.pdf`, doc.output('blob'), 'application/pdf')
+    const result = await saveBlobFile(filename, doc.output('blob'), 'application/pdf')
+    setExportMessage(`Analytics PDF exported successfully: ${result.filename}. Saved to Downloads/SelfSync${result.uri ? ` (${result.uri})` : '.'}`)
+    } catch (error) {
+      setExportMessage(error instanceof Error ? error.message : 'PDF export failed. Please try again.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -161,10 +174,16 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
             </button>
           ))}
         </div>
-        <button type="button" onClick={exportPdf} className="inline-flex items-center gap-2 rounded-[var(--mon-radius-lg)] bg-[var(--mon-gold-bg)] px-3 py-2 text-[12px] font-bold text-[var(--mon-gold)] border border-[var(--mon-gold-glow)]">
-          <Download size={15} /> PDF
+        <button type="button" onClick={exportPdf} disabled={exporting} className="inline-flex items-center gap-2 rounded-[var(--mon-radius-lg)] bg-[var(--mon-gold-bg)] px-3 py-2 text-[12px] font-bold text-[var(--mon-gold)] border border-[var(--mon-gold-glow)] disabled:opacity-60">
+          {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {exporting ? 'Generating' : 'PDF'}
         </button>
       </div>
+
+      {exportMessage && (
+        <div className="rounded-[var(--mon-radius-lg)] border border-[var(--mon-border)] bg-[var(--mon-surface-1)] px-3 py-2 text-[12px] font-semibold text-[var(--mon-text-2)]">
+          {exportMessage}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label={t.income || 'Income'} value={formatCurrency(analytics.income, currency_symbol)} color="var(--mon-income)" />

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { Download, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/shared/Modal'
 import { syncManager } from '@/lib/sync/sync-manager'
-import { deserializeBackup } from '@/lib/backup'
 import { saveTextFile } from '@/lib/native/fileSave'
 import type { GDriveBackupFile } from '@/lib/sync/gdrive-auth'
 
@@ -64,13 +63,13 @@ export default function BackupListDialog({ open, onClose, refreshKey }: Props) {
 
   const downloadRaw = async (file: GDriveBackupFile) => {
     setBusyId(file.id)
-    setMessage('Preparing backup download...')
+    setMessage(`Preparing backup download for ${file.name}...`)
     try {
-      const raw = await syncManager.downloadRawBackup()
-      if (!deserializeBackup(raw)) throw new Error('Downloaded content is not a valid SelfSync backup JSON.')
-      const safeName = 'selfsync-backup.json'
-      await saveTextFile(safeName, raw, 'application/json;charset=utf-8')
-      setMessage('Backup JSON saved to Downloads.')
+      const raw = await syncManager.downloadRawBackup(file.id)
+      JSON.parse(raw)
+      const safeName = file.name?.endsWith('.json') ? file.name : 'selfsync-backup.json'
+      const result = await saveTextFile(safeName, raw, 'application/json;charset=utf-8')
+      setMessage(`Backup downloaded successfully: ${result.filename}. Saved to Downloads/SelfSync${result.uri ? ` (${result.uri})` : '.'}`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Download failed.')
     } finally {
@@ -119,7 +118,9 @@ export default function BackupListDialog({ open, onClose, refreshKey }: Props) {
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <button type="button" disabled={!password || busyId === file.id} onClick={() => restore(file.id)} className="btn-primary px-2 py-2 text-xs">Restore</button>
-                <button type="button" disabled={busyId === file.id} onClick={() => downloadRaw(file)} className="btn-ghost px-2 py-2 text-xs"><Download size={14} /></button>
+                <button type="button" disabled={busyId === file.id} onClick={() => downloadRaw(file)} className="btn-ghost px-2 py-2 text-xs" aria-label={`Download ${file.name}`}>
+                  {busyId === file.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                </button>
                 <button type="button" disabled={busyId === file.id} onClick={() => remove(file.id)} className="btn-ghost px-2 py-2 text-xs text-red-500"><Trash2 size={14} /></button>
               </div>
             </div>
