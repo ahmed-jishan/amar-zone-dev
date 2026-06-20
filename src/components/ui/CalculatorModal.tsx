@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from "framer-motion";
+import { motion, AnimatePresence, useDragControls, useMotionValue } from "framer-motion";
 import {
   X,
   Minus,
@@ -721,6 +721,7 @@ const evaluateBaseExpression = (expr: string, base: BinaryBase) => {
 };
 
 // ─── Ripple Effect Component ─────────────────────────────────────────────────
+// Optimized: CSS-only ripple via pseudo-element + no re-render overhead
 function RippleButton({
   children,
   onClick,
@@ -734,55 +735,40 @@ function RippleButton({
   active?: boolean;
   disabled?: boolean;
 }) {
-  const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled) return;
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) {
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const id = Date.now();
-      setRipples((prev) => [...prev, { x, y, id }]);
-      setTimeout(() => {
-        setRipples((prev) => prev.filter((r) => r.id !== id));
-      }, 600);
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      btnRef.current.style.setProperty("--rx", `${x}%`);
+      btnRef.current.style.setProperty("--ry", `${y}%`);
+      btnRef.current.classList.remove("ripple-anim");
+      // Force reflow so the animation restarts
+      void btnRef.current.offsetWidth;
+      btnRef.current.classList.add("ripple-anim");
     }
     onClick?.();
   };
 
   return (
     <motion.button
-      ref={buttonRef}
+      ref={btnRef}
       onClick={handleClick}
       disabled={disabled}
-      whileTap={{ scale: 0.92 }}
-      whileHover={{ scale: disabled ? 1 : 1.03 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ duration: 0.08 }}
       className={cn(
-        "relative overflow-hidden select-none transition-all duration-150",
+        "relative overflow-hidden select-none",
         "active:scale-95",
         disabled && "opacity-40 cursor-not-allowed",
+        "ripple-btn",
         className
       )}
     >
       {children}
-      {ripples.map((ripple) => (
-        <motion.span
-          key={ripple.id}
-          initial={{ scale: 0, opacity: 0.5 }}
-          animate={{ scale: 4, opacity: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="absolute rounded-full bg-white/20 pointer-events-none"
-          style={{
-            left: ripple.x - 10,
-            top: ripple.y - 10,
-            width: 20,
-            height: 20,
-          }}
-        />
-      ))}
     </motion.button>
   );
 }
@@ -1101,8 +1087,6 @@ export default function CalculatorModal() {
   // Motion values for smooth dragging
   const x = useMotionValue(position.x || 0);
   const y = useMotionValue(position.y || 0);
-  const springX = useSpring(x, { stiffness: 300, damping: 30 });
-  const springY = useSpring(y, { stiffness: 300, damping: 30 });
 
   useEffect(() => {
     x.set(position.x || 0);
@@ -1118,11 +1102,14 @@ export default function CalculatorModal() {
     setPosition({ x: centeredX, y: centeredY });
   }, [isOpen, position.x, position.y, setPosition]);
 
+  // Combined layout effect: scale + bounds in one ResizeObserver/event listener
   useEffect(() => {
     if (!isOpen) return;
 
-    const updateScale = () => {
-      if (!contentRef.current) return;
+    const updateLayout = () => {
+      if (!contentRef.current || !containerRef.current) return;
+      
+      // Scale
       const width = contentRef.current.offsetWidth || 360;
       const height = contentRef.current.scrollHeight || 520;
       const viewportWidth = window.visualViewport?.width || window.innerWidth;
@@ -1134,63 +1121,46 @@ export default function CalculatorModal() {
       const scaleX = availableWidth / width;
       const scaleY = availableHeight / height;
       const nextScale = Math.min(1, scaleX, scaleY);
-      setModalScale(Number.isFinite(nextScale) ? nextScale : 1);
+      setModalScale(prev => {
+        const finiteScale = Number.isFinite(nextScale) ? nextScale : 1;
+        return prev === finiteScale ? prev : finiteScale;
+      });
+
+      // Bounds
+      const rect = containerRef.current.getBoundingClientRect();
+      const scale = Number.isFinite(nextScale) ? nextScale : 1;
+      const sWidth = rect.width * scale;
+      const sHeight = (contentRef.current.scrollHeight || rect.height) * scale;
+      const overflowX = sWidth * 0.2;
+      const overflowY = sHeight * 0.2;
+      const newBounds = {
+        left: -overflowX,
+        top: -overflowY,
+        right: Math.max(-overflowX, viewportWidth - sWidth + overflowX),
+        bottom: Math.max(-overflowY, viewportHeight - bottomOffset - sHeight + overflowY),
+      };
+      setDragBounds(prev => {
+        if (prev.left === newBounds.left && prev.top === newBounds.top && prev.right === newBounds.right && prev.bottom === newBounds.bottom) return prev;
+        return newBounds;
+      });
     };
 
-    const requestScaleUpdate = () => {
-      requestAnimationFrame(updateScale);
-    };
+    const rafUpdate = () => requestAnimationFrame(updateLayout);
+    rafUpdate();
+    window.addEventListener("resize", rafUpdate);
+    window.visualViewport?.addEventListener("resize", rafUpdate);
 
-    requestScaleUpdate();
-    window.addEventListener("resize", requestScaleUpdate);
-    window.visualViewport?.addEventListener("resize", requestScaleUpdate);
-
-    if (resizeObserverRef.current) {
-      resizeObserverRef.current.disconnect();
-    }
-    resizeObserverRef.current = new ResizeObserver(() => requestScaleUpdate());
-    if (contentRef.current) {
-      resizeObserverRef.current.observe(contentRef.current);
-    }
+    if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
+    resizeObserverRef.current = new ResizeObserver(rafUpdate);
+    if (contentRef.current) resizeObserverRef.current.observe(contentRef.current);
 
     return () => {
-      window.removeEventListener("resize", requestScaleUpdate);
-      window.visualViewport?.removeEventListener("resize", requestScaleUpdate);
+      window.removeEventListener("resize", rafUpdate);
+      window.visualViewport?.removeEventListener("resize", rafUpdate);
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
     };
   }, [isOpen, isScientific, isBinary]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const updateBounds = () => {
-      if (!containerRef.current || !contentRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportWidth = window.visualViewport?.width || window.innerWidth;
-      const viewportHeight = window.visualViewport?.height || window.innerHeight;
-      const bottomNav = document.querySelector('.bottom-nav') as HTMLElement | null;
-      const bottomOffset = bottomNav?.getBoundingClientRect().height || 0;
-      const width = rect.width * modalScale;
-      const height = (contentRef.current.scrollHeight || rect.height) * modalScale;
-      const overflowX = width * 0.2;
-      const overflowY = height * 0.2;
-      setDragBounds({
-        left: -overflowX,
-        top: -overflowY,
-        right: Math.max(-overflowX, viewportWidth - width + overflowX),
-        bottom: Math.max(-overflowY, viewportHeight - bottomOffset - height + overflowY),
-      });
-    };
-
-    updateBounds();
-    window.addEventListener("resize", updateBounds);
-    window.visualViewport?.addEventListener("resize", updateBounds);
-    return () => {
-      window.removeEventListener("resize", updateBounds);
-      window.visualViewport?.removeEventListener("resize", updateBounds);
-    };
-  }, [isOpen, modalScale]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -1853,8 +1823,8 @@ export default function CalculatorModal() {
             dragConstraints={dragBounds}
             onDragEnd={handleDragEnd}
             style={{
-              x: springX,
-              y: springY,
+              x,
+              y,
               position: "fixed",
               top: 0,
               left: 0,
@@ -2153,42 +2123,34 @@ export default function CalculatorModal() {
               {/* Bottom toolbar */}
               <div className="flex items-center justify-between px-5 pb-4 pt-1">
                 <div className="flex items-center gap-1">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                  <button
                     onClick={isBinary ? handleBinaryUndo : handleUndo}
                     disabled={isBinary ? binaryUndoStack.length === 0 : undoStack.length === 0}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors active:scale-90"
                     title="Undo"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                  </button>
+                  <button
                     onClick={isBinary ? handleBinaryRedo : handleRedo}
                     disabled={isBinary ? binaryRedoStack.length === 0 : redoStack.length === 0}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors active:scale-90"
                     title="Redo"
                   >
                     <RotateCcw className="w-3.5 h-3.5 scale-x-[-1]" />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                  </button>
+                  <button
                     onClick={handleBackspace}
                     disabled={activeDisplay === "0" && !activeExpression}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/60 disabled:opacity-20 transition-colors active:scale-90"
                     title="Backspace"
                   >
                     <Delete className="w-3.5 h-3.5" />
-                  </motion.button>
+                  </button>
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 text-xs transition-all border border-white/[0.04]"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 text-xs transition-all border border-white/[0.04] active:scale-95"
                 >
                   {copied ? (
                     <>
@@ -2201,7 +2163,7 @@ export default function CalculatorModal() {
                       <span>Copy</span>
                     </>
                   )}
-                </motion.button>
+                </button>
               </div>
             </div>
           </motion.div>
