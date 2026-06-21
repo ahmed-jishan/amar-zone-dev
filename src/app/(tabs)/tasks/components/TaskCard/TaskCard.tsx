@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useRef, useCallback, memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Task, Subtask } from '../../types';
 import { PRIORITIES } from '../../constants/priorities';
 import { CATEGORIES } from '../../constants/categories';
 import { formatTaskDate, isDateOverdue } from '../../utils/taskDates';
 import { useTaskStore } from '@/lib/store/taskStore';
+import { useHaptics } from '@/hooks/useHaptics';
+import { springs } from '@/hooks/useSpringAnimation';
 
 interface Props {
   task: Task;
@@ -18,6 +21,8 @@ interface Props {
   onContextMenu?: (e: React.MouseEvent, task: Task) => void;
 }
 
+// ─── Sub-components ───
+
 const Checkbox = memo(function Checkbox({
   completed,
   onChange,
@@ -27,84 +32,148 @@ const Checkbox = memo(function Checkbox({
   onChange: () => void;
   disabled?: boolean;
 }) {
+  const haptics = useHaptics();
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled) return;
+    if (!completed) {
+      haptics.success();
+    } else {
+      haptics.tap();
+    }
+    onChange();
+  }, [completed, disabled, onChange, haptics]);
+
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange();
-      }}
+    <motion.button
+      onClick={handleClick}
       disabled={disabled}
+      whileTap={{ scale: 0.85 }}
+      whileHover={{ scale: 1.1 }}
       className={`
-        relative flex-shrink-0 w-[22px] h-[22px] rounded-full border-2
-        flex items-center justify-center transition-all duration-300
+        relative flex-shrink-0 w-[26px] h-[26px] rounded-full border-2
+        flex items-center justify-center transition-colors duration-300
         ${completed
-          ? 'bg-[var(--az-success)] border-[var(--az-success)] shadow-[0_0_12px_var(--az-success-glow)]'
-          : 'border-[var(--az-border-strong)] hover:border-[var(--az-accent)] hover:shadow-[0_0_8px_var(--az-accent-glow)]'
+          ? 'bg-[var(--az-success)] border-[var(--az-success)] shadow-[0_0_16px_var(--az-success-glow)]'
+          : 'border-[var(--az-border-strong)] hover:border-[var(--az-accent)] hover:shadow-[0_0_12px_var(--az-accent-glow)]'
         }
         ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
       `}
       aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
     >
-      {completed && (
-        <svg
-          className="w-3 h-3 text-white animate-[az-check-bounce_300ms_ease-out]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={3}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      )}
-    </button>
+      <AnimatePresence>
+        {completed && (
+          <motion.svg
+            key="check"
+            initial={{ scale: 0, rotate: -45 }}
+            animate={{ scale: 1, rotate: 0 }}
+            exit={{ scale: 0, rotate: 45 }}
+            transition={springs.bouncy}
+            className="w-3.5 h-3.5 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={3}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 });
 
-const PriorityBar = memo(function PriorityBar({ priority }: { priority: string }) {
+const PriorityBar = memo(function PriorityBar({ priority, completed }: { priority: string; completed: boolean }) {
   const p = PRIORITIES[priority as keyof typeof PRIORITIES];
   if (!p) return null;
   return (
-    <div
-      className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full transition-all duration-300"
+    <motion.div
+      className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full"
       style={{
-        background: p.accentColor,
-        boxShadow: `0 0 8px ${p.accentColor}40`,
+        background: completed
+          ? `linear-gradient(180deg, ${p.accentColor}40, transparent)`
+          : p.accentColor,
+        boxShadow: completed ? 'none' : `0 0 10px ${p.accentColor}60`,
       }}
+      animate={{
+        opacity: completed ? 0.5 : 1,
+        scaleY: completed ? 0.8 : 1,
+      }}
+      transition={{ duration: 0.3 }}
     />
   );
 });
 
-const SubtaskIndicator = memo(function SubtaskIndicator({ subtasks }: { subtasks?: Subtask[] }) {
+const SubtaskRing = memo(function SubtaskRing({ subtasks }: { subtasks?: Subtask[] }) {
   if (!subtasks?.length) return null;
   const completed = subtasks.filter((s) => s.completed).length;
-  const pct = Math.round((completed / subtasks.length) * 100);
+  const pct = completed / subtasks.length;
+  const circumference = 2 * Math.PI * 8;
+  const strokeDashoffset = circumference * (1 - pct);
+
   return (
-    <div className="flex items-center gap-1.5 text-[11px] text-[var(--az-text-3)]">
-      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-      <span>{completed}/{subtasks.length}</span>
-      <div className="w-10 h-1 rounded-full bg-[var(--az-surface-3)] overflow-hidden">
-        <div
-          className="h-full rounded-full bg-[var(--az-accent)] transition-all duration-500"
-          style={{ width: `${pct}%` }}
+    <div className="flex items-center gap-1.5">
+      <svg className="w-5 h-5" viewBox="0 0 22 22">
+        <circle
+          cx="11" cy="11" r="8"
+          fill="none"
+          stroke="var(--az-surface-3)"
+          strokeWidth="2"
         />
-      </div>
+        <motion.circle
+          cx="11" cy="11" r="8"
+          fill="none"
+          stroke="var(--az-accent)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          transform="rotate(-90 11 11)"
+        />
+      </svg>
+      <motion.span
+        className="text-[11px] font-semibold text-[var(--az-text-3)]"
+        key={completed}
+        initial={{ scale: 1.3, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={springs.snappy}
+      >
+        {completed}/{subtasks.length}
+      </motion.span>
     </div>
   );
 });
 
 const TimeBadge = memo(function TimeBadge({ estimate, actual }: { estimate?: number; actual?: number }) {
   if (!estimate && !actual) return null;
-  const display = actual ? `${actual}m tracked` : `${estimate}m est`;
+  const display = actual ? `${actual}m` : `${estimate}m`;
   const color = actual && estimate && actual > estimate ? 'var(--az-warn)' : 'var(--az-text-3)';
+  const pct = estimate && actual ? Math.min(actual / estimate, 1.5) : 0;
+
   return (
-    <span className="flex items-center gap-1 text-[11px]" style={{ color }}>
-      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <span className="flex items-center gap-1.5 text-[11px]" style={{ color }}>
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <circle cx="12" cy="12" r="10" />
         <path d="M12 6v6l4 2" />
       </svg>
-      {display}
+      <span>{display}</span>
+      {actual && estimate && (
+        <div className="w-12 h-1.5 rounded-full bg-[var(--az-surface-3)] overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background: pct > 1 ? 'var(--az-warn)' : 'var(--az-accent)',
+              transformOrigin: 'left',
+            }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: Math.min(pct, 1) }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          />
+        </div>
+      )}
     </span>
   );
 });
@@ -116,6 +185,8 @@ const TagPill = memo(function TagPill({ tag }: { tag: string }) {
     </span>
   );
 });
+
+// ─── Main component ───
 
 function TaskCardComponent({
   task,
@@ -129,7 +200,12 @@ function TaskCardComponent({
 }: Props) {
   const [isHovered, setIsHovered] = useState(false);
   const [ripple, setRipple] = useState<{ x: number; y: number } | null>(null);
+  const [swipeX, setSwipeX] = useState(0);
+  const [showSwipeIndicator, setShowSwipeIndicator] = useState<'complete' | 'archive' | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const haptics = useHaptics();
+  const swipeThresholdReached = useRef(false);
+
   const canComplete = useTaskStore((s) => s.canComplete);
   const toggleSelect = useTaskStore((s) => s.toggleSelect);
   const selectedIds = useTaskStore((s) => s.selectedIds);
@@ -137,72 +213,142 @@ function TaskCardComponent({
   const archiveTask = useTaskStore((s) => s.archiveTask);
   const isSelected = selectedIds.includes(task.id);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pri = PRIORITIES[task.priority];
   const cat = CATEGORIES[task.category];
   const dueOverdue = task.dueDate && isDateOverdue(task.dueDate) && !task.completed;
   const blocked = !canComplete(task.id);
-  const subtaskProgress = task.subtasks?.length
-    ? Math.round((task.subtasks.filter((s) => s.completed).length / task.subtasks.length) * 100)
-    : 0;
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       if (isSelectionMode) {
         e.preventDefault();
         e.stopPropagation();
+        haptics.tap();
         toggleSelect(task.id);
         return;
       }
       if (e.target instanceof HTMLElement && e.target.closest('button')) return;
-      if (onOpenDetails) onOpenDetails(task);
+      if (onOpenDetails) {
+        haptics.impact();
+        onOpenDetails(task);
+      }
     },
-    [isSelectionMode, task.id, toggleSelect, onOpenDetails, task]
+    [isSelectionMode, task.id, toggleSelect, onOpenDetails, task, haptics]
   );
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      haptics.heavy();
       if (onContextMenu) onContextMenu(e, task);
     },
-    [onContextMenu, task]
+    [onContextMenu, task, haptics]
   );
 
-  const createRipple = (e: React.MouseEvent) => {
+  const createRipple = useCallback((e: React.MouseEvent) => {
     const rect = cardRef.current?.getBoundingClientRect();
     if (!rect) return;
     setRipple({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     setTimeout(() => setRipple(null), 600);
-  };
+  }, []);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // ── Premium Touch Gestures ──
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isSelectionMode || task.status === 'archived') return;
     const touch = e.touches[0];
     if (!touch) return;
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-  };
+    setSwipeX(0);
+    setShowSwipeIndicator(null);
+    swipeThresholdReached.current = false;
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+    longPressTimer.current = setTimeout(() => {
+      haptics.longPress();
+      if (onContextMenu) {
+        onContextMenu(e as unknown as React.MouseEvent, task);
+      }
+    }, 500);
+  }, [isSelectionMode, task, haptics, onContextMenu]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current || isSelectionMode || task.status === 'archived') return;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+
+    if (Math.abs(dy) > Math.abs(dx) * 1.5) {
+      setSwipeX(0);
+      setShowSwipeIndicator(null);
+      return;
+    }
+
+    const resistance = Math.abs(dx) > 60 ? 0.3 : 1;
+    const clampedDx = dx * resistance;
+    setSwipeX(clampedDx);
+
+    if (Math.abs(dx) > 80 && !swipeThresholdReached.current) {
+      swipeThresholdReached.current = true;
+      haptics.swipeThreshold();
+    }
+
+    if (dx > 60) {
+      setShowSwipeIndicator('complete');
+    } else if (dx < -60) {
+      setShowSwipeIndicator('archive');
+    } else {
+      setShowSwipeIndicator(null);
+    }
+  }, [isSelectionMode, task, haptics]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
     if (!touchStartRef.current || isSelectionMode || task.status === 'archived') return;
     const touch = e.changedTouches[0];
     if (!touch) return;
+
     const dx = touch.clientX - touchStartRef.current.x;
-    const dy = touch.clientY - touchStartRef.current.y;
     touchStartRef.current = null;
-    if (dx > 80 && Math.abs(dy) < 40) {
+
+    if (dx > 80) {
+      haptics.success();
+      onToggle(task.id);
+    } else if (dx < -80) {
+      haptics.heavy();
       archiveTask(task.id);
     }
-  };
+
+    setSwipeX(0);
+    setShowSwipeIndicator(null);
+    swipeThresholdReached.current = false;
+  }, [isSelectionMode, task, onToggle, archiveTask, haptics]);
+
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
   return (
-    <div
+    <motion.div
       ref={cardRef}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onMouseDown={createRipple}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       role="button"
       tabIndex={0}
@@ -212,19 +358,35 @@ function TaskCardComponent({
           handleClick(e as unknown as React.MouseEvent);
         }
       }}
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        x: swipeX,
+        scale: isDragging ? 0.98 : 1,
+        rotate: isDragging ? 1 : 0,
+      }}
+      exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
+      transition={{
+        ...springs.gentle,
+        delay: index * 0.03,
+      }}
+      whileHover={!task.completed ? { y: -2, transition: { duration: 0.2 } } : undefined}
+      whileTap={{ scale: 0.99 }}
       className={`
         group relative flex items-start gap-3 px-4 py-3.5 rounded-[var(--az-radius-lg)]
-        border transition-all duration-300 cursor-pointer select-none
+        border transition-colors duration-300 cursor-pointer select-none overflow-hidden
         ${isDragging
-          ? 'opacity-60 scale-[0.98] rotate-1 shadow-[var(--az-shadow-lg)]'
-          : 'opacity-100 scale-100 rotate-0'
+          ? 'opacity-60 shadow-[var(--az-shadow-lg)] z-50'
+          : 'opacity-100'
         }
         ${task.completed
           ? 'bg-[var(--az-surface-1)]/60 border-[var(--az-border)]'
           : 'bg-[var(--az-surface-1)] border-[var(--az-border)]'
         }
         ${isHovered && !task.completed
-          ? 'border-[var(--az-border-hover)] shadow-[var(--az-shadow-md)] translate-y-[-2px]'
+          ? 'border-[var(--az-border-hover)] shadow-[var(--az-shadow-md)]'
           : ''
         }
         ${isHovered && task.completed
@@ -237,15 +399,44 @@ function TaskCardComponent({
         }
         ${blocked ? 'opacity-70' : ''}
       `}
-      style={{
-        animationDelay: `${index * 40}ms`,
-        animation: 'az-slide-up 350ms cubic-bezier(0.16, 1, 0.3, 1) both',
-      }}
     >
+      {/* Swipe Indicators */}
+      <AnimatePresence>
+        {showSwipeIndicator === 'complete' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[var(--az-success)]"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-[13px] font-bold">Complete</span>
+          </motion.div>
+        )}
+        {showSwipeIndicator === 'archive' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[var(--az-danger)]"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
+            </svg>
+            <span className="text-[13px] font-bold">Archive</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Ripple effect */}
       {ripple && (
-        <span
-          className="absolute rounded-full bg-[var(--az-accent)] opacity-20 pointer-events-none animate-[az-ripple_600ms_linear]"
+        <motion.span
+          initial={{ scale: 0, opacity: 0.3 }}
+          animate={{ scale: 4, opacity: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="absolute rounded-full bg-[var(--az-accent)] opacity-20 pointer-events-none"
           style={{
             left: ripple.x,
             top: ripple.y,
@@ -259,36 +450,61 @@ function TaskCardComponent({
 
       {/* Priority glow on hover */}
       {!task.completed && isHovered && (
-        <div
-          className="absolute inset-0 rounded-[var(--az-radius-lg)] pointer-events-none transition-opacity duration-500"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 rounded-[var(--az-radius-lg)] pointer-events-none"
           style={{
-            background: `radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), ${pri?.accentColor}08, transparent 40%)`,
+            background: `radial-gradient(600px circle at 50% 50%, ${pri?.accentColor}08, transparent 40%)`,
           }}
         />
       )}
 
       {/* Priority bar */}
-      <PriorityBar priority={task.priority} />
+      <PriorityBar priority={task.priority} completed={task.completed} />
 
       {/* Selection checkbox (multi-select mode) */}
       {isSelectionMode && (
-        <div className="flex-shrink-0 pt-0.5">
-          <div
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex-shrink-0 pt-0.5"
+        >
+          <motion.div
+            whileTap={{ scale: 0.85 }}
             className={`
-              w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all
+              w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors cursor-pointer
               ${isSelected
                 ? 'bg-[var(--az-accent)] border-[var(--az-accent)]'
                 : 'border-[var(--az-border-strong)] group-hover:border-[var(--az-text-3)]'
               }
             `}
+            onClick={(e) => {
+              e.stopPropagation();
+              haptics.tap();
+              toggleSelect(task.id);
+            }}
           >
-            {isSelected && (
-              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </div>
-        </div>
+            <AnimatePresence>
+              {isSelected && (
+                <motion.svg
+                  key="sel-check"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  transition={springs.snappy}
+                  className="w-3 h-3 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </motion.svg>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Main checkbox */}
@@ -306,9 +522,10 @@ function TaskCardComponent({
       <div className="flex-1 min-w-0">
         {/* Title row */}
         <div className="flex items-start justify-between gap-2">
-          <h3
+          <motion.h3
+            layout
             className={`
-              text-[15px] font-semibold leading-snug transition-all duration-300
+              text-[15px] font-semibold leading-snug
               ${task.completed
                 ? 'text-[var(--az-text-3)] line-through decoration-[var(--az-text-4)]'
                 : 'text-[var(--az-text-1)]'
@@ -316,13 +533,14 @@ function TaskCardComponent({
             `}
           >
             {task.title}
-          </h3>
+          </motion.h3>
 
           {/* Drag handle */}
           {dragHandleProps && !isSelectionMode && (
             <div
               {...dragHandleProps}
               className="flex-shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 -mr-1 -mt-1"
+              onMouseDown={() => haptics.dragStart()}
             >
               <svg className="w-4 h-4 text-[var(--az-text-3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01" strokeLinecap="round" />
@@ -333,24 +551,32 @@ function TaskCardComponent({
 
         {/* Description */}
         {task.description && !task.completed && (
-          <p className="mt-1 text-[13px] text-[var(--az-text-2)] leading-relaxed line-clamp-2">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-1 text-[13px] text-[var(--az-text-2)] leading-relaxed line-clamp-2"
+          >
             {task.description}
-          </p>
+          </motion.p>
         )}
 
         {/* Metadata row */}
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           {/* Priority badge */}
-          <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border"
-            style={{
-              color: pri?.textColor,
-              background: pri?.bgColor,
-              borderColor: pri?.borderColor,
-            }}
-          >
-            {pri?.label}
-          </span>
+          {task.priority !== 'medium' && (
+            <motion.span
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border"
+              style={{
+                color: pri?.textColor,
+                background: pri?.bgColor,
+                borderColor: pri?.borderColor,
+              }}
+            >
+              {pri?.label}
+            </motion.span>
+          )}
 
           {/* Category badge */}
           {cat && (
@@ -362,7 +588,8 @@ function TaskCardComponent({
 
           {/* Due date */}
           {task.dueDate && (
-            <span
+            <motion.span
+              whileHover={{ scale: 1.05 }}
               className={`
                 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border
                 ${dueOverdue
@@ -378,7 +605,7 @@ function TaskCardComponent({
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
               {formatTaskDate(task.dueDate)}
-            </span>
+            </motion.span>
           )}
 
           {/* Energy level */}
@@ -396,83 +623,96 @@ function TaskCardComponent({
 
           {/* Blocked indicator */}
           {blocked && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--az-warn)] bg-[var(--az-warn-bg)] border border-[var(--az-warn-border)]">
+            <motion.span
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-[var(--az-warn)] bg-[var(--az-warn-bg)] border border-[var(--az-warn-border)]"
+            >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path d="M12 15v.01M12 12a4 4 0 00-4-4h0a4 4 0 00-4 4v2h8z" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
               Blocked
-            </span>
+            </motion.span>
           )}
         </div>
 
         {/* Tags */}
         {task.tags && task.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-2 flex flex-wrap gap-1.5"
+          >
             {task.tags.map((tag) => (
               <TagPill key={tag} tag={tag} />
             ))}
-          </div>
+          </motion.div>
         )}
 
         {/* Subtask progress */}
         {task.subtasks && task.subtasks.length > 0 && (
           <div className="mt-2">
-            <SubtaskIndicator subtasks={task.subtasks} />
+            <SubtaskRing subtasks={task.subtasks} />
           </div>
         )}
 
         {/* Bottom progress bar for completed */}
         {task.completed && (
           <div className="mt-2 h-[2px] rounded-full bg-[var(--az-surface-3)] overflow-hidden">
-            <div
-              className="h-full rounded-full bg-[var(--az-success)] animate-[az-progress-fill_600ms_ease-out]"
-              style={{ width: '100%' }}
+            <motion.div
+              className="h-full rounded-full bg-[var(--az-success)]"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              style={{ transformOrigin: 'left' }}
             />
           </div>
         )}
       </div>
 
-      {!isSelectionMode && onOpenDetails && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDetails(task);
-          }}
-          className={`
-            flex-shrink-0 p-2 rounded-[var(--az-radius-md)] transition-all duration-300
-            opacity-100 sm:opacity-0 sm:translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0
-            text-[var(--az-text-3)] hover:text-[var(--az-accent)] hover:bg-[var(--az-accent-bg)]
-          `}
-          aria-label="Open task details"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
+      {/* Action buttons */}
+      {!isSelectionMode && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {onOpenDetails && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                haptics.tap();
+                onOpenDetails(task);
+              }}
+              className="p-2 rounded-[var(--az-radius-md)] opacity-0 group-hover:opacity-100 text-[var(--az-text-3)] hover:text-[var(--az-accent)] hover:bg-[var(--az-accent-bg)] transition-all"
+              aria-label="Open task details"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </motion.button>
+          )}
 
-      {/* Focus button */}
-      {!task.completed && onFocus && !isSelectionMode && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onFocus(task);
-          }}
-          className={`
-            flex-shrink-0 p-2 rounded-[var(--az-radius-md)] transition-all duration-300
-            opacity-100 sm:opacity-0 sm:translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0
-            text-[var(--az-accent)] hover:bg-[var(--az-accent-bg)]
-          `}
-          aria-label="Focus on this task"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-        </button>
+          {!task.completed && onFocus && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                haptics.impact();
+                onFocus(task);
+              }}
+              className="p-2 rounded-[var(--az-radius-md)] opacity-0 group-hover:opacity-100 text-[var(--az-accent)] hover:bg-[var(--az-accent-bg)] transition-all"
+              aria-label="Focus on this task"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </motion.button>
+          )}
+        </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 

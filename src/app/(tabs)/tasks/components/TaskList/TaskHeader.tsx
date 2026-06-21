@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { springs } from '@/hooks/useSpringAnimation';
 
 interface Stats {
   total: number;
@@ -178,13 +180,49 @@ function StatPill({
   color: string;
   icon: React.ReactNode;
 }) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const isNumeric = typeof value === 'number';
+
+  useEffect(() => {
+    if (!isNumeric || typeof value !== 'number') return;
+    const target = value;
+    const duration = 800;
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(target * eased));
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+  }, [value, isNumeric]);
+
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-[var(--az-radius-lg)] bg-[var(--az-surface-1)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] transition-all duration-200">
-      <span style={{ color }}>{icon}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={springs.gentle}
+      className="flex items-center gap-2 px-3 py-2 rounded-[var(--az-radius-lg)] bg-[var(--az-surface-1)] border border-[var(--az-border)] hover:border-[var(--az-border-hover)] transition-all duration-200"
+    >
+      <motion.span
+        whileHover={{ scale: 1.1 }}
+        style={{ color }}
+      >
+        {icon}
+      </motion.span>
       <div className="flex items-baseline gap-1">
-        <span className="text-[15px] font-bold" style={{ color }}>{value}</span>
+        <motion.span
+          key={value}
+          className="text-[15px] font-bold tabular-nums"
+          style={{ color }}
+        >
+          {isNumeric ? displayValue : value}
+        </motion.span>
         <span className="text-[11px] text-[var(--az-text-3)] font-medium">{label}</span>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -152,9 +152,6 @@ export default function TasksPage() {
           onArchive={(task) => archiveTask(task.id)}
         />
 
-        {/* Quick Add */}
-        <QuickAdd />
-
         {/* Filters */}
         <TaskFilters activeFilter={filter} onFilterChange={setFilter} />
 
@@ -210,6 +207,9 @@ export default function TasksPage() {
         onOpenDetails={setDetailsTask}
         onFocus={startFocus}
       />
+
+      {/* Quick Add FAB (positioned fixed at bottom-right) */}
+      <QuickAdd />
 
       <CommandPalette />
 
