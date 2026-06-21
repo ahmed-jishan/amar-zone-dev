@@ -10,7 +10,7 @@ export default function OverviewTab({
   monthTxns, currency_symbol, language, onDismissInsight, onSetTab, onDeleteTxn
 }: any) {
   return (
-    <div className="space-y-5 animate-[mon-slide-up_400ms_ease-out]">
+    <div className="space-y-5">
       {/* Weekly Chart */}
       <div className="p-4 rounded-[var(--mon-radius-xl)]" style={{ background: 'var(--mon-surface-1)', border: '1px solid var(--mon-border)' }}>
         <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] mb-4" style={{ color: 'var(--mon-text-3)' }}>{t.thisMonth}</h3>

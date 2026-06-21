@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowDownLeft, ArrowUpRight, Eye, EyeOff, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Eye, EyeOff, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { useMoneyStore } from '../store/moneyStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
@@ -30,6 +30,11 @@ import TransactionsTab from './TransactionsTab'
 import UpcomingMoneyTimeline from './UpcomingMoneyTimeline'
 import WalletStrip from './WalletStrip'
 import WalletToolsModal from './WalletToolsModal'
+import SpendingPulse from './SpendingPulse'
+import QuickTransactionWidget from './QuickTransactionWidget'
+import CategoryLimits from './CategoryLimits'
+import RecurringManager from './RecurringManager'
+import MoneySkeleton from './SkeletonLoader'
 
 export default function MoneyPage() {
   const [tab, setTab] = useState<'overview' | 'transactions' | 'budget' | 'bills' | 'goals' | 'loans' | 'analytics'>('overview')
@@ -49,6 +54,7 @@ export default function MoneyPage() {
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month')
   const [balanceVisible, setBalanceVisible] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   const { language, currency_symbol } = useSettingsStore()
   const router = useRouter()
@@ -93,7 +99,12 @@ export default function MoneyPage() {
     return getHealthScore(summary.income, summary.expense, totalSavings)
   }, [summary, savingsGoals])
 
-  useEffect(() => { store.generateInsights() }, [])
+  useEffect(() => {
+    setMounted(true)
+    store.generateInsights()
+    // Process recurring templates on mount
+    store.processRecurringTemplates()
+  }, [])
 
   const createSubscriptionTask = useCallback((subscription: typeof store.subscriptions[number]) => {
     addTask({
@@ -140,18 +151,15 @@ export default function MoneyPage() {
     })
   }, [addTask])
 
+  if (!mounted) return <MoneySkeleton />
+
   return (
     <div className="mon-root min-h-[100dvh] bg-[var(--mon-bg)] text-[var(--mon-text-1)]">
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32">
-        {/* HERO */}
-        <div className="pt-5 pb-4">
-          <div
-            className="relative overflow-hidden rounded-[28px] p-5 shadow-[var(--mon-shadow-lg)]"
-            style={{
-              background: 'linear-gradient(135deg, rgba(201,168,76,0.24), rgba(99,102,241,0.16)), linear-gradient(180deg, var(--mon-surface-1), var(--mon-surface-2))',
-              border: '1px solid var(--mon-glass-border)',
-            }}
-          >
+        {/* ── PRIORITY 1: Hero - Total Balance ── */}
+        <div className="pt-5 pb-4 mon-animate-spring-in">
+          <div className="mon-hero">
+            <div className="hero-glow" />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
@@ -187,25 +195,26 @@ export default function MoneyPage() {
               <button
                 type="button"
                 onClick={() => { setAddTxnType('expense'); setShowAddTxn(true) }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 active:scale-95"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 active:scale-90"
                 style={{
                   background: 'linear-gradient(135deg, var(--mon-gold), var(--mon-gold-2))',
                   color: '#080c14',
-                  boxShadow: '0 12px 28px var(--mon-gold-glow)',
+                  boxShadow: '0 12px 32px var(--mon-gold-glow)',
                 }}
                 aria-label="Add transaction"
               >
-                <Plus size={21} strokeWidth={2.5} />
+                <ArrowDownLeft size={20} strokeWidth={2.5} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="mb-5 grid grid-cols-3 gap-2">
+        {/* ── PRIORITY 2: Quick Actions ── */}
+        <div className="mb-5 mon-stagger grid grid-cols-3 gap-2.5">
           <button
             type="button"
             onClick={() => { setAddTxnType('expense'); setShowAddTxn(true) }}
-            className="flex flex-col items-center gap-1.5 rounded-[var(--mon-radius-lg)] p-3 text-[12px] font-bold transition active:scale-[0.98]"
+            className="mon-card flex flex-col items-center gap-1.5 p-3.5 text-[12px] font-bold transition active:scale-[0.98]"
             style={{ background: 'var(--mon-expense-bg)', color: 'var(--mon-expense)', border: '1px solid var(--mon-border)' }}
           >
             <ArrowDownLeft size={18} />
@@ -214,7 +223,7 @@ export default function MoneyPage() {
           <button
             type="button"
             onClick={() => { setAddTxnType('income'); setShowAddTxn(true) }}
-            className="flex flex-col items-center gap-1.5 rounded-[var(--mon-radius-lg)] p-3 text-[12px] font-bold transition active:scale-[0.98]"
+            className="mon-card flex flex-col items-center gap-1.5 p-3.5 text-[12px] font-bold transition active:scale-[0.98]"
             style={{ background: 'var(--mon-income-bg)', color: 'var(--mon-income)', border: '1px solid var(--mon-border)' }}
           >
             <ArrowUpRight size={18} />
@@ -223,57 +232,58 @@ export default function MoneyPage() {
           <button
             type="button"
             onClick={() => setShowWalletTools(true)}
-            className="flex flex-col items-center gap-1.5 rounded-[var(--mon-radius-lg)] p-3 text-[12px] font-bold transition active:scale-[0.98]"
-            style={{ background: 'var(--mon-surface-1)', color: 'var(--mon-gold)', border: '1px solid var(--mon-border)' }}
+            className="mon-card flex flex-col items-center gap-1.5 p-3.5 text-[12px] font-bold transition active:scale-[0.98]"
+            style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)', border: '1px solid var(--mon-border)' }}
           >
             <Wallet size={18} />
             Wallets
           </button>
         </div>
 
-        {/* STATS ROW */}
-        <div className="flex items-center gap-0 p-3.5 rounded-[var(--mon-radius-xl)] mb-5 animate-[mon-slide-up_300ms_ease-out]"
-          style={{ background: 'var(--mon-surface-1)', border: '1px solid var(--mon-border)' }}
-        >
-          <div className="flex items-center gap-2.5 flex-1 px-2">
-            <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-income-bg)', color: 'var(--mon-income)' }}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path d="M7 17l9.2-9.2M17 17V7H7" />
-              </svg>
+        {/* ── PRIORITY 3: Stats Row ── */}
+        <div className="mon-card p-4 mb-5 mon-animate-slide-up">
+          <div className="flex items-center gap-0">
+            <div className="flex items-center gap-2.5 flex-1 px-1">
+              <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-income-bg)', color: 'var(--mon-income)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path d="M7 17l9.2-9.2M17 17V7H7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.income}</p>
+                <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(summary.income, currency_symbol)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.income}</p>
-              <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(summary.income, currency_symbol)}</p>
+            <div className="w-px h-8" style={{ background: 'var(--mon-border)' }} />
+            <div className="flex items-center gap-2.5 flex-1 px-1">
+              <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-expense-bg)', color: 'var(--mon-expense)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path d="M17 7l-9.2 9.2M7 7v10h10" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.expense}</p>
+                <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(summary.expense, currency_symbol)}</p>
+              </div>
             </div>
-          </div>
-          <div className="w-px h-8" style={{ background: 'var(--mon-border)' }} />
-          <div className="flex items-center gap-2.5 flex-1 px-2">
-            <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-expense-bg)', color: 'var(--mon-expense)' }}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path d="M17 7l-9.2 9.2M7 7v10h10" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.expense}</p>
-              <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(summary.expense, currency_symbol)}</p>
-            </div>
-          </div>
-          <div className="w-px h-8" style={{ background: 'var(--mon-border)' }} />
-          <div className="flex items-center gap-2.5 flex-1 px-2">
-            <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)' }}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.balance}</p>
-              <p className="text-[15px] font-bold" style={{ color: summary.balance >= 0 ? 'var(--mon-income)' : 'var(--mon-expense)' }}>
-                {formatCurrency(summary.balance, currency_symbol)}
-              </p>
+            <div className="w-px h-8" style={{ background: 'var(--mon-border)' }} />
+            <div className="flex items-center gap-2.5 flex-1 px-1">
+              <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.balance}</p>
+                <p className="text-[15px] font-bold" style={{ color: summary.balance >= 0 ? 'var(--mon-income)' : 'var(--mon-expense)' }}>
+                  {formatCurrency(summary.balance, currency_symbol)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* ── PRIORITY 4: Wallets ── */}
         <WalletStrip
           wallets={wallets}
           selectedWalletId={store.selectedWalletId}
@@ -282,6 +292,7 @@ export default function MoneyPage() {
           onOpenTools={() => setShowWalletTools(true)}
         />
 
+        {/* ── PRIORITY 5: Daily Brief + Spending Pulse ── */}
         <DailyBrief
           tasks={tasks}
           transactions={transactions}
@@ -293,27 +304,30 @@ export default function MoneyPage() {
           onOpenTasks={() => router.push('/tasks')}
         />
 
-        {/* TABS */}
-        <div className="sticky top-0 z-20 mb-4 flex gap-0 overflow-x-auto pb-1" style={{ borderBottom: '1px solid var(--mon-border)' }}>
+        {/* ── PRIORITY 6: Premium Features Section (Overview only) ── */}
+        {tab === 'overview' && (
+          <div className="mb-5 space-y-4">
+            <SpendingPulse currencySymbol={currency_symbol} />
+            <RecurringManager currencySymbol={currency_symbol} />
+            <CategoryLimits currencySymbol={currency_symbol} />
+          </div>
+        )}
+
+        {/* ── TABS NAV ── */}
+        <div className="mon-tab-bar mb-4">
           {(['overview', 'transactions', 'budget', 'bills', 'goals', 'loans', 'analytics'] as const).map((tabKey) => (
             <button
               key={tabKey}
               onClick={() => setTab(tabKey)}
-              className={`relative px-4 py-3.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
-                tab === tabKey ? 'text-[var(--mon-gold)]' : 'text-[var(--mon-text-3)] hover:text-[var(--mon-text-2)]'
-              }`}
+              className={`mon-tab ${tab === tabKey ? 'active' : ''}`}
             >
               {tabKey === 'bills' ? 'Bills' : (t as any)[tabKey] || tabKey}
-              {tab === tabKey && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[2px] rounded-full"
-                  style={{ background: 'linear-gradient(90deg, var(--mon-gold), var(--mon-gold-2))' }}
-                />
-              )}
+              {tab === tabKey && <div className="tab-indicator" />}
             </button>
           ))}
         </div>
 
-        {/* OVERVIEW */}
+        {/* ── TAB CONTENT ── */}
         {tab === 'overview' && (
           <div className="space-y-5">
             <CashflowForecast
@@ -354,7 +368,6 @@ export default function MoneyPage() {
           </div>
         )}
 
-        {/* TRANSACTIONS */}
         {tab === 'transactions' && (
           <TransactionsTab
             t={t} monthTxns={monthTxns} searchQuery={searchQuery} filterType={filterType}
@@ -365,7 +378,6 @@ export default function MoneyPage() {
           />
         )}
 
-        {/* LOANS */}
         {tab === 'loans' && (
           <LoansTab
             t={t} activeLoans={activeLoans} completedLoans={completedLoans}
@@ -381,12 +393,10 @@ export default function MoneyPage() {
           />
         )}
 
-        {/* ANALYTICS */}
         {tab === 'analytics' && (
           <AnalyticsTab transactions={transactions} currency_symbol={currency_symbol} language={language} t={t} />
         )}
 
-        {/* BUDGET */}
         {tab === 'budget' && (
           <BudgetTab budgets={budgets} transactions={transactions} currency_symbol={currency_symbol} language={language} month={month} t={t} onSetBudget={store.setBudget} />
         )}
@@ -406,7 +416,6 @@ export default function MoneyPage() {
           />
         )}
 
-        {/* GOALS */}
         {tab === 'goals' && (
           <GoalsTab goals={savingsGoals} currency_symbol={currency_symbol} language={language} t={t}
             onAdd={() => setShowGoalModal(true)} onContribute={store.contributeToGoal} onDelete={store.deleteSavingsGoal}
@@ -414,7 +423,7 @@ export default function MoneyPage() {
         )}
       </div>
 
-      {/* MODALS */}
+      {/* ── MODALS ── */}
       {showAddTxn && <AddTransactionModal onClose={() => setShowAddTxn(false)} onAdd={store.addTransaction} translations={t} currencySymbol={currency_symbol} wallets={wallets} selectedWalletId={store.selectedWalletId} initialType={addTxnType} />}
       {editingTxn && <AddTransactionModal onClose={() => setEditingTxn(null)} onAdd={(updates: Partial<Transaction>) => store.updateTransaction(editingTxn.id, updates)} translations={t} currencySymbol={currency_symbol} wallets={wallets} selectedWalletId={store.selectedWalletId} transaction={editingTxn} />}
       {showLoanModal && <AddLoanModal onClose={() => setShowLoanModal(false)} onAdd={store.addLoan} translations={t} currencySymbol={currency_symbol} />}
@@ -434,6 +443,13 @@ export default function MoneyPage() {
       {showHistoryModal && selectedLoan && <LoanHistoryModal loan={selectedLoan} onClose={() => setShowHistoryModal(false)} translations={t} currencySymbol={currency_symbol} />}
       {showPaymentModal && <LoanEntryModal loan={showPaymentModal.loan} type={showPaymentModal.type} onClose={() => setShowPaymentModal(null)} onSubmit={store.addLoanEntry} translations={t} currencySymbol={currency_symbol} />}
       {showEditModal && <EditLoanModal loan={showEditModal} onClose={() => setShowEditModal(null)} onSave={store.updateLoan} translations={t} />}
+
+      {/* ── Quick Transaction FAB ── */}
+      <QuickTransactionWidget
+        onAddExpense={() => { setAddTxnType('expense'); setShowAddTxn(true) }}
+        onAddIncome={() => { setAddTxnType('income'); setShowAddTxn(true) }}
+        onWalletTools={() => setShowWalletTools(true)}
+      />
     </div>
   )
 }

@@ -22,6 +22,7 @@ export interface Transaction {
   tags?: string[]
   status: TransactionStatus
   walletId?: string
+  receiptUrl?: string // Phase 2: receipt attachment
 }
 
 export type LoanDirection = 'given' | 'taken'
@@ -100,6 +101,56 @@ export interface FinancialInsight {
   severity: 'low' | 'medium' | 'high'
   date: string
   read: boolean
+}
+
+// ─── Phase 1+2 Premium Types ────────────────────────────────────────────────
+
+export interface CategoryLimit {
+  category: ExpenseCategory
+  monthlyLimit: number
+  spent: number
+  alertAtPercent: number // 0-100, when to alert
+  enabled: boolean
+}
+
+export interface RecurringTemplate {
+  id: string
+  type: TransactionType
+  amount: number
+  category: ExpenseCategory | IncomeCategory
+  note?: string
+  interval: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  nextDate: string
+  dayOfMonth?: number // for monthly
+  dayOfWeek?: number // for weekly 0-6
+  status: 'active' | 'paused'
+  walletId?: string
+  tags?: string[]
+}
+
+export interface Asset {
+  id: string
+  name: string
+  type: 'property' | 'vehicle' | 'investment' | 'savings' | 'other'
+  value: number
+  purchaseDate?: string
+  note?: string
+  color?: string
+  icon?: string
+}
+
+export interface NetWorthSnapshot {
+  date: string
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+}
+
+export interface SpendingPulse {
+  todaySpent: number
+  dailyBudget: number
+  percentUsed: number
+  status: 'green' | 'amber' | 'red'
 }
 
 export type MoneyViewMode = 'overview' | 'transactions' | 'loans' | 'analytics' | 'budget' | 'goals'
