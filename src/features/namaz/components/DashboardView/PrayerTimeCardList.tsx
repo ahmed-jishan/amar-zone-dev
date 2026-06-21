@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, CheckCircle, ChevronDown, Circle, Clock, Moon, Sunrise, Sun, Sunset, Users, UsersRound, XCircle } from 'lucide-react';
+import { BellRing, CheckCircle, Circle, Clock, Moon, Sunrise, Sun, Sunset, Users, UsersRound, XCircle } from 'lucide-react';
 import {
   buildPrayerWindows,
   formatPrayerTime12h,
@@ -10,6 +11,7 @@ import {
 } from '../../utils/prayerSchedule';
 import type { PrayerTimesResponse } from '../../types/prayer.types';
 import { PRAYER_NAME_LABELS } from '../../constants/prayerNames';
+import { triggerHaptic, vibrateBrowser } from '@/lib/native/haptics';
 
 type PrayerStatus = 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
 
@@ -38,11 +40,7 @@ interface Props {
 
 const PRAYER_ORDER = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] as const;
 const LEGACY_TO_CANONICAL = {
-  Fajr: 'fajr',
-  Dhuhr: 'dhuhr',
-  Asr: 'asr',
-  Maghrib: 'maghrib',
-  Isha: 'isha',
+  Fajr: 'fajr', Dhuhr: 'dhuhr', Asr: 'asr', Maghrib: 'maghrib', Isha: 'isha',
 } as const;
 const PRAYER_META = {
   Fajr: { period: { bn: 'ভোর', en: 'Dawn' } },
@@ -59,29 +57,16 @@ const PRAYER_ICONS = {
   Isha: <Moon size={16} className="text-indigo-500" />,
 } as const;
 const STATUS_LABELS: Record<'bn' | 'en', Record<PrayerStatus, string>> = {
-  bn: {
-    pending: 'বাকি',
-    onTime: 'সময়মত',
-    jamaat: 'জামাতে',
-    late: 'দেরিতে',
-    missed: 'কাজা',
-  },
-  en: {
-    pending: 'Pending',
-    onTime: 'On time',
-    jamaat: 'Jamaat',
-    late: 'Late',
-    missed: 'Missed',
-  },
+  bn: { pending: 'বাকি', onTime: 'সময়মত', jamaat: 'জামাতে', late: 'দেরিতে', missed: 'কাজা' },
+  en: { pending: 'Pending', onTime: 'On time', jamaat: 'Jamaat', late: 'Late', missed: 'Missed' },
 };
-const STATUS_META: Record<PrayerStatus, { className: string; icon: React.ReactNode }> = {
-  pending: { className: 'bg-slate-100 text-slate-600 border-slate-200', icon: <Circle size={15} /> },
-  onTime: { className: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: <CheckCircle size={15} /> },
-  jamaat: { className: 'bg-blue-100 text-blue-700 border-blue-200', icon: <Users size={15} /> },
-  late: { className: 'bg-amber-100 text-amber-700 border-amber-200', icon: <Clock size={15} /> },
-  missed: { className: 'bg-red-100 text-red-700 border-red-200', icon: <XCircle size={15} /> },
+const STATUS_META: Record<PrayerStatus, { className: string; icon: React.ReactNode; description: string }> = {
+  pending: { className: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400', icon: <Circle size={20} />, description: 'Not yet marked' },
+  onTime: { className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300', icon: <CheckCircle size={20} />, description: 'Prayed within the time' },
+  jamaat: { className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300', icon: <Users size={20} />, description: 'Prayed in congregation' },
+  late: { className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300', icon: <Clock size={20} />, description: 'Prayed but late' },
+  missed: { className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300', icon: <XCircle size={20} />, description: 'Missed, need qada' },
 };
-const STATUS_OPTIONS: PrayerStatus[] = ['pending', 'onTime', 'jamaat', 'late', 'missed'];
 const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 const toBN = (value: string) => value.replace(/\d/g, (digit) => BN_DIGITS[Number(digit)] ?? digit);
 
@@ -89,132 +74,139 @@ function displayTime(time: string, language: 'bn' | 'en') {
   return formatPrayerTime12h(time, { banglaDigits: language === 'bn', padHour: true });
 }
 
-function StatusMenu({
-  triggerRef,
+// ─── Prayer Status Bottom Sheet ──────────────────────────────────────
+function PrayerStatusSheet({
+  open,
+  prayerName,
+  prayerLabel,
   current,
   language,
   onSelect,
   onClose,
 }: {
-  triggerRef: React.RefObject<HTMLButtonElement>;
+  open: boolean;
+  prayerName: string;
+  prayerLabel: string;
   current: PrayerStatus;
   language: 'bn' | 'en';
   onSelect: (status: PrayerStatus) => void;
   onClose: () => void;
 }) {
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const update = () => {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const width = 184;
-      const openUp = window.innerHeight - rect.bottom < 240 && rect.top > 240;
-      setPosition({
-        top: openUp ? rect.top - 222 : rect.bottom + 8,
-        left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
-      });
-    };
-
-    update();
-    window.addEventListener('resize', update);
-    window.addEventListener('scroll', update, true);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('scroll', update, true);
-    };
-  }, [triggerRef]);
-
-  useEffect(() => {
-    const handlePointer = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
-      onClose();
-    };
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', handlePointer);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handlePointer);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, [onClose, triggerRef]);
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      role="menu"
-      className="fixed z-[1000] w-[184px] overflow-hidden rounded-xl border border-emerald-100 bg-white py-1 shadow-xl shadow-emerald-950/15 animate-[az-scale-in_150ms_ease-out] dark:border-emerald-900/40 dark:bg-slate-900"
-      style={{ top: position.top, left: position.left }}
-    >
-      {STATUS_OPTIONS.map((status) => {
-        const meta = STATUS_META[status];
-        return (
-          <button
-            key={status}
-            type="button"
-            role="menuitemradio"
-            aria-checked={current === status}
-            onClick={() => onSelect(status)}
-            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold transition hover:bg-emerald-50 ${
-              current === status ? 'text-emerald-700' : 'text-slate-700'
-            }`}
-          >
-            {meta.icon}
-            <span>{STATUS_LABELS[language][status]}</span>
-          </button>
-        );
-      })}
-    </div>,
-    document.body
-  );
-}
-
-function StatusButton({
-  status,
-  language,
-  onSelect,
-}: {
-  status: PrayerStatus;
-  language: 'bn' | 'en';
-  onSelect: (status: PrayerStatus) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const meta = STATUS_META[status];
+  const STATUS_OPTIONS: PrayerStatus[] = ['onTime', 'jamaat', 'late', 'missed'];
 
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-bold transition hover:shadow-sm ${meta.className}`}
-      >
-        {meta.icon}
-        <span className="hidden xs:inline">{STATUS_LABELS[language][status]}</span>
-        <ChevronDown size={13} />
-      </button>
+    <AnimatePresence>
       {open && (
-        <StatusMenu
-          triggerRef={triggerRef}
-          current={status}
-          language={language}
-          onClose={() => setOpen(false)}
-          onSelect={(next) => {
-            onSelect(next);
-            setOpen(false);
-          }}
-        />
+        <>
+          {/* Overlay */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+          />
+
+          {/* Sheet */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 1 }}
+            className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-3xl border-t border-emerald-100/30 bg-white pb-8 shadow-2xl dark:border-emerald-900/30 dark:bg-slate-900"
+          >
+            {/* Handle */}
+            <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pb-4 pt-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">{prayerLabel}</h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {language === 'bn' ? 'নামাজের অবস্থা নির্বাচন করুন' : 'Mark your prayer status'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Current status indicator */}
+            <div className="mx-6 mb-4 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+              {STATUS_META[current].icon}
+              <div>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  {language === 'bn' ? 'বর্তমান:' : 'Current:'} {STATUS_LABELS[language][current]}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{STATUS_META[current].description}</p>
+              </div>
+            </div>
+
+            {/* Status options */}
+            <div className="space-y-2 px-6">
+              {STATUS_OPTIONS.map((status) => {
+                const meta = STATUS_META[status];
+                const isSelected = current === status;
+                return (
+                  <motion.button
+                    key={status}
+                    type="button"
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      triggerHaptic('medium');
+                      vibrateBrowser(10);
+                      onSelect(status);
+                      onClose();
+                    }}
+                    className={`flex w-full items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left transition-all duration-200 ${
+                      isSelected
+                        ? 'border-emerald-400 bg-emerald-50 shadow-sm dark:border-emerald-500 dark:bg-emerald-900/20'
+                        : 'border-transparent bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                        isSelected ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {meta.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-bold ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                        {STATUS_LABELS[language][status]}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                        {language === 'bn' ? STATUS_DESC_BN[status] : meta.description}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <CheckCircle size={20} className="text-emerald-500" />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        </>
       )}
-    </>
+    </AnimatePresence>
   );
 }
+
+const STATUS_DESC_BN: Record<PrayerStatus, string> = {
+  pending: 'এখনো চিহ্নিত করা হয়নি',
+  onTime: 'সময়মতো পড়েছেন',
+  jamaat: 'জামাতের সাথে পড়েছেন',
+  late: 'দেরিতে পড়েছেন',
+  missed: 'কাজা করতে হবে',
+};
 
 function RemainingText({
   isActive,
@@ -252,6 +244,7 @@ function RemainingText({
 
 export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMarkPrayer, language }: Props) {
   const [now, setNow] = useState(new Date());
+  const [activeSheet, setActiveSheet] = useState<{ prayerKey: string; prayerLabel: string; currentStatus: PrayerStatus } | null>(null);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -263,6 +256,12 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
     [now, prayerTimesResponse]
   );
   const completedCount = PRAYER_ORDER.filter((key) => ['onTime', 'late', 'jamaat'].includes(prayerTimes[key].status)).length;
+
+  const handleStatusSelect = (status: PrayerStatus) => {
+    if (!activeSheet) return;
+    onMarkPrayer(activeSheet.prayerKey, status);
+    setActiveSheet(null);
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl nz-card">
@@ -294,10 +293,19 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
           const periodLabel = meta.period[language];
 
           return (
-            <div
+            <motion.div
               key={key}
-              className={`grid grid-cols-[1fr_auto] gap-3 px-4 py-3 transition ${
-                isActive ? 'nz-accent-bg' : 'bg-transparent'
+              whileTap={{ scale: 0.995 }}
+              onClick={() => {
+                triggerHaptic('light');
+                setActiveSheet({
+                  prayerKey: key,
+                  prayerLabel: label,
+                  currentStatus: entry.status,
+                });
+              }}
+              className={`grid grid-cols-[1fr_auto] gap-3 px-4 py-3.5 transition cursor-pointer ${
+                isActive ? 'nz-accent-bg' : 'bg-transparent hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
               }`}
             >
               <div className="min-w-0">
@@ -313,7 +321,7 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
                     </span>
                   )}
                   {!isActive && isUpcoming && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                       {language === 'bn' ? 'পরবর্তী' : 'Upcoming'}
                     </span>
                   )}
@@ -348,17 +356,32 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
                 </div>
               </div>
 
+              {/* Status badge (click target) */}
               <div className="flex items-center">
-                <StatusButton
-                  status={entry.status}
-                  language={language}
-                  onSelect={(status) => onMarkPrayer(key, status)}
-                />
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-sm transition-all ${STATUS_META[entry.status].className}`}
+                >
+                  {STATUS_META[entry.status].icon}
+                  <span>{STATUS_LABELS[language][entry.status]}</span>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
+
+      {/* Bottom Sheet */}
+      <PrayerStatusSheet
+        open={activeSheet !== null}
+        prayerName={activeSheet?.prayerKey ?? ''}
+        prayerLabel={activeSheet?.prayerLabel ?? ''}
+        current={activeSheet?.currentStatus ?? 'pending'}
+        language={language}
+        onSelect={handleStatusSelect}
+        onClose={() => setActiveSheet(null)}
+      />
     </div>
   );
 }

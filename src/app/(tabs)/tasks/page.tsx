@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import TaskHeader from './components/TaskList/TaskHeader';
 import QuickAdd from './components/QuickAdd/QuickAdd';
 import TaskFilters from './components/TaskFilters/TaskFilters';
@@ -208,8 +209,30 @@ export default function TasksPage() {
         onFocus={startFocus}
       />
 
-      {/* Quick Add FAB (positioned fixed at bottom-right) */}
+      {/* Quick Add FAB — only on tasks tab, positioned above calculator toggle */}
       <QuickAdd />
+      
+      {/* Quick add task button — fixed FAB positioned above the floating calculator (inline styles to force right-side placement) */}
+      <div style={{ position: 'fixed', right: '1.5rem', left: 'auto', bottom: 'calc(9rem + env(safe-area-inset-bottom))', zIndex: 10030, pointerEvents: 'auto' }}>
+        <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => window.dispatchEvent(new CustomEvent('az:open-quick-add'))}
+            className="w-14 h-14 rounded-2xl bg-[var(--az-accent)] text-white shadow-xl shadow-[var(--az-accent-glow)] flex items-center justify-center backdrop-blur-xl border border-[var(--az-accent-border)] pointer-events-auto"
+            aria-label="Quick add task"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M12 4v16m8-8H4" />
+            </svg>
+            <motion.div
+              className="absolute inset-0 rounded-2xl bg-[var(--az-accent)]/20 pointer-events-none"
+              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.button>
+        </div>
 
       <CommandPalette />
 

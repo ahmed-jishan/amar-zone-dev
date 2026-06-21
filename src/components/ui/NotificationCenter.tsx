@@ -264,8 +264,8 @@ export default function NotificationCenter() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="fixed right-4 z-[80] flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(var(--border),0.65)] bg-[rgb(var(--bg))]/95 text-[rgb(var(--fg))] shadow-lg shadow-black/10 backdrop-blur-xl transition hover:border-indigo-400/50 hover:text-indigo-400"
-        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom) + 4.5rem)' }}
+        className="fixed right-4 top-4 sm:top-6 sm:right-6 z-[10040] flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(var(--border),0.65)] bg-[rgb(var(--bg))]/95 text-[rgb(var(--fg))] shadow-lg shadow-black/10 backdrop-blur-xl transition hover:border-indigo-400/50 hover:text-indigo-400"
+        style={{ pointerEvents: 'auto', padding: 0 }}
         aria-label="Open notifications"
       >
         {alerts.length ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
@@ -278,8 +278,8 @@ export default function NotificationCenter() {
 
       {open && (
         <div
-          className="fixed right-4 z-[90] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
-          style={{ bottom: 'calc(8.75rem + env(safe-area-inset-bottom) + 4.5rem)' }}
+          className="fixed right-4 top-[calc(4rem+env(safe-area-inset-top))] sm:top-[calc(5rem+env(safe-area-inset-top))] z-[10030] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
+          style={{ transformOrigin: 'top right' }}
         >
           <div className="flex items-start justify-between border-b border-[rgba(var(--border),0.55)] p-4">
             <div>

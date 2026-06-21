@@ -8,6 +8,7 @@ import PrayerTimeCard from './PrayerTimeCardList';
 import AzanJamatConfigPanel from './AzanJamatConfigPanel';
 import DailyStreakWidget from './StreakWidget';
 import QuickActions from './QuickActions';
+import { motion } from 'framer-motion';
 import { useLogsStore, TRACKED_PRAYERS } from '../../store/logsStore';
 import { usePrefsStore } from '../../store/prefsStore';
 import { calculateStreak } from '../../utils/streakCalculator';
@@ -192,6 +193,24 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
         totalPrayers={5}
         language={language}
       />
+
+      {/* Swipe hint (only on primary tab dashboard) */}
+      <div className="flex justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2, duration: 0.8 }}
+          className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-[10px] font-semibold text-slate-400 dark:bg-slate-800 dark:text-slate-500"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M7 2L4 6l3 4" />
+          </svg>
+          {language === 'bn' ? 'সোয়াইপ করে কিবলা ও তাসবিহ দেখুন' : 'Swipe for Qibla & Tasbih'}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M5 10l3-4-3-4" />
+          </svg>
+        </motion.div>
+      </div>
 
       {/* Quick Actions */}
       <QuickActions language={language} />

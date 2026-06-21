@@ -2,7 +2,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CheckSquare, Moon, Wallet, Settings } from 'lucide-react'
+import { CheckSquare, Moon, Home, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/features/settings/store/settingsStore'
 const TABS = [
   { href: '/tasks',     icon: CheckSquare, label: 'Tasks'     },
   { href: '/namaz',     icon: Moon,        label: 'Namaz'     },
+  { href: '/home',      icon: Home,        label: 'Home'      },
   { href: '/money',     icon: Wallet,      label: 'Money'     },
   { href: '/settings',  icon: Settings,    label: 'Settings'  },
 ]
@@ -91,26 +92,6 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
         </nav>
       </div>
 
-      {/* Quick Add Task button - positioned beside calculator */}
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => window.dispatchEvent(new CustomEvent('az:open-quick-add'))}
-        className="fixed bottom-6 right-6 z-[10010] w-14 h-14 rounded-2xl bg-[var(--az-accent)] text-white shadow-xl shadow-[var(--az-accent-glow)] flex items-center justify-center backdrop-blur-xl border border-[var(--az-accent-border)] pointer-events-auto"
-        style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
-        aria-label="Quick add task"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path d="M12 4v16m8-8H4" />
-        </svg>
-        <motion.div
-          className="absolute inset-0 rounded-2xl bg-[var(--az-accent)]/20 pointer-events-none"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        />
-      </motion.button>
 
       {calculatorEnabled && <CalculatorModal />}
       <NotificationCenter />

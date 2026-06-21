@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpen, Compass, ExternalLink, Loader2, MapPin, Navigation, Sparkles, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen, Compass, Droplets, ExternalLink, Loader2, MapPin, Navigation, Sparkles, X } from 'lucide-react';
+import { triggerHaptic, vibrateBrowser } from '@/lib/native/haptics';
 import { usePrefsStore } from '../../store/prefsStore';
+import WuduTimer from './WuduTimer';
 import { formatLocation } from '../../hooks/useLocationSync';
 import {
   formatMosqueDistance,
@@ -64,6 +67,7 @@ export default function QuickActions({ language }: { language: 'bn' | 'en' }) {
   const t = COPY[language];
   const [showTasbih, setShowTasbih] = useState(false);
   const [showMosques, setShowMosques] = useState(false);
+  const [showWudu, setShowWudu] = useState(false);
   const [tasbihCount, setTasbihCount] = useState(0);
   const [selectedZikr, setSelectedZikr] = useState('SubhanAllah');
   const location = usePrefsStore((state) => state.location);
@@ -100,6 +104,14 @@ export default function QuickActions({ language }: { language: 'bn' | 'en' }) {
       action: () => window.dispatchEvent(new CustomEvent('namaz:open-dua')),
     },
     {
+      id: 'wudu',
+      name: language === 'bn' ? 'ওযু' : 'Wudu',
+      icon: <Droplets size={24} />,
+      tone: 'nz-action-calm',
+      description: language === 'bn' ? 'ওযুর ধাপ সমূহ' : 'Wudu steps guide',
+      action: () => setShowWudu((v) => !v),
+    },
+    {
       id: 'nearby',
       name: t.nearby,
       icon: <MapPin size={24} />,
@@ -125,22 +137,35 @@ export default function QuickActions({ language }: { language: 'bn' | 'en' }) {
         {t.quickActions}
       </h3>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {actions.map((action) => (
-          <button
+          <motion.button
             key={action.id}
             type="button"
-            onClick={action.action}
-            className={`group relative overflow-hidden rounded-xl p-4 text-left text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${action.tone}`}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              triggerHaptic('light');
+              vibrateBrowser(5);
+              action.action();
+            }}
+            className={`group relative overflow-hidden rounded-xl p-4 text-left text-white shadow-lg transition-all duration-300 hover:shadow-xl ${action.tone}`}
           >
             <div className="relative z-10">
               <div className="mb-2">{action.icon}</div>
               <p className="text-sm font-bold">{action.name}</p>
               <p className="mt-1 hidden text-xs opacity-90 sm:block">{action.description}</p>
             </div>
-          </button>
+          </motion.button>
         ))}
       </div>
+
+      {showWudu && (
+        <WuduTimer
+          language={language}
+          onClose={() => setShowWudu(false)}
+        />
+      )}
 
       {showTasbih && (
         <div className="rounded-xl p-5 shadow-lg animate-[az-slide-up_250ms_ease-out] nz-card">
@@ -152,19 +177,21 @@ export default function QuickActions({ language }: { language: 'bn' | 'en' }) {
           </div>
           <div className="mb-4 flex flex-wrap gap-2">
             {zikrPresets.map((zikr) => (
-              <button
-                key={zikr.name}
-                type="button"
-                onClick={() => {
-                  setSelectedZikr(zikr.name);
-                  setTasbihCount(0);
-                }}
+                <motion.button
+                  key={zikr.name}
+                  type="button"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    triggerHaptic('selection');
+                    setSelectedZikr(zikr.name);
+                    setTasbihCount(0);
+                  }}
                 className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
                   selectedZikr === zikr.name ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                 }`}
               >
                 {zikr.name}
-              </button>
+                </motion.button>
             ))}
           </div>
           <div className="mb-4 text-center">
@@ -173,12 +200,29 @@ export default function QuickActions({ language }: { language: 'bn' | 'en' }) {
             <p className="text-sm nz-muted">{t.target}: {selectedPreset.target}</p>
           </div>
           <div className="flex gap-3">
-            <button type="button" onClick={() => setTasbihCount((value) => value + 1)} className="flex-1 rounded-xl bg-emerald-600 py-3 text-lg font-bold text-white transition hover:bg-emerald-700">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                triggerHaptic('medium');
+                vibrateBrowser(10);
+                setTasbihCount((value) => value + 1);
+              }}
+              className="flex-1 rounded-xl bg-emerald-600 py-3 text-lg font-bold text-white transition hover:bg-emerald-700 active:bg-emerald-800"
+            >
               {t.increment}
-            </button>
-            <button type="button" onClick={() => setTasbihCount(0)} className="rounded-xl bg-amber-100 px-4 text-amber-700 transition hover:bg-amber-200">
+            </motion.button>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                triggerHaptic('light');
+                setTasbihCount(0);
+              }}
+              className="rounded-xl bg-amber-100 px-4 text-amber-700 transition hover:bg-amber-200"
+            >
               {t.reset}
-            </button>
+            </motion.button>
           </div>
           <div className="mt-4 h-2 rounded-full bg-emerald-100">
             <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min((tasbihCount / selectedPreset.target) * 100, 100)}%` }} />

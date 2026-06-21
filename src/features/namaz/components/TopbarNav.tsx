@@ -1,16 +1,12 @@
 // app/(tabs)/namaz/components/TopbarNav.tsx
 'use client';
 
+import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
-  CalendarDays, 
   Compass, 
   Sparkles, 
-  BookOpen, 
-  TrendingUp, 
-  Settings2,
-  ListChecks,
-  Library
+  Grid3x3,
 } from 'lucide-react';
 
 export type ActiveTab = 
@@ -28,66 +24,71 @@ interface TopbarNavProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   language: 'bn' | 'en';
+  onOpenMore: () => void;
 }
 
-const tabs: { id: ActiveTab; labelKey: ActiveTab; icon: React.ReactNode }[] = [
-  { id: 'dashboard', labelKey: 'dashboard', icon: <LayoutDashboard size={18} /> },
-  { id: 'logs', labelKey: 'logs', icon: <ListChecks size={18} /> },
-  { id: 'calendar', labelKey: 'calendar', icon: <CalendarDays size={18} /> },
-  { id: 'qibla', labelKey: 'qibla', icon: <Compass size={18} /> },
-  { id: 'tasbih', labelKey: 'tasbih', icon: <Sparkles size={18} /> },
-  { id: 'dua', labelKey: 'dua', icon: <BookOpen size={18} /> },
-  { id: 'quran', labelKey: 'quran', icon: <Library size={18} /> },
-  { id: 'insights', labelKey: 'insights', icon: <TrendingUp size={18} /> },
-  { id: 'preferences', labelKey: 'preferences', icon: <Settings2 size={18} /> },
+const PRIMARY_TABS: { id: ActiveTab; labelEn: string; labelBn: string; icon: React.ReactNode }[] = [
+  { id: 'dashboard', labelEn: 'Dashboard', labelBn: 'ড্যাশবোর্ড', icon: <LayoutDashboard size={16} /> },
+  { id: 'qibla', labelEn: 'Qibla', labelBn: 'কিবলা', icon: <Compass size={16} /> },
+  { id: 'tasbih', labelEn: 'Tasbih', labelBn: 'তাসবিহ', icon: <Sparkles size={16} /> },
 ];
 
-const TAB_LABELS: Record<'bn' | 'en', Record<ActiveTab, string>> = {
-  bn: {
-    dashboard: 'ড্যাশবোর্ড',
-    logs: 'লগস',
-    calendar: 'ক্যালেন্ডার',
-    qibla: 'কিবলা',
-    tasbih: 'তাসবিহ',
-    dua: 'দোয়া',
-    quran: 'কুরআন',
-    insights: 'ইনসাইটস',
-    preferences: 'পছন্দ',
-  },
-  en: {
-    dashboard: 'Dashboard',
-    logs: 'Logs',
-    calendar: 'Calendar',
-    qibla: 'Qibla',
-    tasbih: 'Tasbih',
-    dua: 'Duas',
-    quran: 'Quran',
-    insights: 'Insights',
-    preferences: 'Prefs',
-  },
-};
-
-export default function TopbarNav({ activeTab, onTabChange, language }: TopbarNavProps) {
+export default function TopbarNav({ activeTab, onTabChange, language, onOpenMore }: TopbarNavProps) {
   return (
-    <div className="rounded-2xl p-1 nz-surface">
-      <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`
-              flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-              ${activeTab === tab.id 
-                ? 'nz-primary' 
-                : 'nz-nav-idle nz-text'
-              }
-            `}
-          >
-            {tab.icon}
-            <span className="hidden sm:inline">{TAB_LABELS[language][tab.labelKey]}</span>
-          </button>
-        ))}
+    <div className="flex items-center gap-1.5 rounded-2xl p-1.5 nz-surface shadow-sm">
+      {/* Primary tabs */}
+      <div className="flex flex-1 gap-1">
+        {PRIMARY_TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <motion.button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              whileTap={{ scale: 0.95 }}
+              className={`
+                relative flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold
+                transition-all duration-200
+                ${isActive 
+                  ? 'text-white' 
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }
+              `}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="activeTabBg"
+                  className="absolute inset-0 rounded-xl bg-emerald-600 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/30"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">{tab.icon}</span>
+              <span className="relative z-10 hidden sm:inline">{language === 'bn' ? tab.labelBn : tab.labelEn}</span>
+            </motion.button>
+          );
+        })}
       </div>
+
+      {/* Divider */}
+      <div className="mx-1 h-6 w-px bg-slate-200 dark:bg-slate-700" />
+
+      {/* More button */}
+      <motion.button
+        type="button"
+        onClick={onOpenMore}
+        whileTap={{ scale: 0.95 }}
+        className={`
+          flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold
+          transition-all duration-200
+          ${!['dashboard', 'qibla', 'tasbih'].includes(activeTab)
+            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800'
+          }
+        `}
+      >
+        <Grid3x3 size={16} />
+        <span className="hidden sm:inline">{language === 'bn' ? 'আরো' : 'More'}</span>
+      </motion.button>
     </div>
   );
 }
