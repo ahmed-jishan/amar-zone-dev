@@ -1,11 +1,14 @@
 // src/app/(tabs)/settings/page.tsx
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Sun, Moon, Monitor, Globe, Lock, Download,
   Upload, Trash2, ChevronRight, Check, Shield,
-  Info, Palette, Bell, Eye, EyeOff, X, ExternalLink
+  Info, Palette, Bell, Eye, EyeOff, X, ExternalLink,
+  Smartphone, Clock, ShieldCheck, ShieldAlert, HardDrive,
+  DownloadCloud, UploadCloud, FileSpreadsheet, Database,
+  Key, Share2, RefreshCw
 } from 'lucide-react'
 import { useSettingsStore, type Theme, type Language } from '@/features/settings/store/settingsStore'
 import { usePrefsStore } from '@/features/namaz/store/prefsStore'
@@ -117,6 +120,13 @@ const translations = {
     toastRestore: 'ডেটা পুনরুদ্ধার হয়েছে। রিফ্রেশ করুন।',
     toastRestoreError: 'ফাইল পড়তে সমস্যা হয়েছে',
     toastNotifBlocked: 'ব্রাউজার নোটিফিকেশন অনুমতি দেয়নি',
+    greetingMorning: 'সুপ্রভাত',
+    greetingAfternoon: 'শুভ অপরাহ্ন',
+    greetingEvening: 'শুভ সন্ধ্যা',
+    secNotifications: 'আপনার সতর্কতা ও রিমাইন্ডার নিয়ন্ত্রণ করুন',
+    secSecurity: 'PIN ও বায়োমেট্রিক দিয়ে অ্যাপ সুরক্ষিত করুন',
+    secData: 'ব্যাকআপ, রিস্টোর ও ডেটা এক্সপোর্ট',
+    secAbout: 'অ্যাপ সংক্রান্ত তথ্য',
   },
   en: {
     customize: 'Customize',
@@ -210,6 +220,13 @@ const translations = {
     toastRestore: 'Data restored. Refresh the page.',
     toastRestoreError: 'Failed to read file',
     toastNotifBlocked: 'Browser notification permission denied',
+    greetingMorning: 'Good Morning',
+    greetingAfternoon: 'Good Afternoon',
+    greetingEvening: 'Good Evening',
+    secNotifications: 'Manage your alerts & reminders',
+    secSecurity: 'Secure your app with PIN & biometric',
+    secData: 'Backup, restore & export your data',
+    secAbout: 'App information & privacy',
   }
 }
 
@@ -224,6 +241,25 @@ function getStorageSize(): string {
   }
   const kb = (total / 1024).toFixed(1)
   return `${kb} KB`
+}
+
+function getStorageSizeBytes(): number {
+  let total = 0
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && (key.startsWith('selfsync') || key.startsWith('namaz') || key.startsWith('money_') || key.startsWith('amar'))) {
+      total += (localStorage.getItem(key) || '').length
+    }
+  }
+  return total / 1024
+}
+
+function getGreeting(language: Language): string {
+  const hour = new Date().getHours()
+  const t = translations[language]
+  if (hour < 12) return t.greetingMorning
+  if (hour < 17) return t.greetingAfternoon
+  return t.greetingEvening
 }
 
 const csvEscape = (value: string) => {
@@ -278,6 +314,7 @@ export default function SettingsPage() {
   const namazRecords = useNamazStore((s) => s.records)
 
   const t = translations[language]
+  const greeting = getGreeting(language)
 
   const [showPinSetup, setShowPinSetup] = useState(false)
   const [showPinDisable, setShowPinDisable] = useState(false)
@@ -458,6 +495,10 @@ export default function SettingsPage() {
     setReminderPrefs(true)
   }
 
+  // Compute storage percentage for storage bar
+  const storageKB = getStorageSizeBytes()
+  const storagePercent = Math.min(storageKB / 200, 1) // assume ~200KB max for display
+
   return (
     <div className="st-root">
       <div className="st-header">
@@ -469,14 +510,29 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Greeting Bar */}
+      <div className="st-header-greeting">
+        <div className="st-greeting-avatar">
+          <span>AZ</span>
+        </div>
+        <div>
+          <div className="st-greeting-text">{greeting} 👋</div>
+          <div className="st-greeting-sub">{t.about === 'About' ? 'Your settings, your way' : 'আপনার সেটিংস, আপনার পছন্দ'}</div>
+        </div>
+        <div className="st-greeting-badge">
+          <Database size={9} />
+          {language === 'bn' ? 'স্থানীয়' : 'Local'}
+        </div>
+      </div>
+
       <div className="st-body">
         {/* Theme */}
         <Section icon={<Palette size={15} />} title={t.theme}>
           <div className="st-theme-grid">
             {[
-              { val: 'light' as Theme, icon: <Sun size={18} />, label: t.themeLight },
-              { val: 'dark' as Theme,  icon: <Moon size={18} />, label: t.themeDark },
-              { val: 'system' as Theme, icon: <Monitor size={18} />, label: t.themeSystem },
+              { val: 'light' as Theme, icon: <Sun size={20} />, label: t.themeLight },
+              { val: 'dark' as Theme,  icon: <Moon size={20} />, label: t.themeDark },
+              { val: 'system' as Theme, icon: <Monitor size={20} />, label: t.themeSystem },
             ].map(({ val, icon, label }) => (
               <button
                 key={val}
@@ -513,8 +569,10 @@ export default function SettingsPage() {
         </Section>
 
         {/* Notifications */}
-        <Section icon={<Bell size={15} />} title={t.notifications}>
+        <Section icon={<Bell size={15} />} title={t.notifications} desc={t.secNotifications}>
           <RowSwitch
+            icon={<Bell size={14} />}
+            iconType="accent"
             label={t.appNotifications}
             sub={t.appNotificationsSub}
             value={notificationsEnabled}
@@ -522,6 +580,8 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            icon={<Bell size={14} />}
+            iconType="accent"
             label={t.taskAlerts}
             sub={t.taskAlertsSub}
             value={notificationCategories.tasks}
@@ -529,6 +589,8 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            icon={<Bell size={14} />}
+            iconType="accent"
             label={t.moneyAlerts}
             sub={t.moneyAlertsSub}
             value={notificationCategories.money}
@@ -536,6 +598,8 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            icon={<Bell size={14} />}
+            iconType="accent"
             label={t.namazReminder}
             sub={t.namazSub}
             value={remindersEnabled}
@@ -543,6 +607,8 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            icon={<Clock size={14} />}
+            iconType="neutral"
             label={t.quietHours}
             sub={t.quietHoursSub}
             value={quietHoursEnabled}
@@ -568,6 +634,8 @@ export default function SettingsPage() {
           )}
           <div className="st-divider" />
           <RowSwitch
+            icon={<Smartphone size={14} />}
+            iconType="neutral"
             label={t.calculatorToggle}
             sub={t.calculatorSub}
             value={calculatorEnabled}
@@ -576,8 +644,29 @@ export default function SettingsPage() {
         </Section>
 
         {/* Security */}
-        <Section icon={<Shield size={15} />} title={t.security}>
+        <Section icon={<Shield size={15} />} title={t.security} desc={t.secSecurity}>
+          {/* Security Status Card */}
+          <div className="st-security-card">
+            <div className={`st-security-icon-box ${pinEnabled ? 'st-security-icon-box--locked' : 'st-security-icon-box--unlocked'}`}>
+              {pinEnabled ? <ShieldCheck size={22} /> : <ShieldAlert size={22} />}
+            </div>
+            <div className="st-security-info">
+              <div className="st-security-label">
+                {pinEnabled
+                  ? (language === 'bn' ? 'সুরক্ষিত' : 'Protected')
+                  : (language === 'bn' ? 'সুরক্ষিত নয়' : 'Not Protected')}
+              </div>
+              <div className="st-security-status">
+                <span className={`st-security-dot ${pinEnabled ? 'st-security-dot--active' : 'st-security-dot--inactive'}`} />
+                {pinEnabled
+                  ? (language === 'bn' ? 'PIN & বায়োমেট্রিক সক্রিয়' : 'PIN & biometric active')
+                  : (language === 'bn' ? 'কোনো PIN সেট করা নেই' : 'No PIN set')}
+              </div>
+            </div>
+          </div>
           <RowArrow
+            icon={<Key size={14} />}
+            iconType="accent"
             label={t.pinLock}
             sub={pinEnabled ? t.pinActive : t.pinInactive}
             accent={pinEnabled}
@@ -585,6 +674,8 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            icon={<Smartphone size={14} />}
+            iconType="accent"
             label={t.biometricLock}
             sub={biometricChecking ? 'Checking...' : biometricLockEnabled ? t.biometricActive : t.biometricInactive}
             value={biometricLockEnabled}
@@ -592,6 +683,8 @@ export default function SettingsPage() {
           />
           <div className="st-divider" />
           <RowSwitch
+            icon={<Clock size={14} />}
+            iconType="neutral"
             label={t.autoLock}
             sub={t.autoLockSub}
             value={autoLockEnabled}
@@ -610,16 +703,51 @@ export default function SettingsPage() {
         <CloudSyncCard />
 
         {/* Data Management */}
-        <Section icon={<Download size={15} />} title={t.dataManage}>
+        <Section icon={<Download size={15} />} title={t.dataManage} desc={t.secData}>
           <RowArrow
+            icon={<Share2 size={14} />}
+            iconType="accent"
             label={language === 'bn' ? '⚡ কুইক ট্রান্সফার' : '⚡ Quick Transfer'}
             sub={language === 'bn' ? 'QR এর মাধ্যমে ডিভাইসে ডেটা স্থানান্তর' : 'Transfer data between devices via QR'}
             onClick={() => setShowQuickTransfer(true)}
           />
           <div className="st-divider" />
-          <RowArrow label={t.clearData} sub={t.clearSub} danger onClick={() => setShowClearModal(true)} />
+          <RowArrow
+            icon={<UploadCloud size={14} />}
+            iconType="gold"
+            label={t.backup}
+            sub={t.backupSub}
+            onClick={() => setShowBackupModal(true)}
+          />
           <div className="st-divider" />
           <RowArrow
+            icon={<DownloadCloud size={14} />}
+            iconType="gold"
+            label={t.restore}
+            sub={t.restoreSub}
+            onClick={() => setShowRestoreModal(true)}
+          />
+          <div className="st-divider" />
+          <RowArrow
+            icon={<FileSpreadsheet size={14} />}
+            iconType="neutral"
+            label={t.exportCsv}
+            sub={t.exportCsvSub}
+            onClick={() => setShowExportModal(true)}
+          />
+          <div className="st-divider" />
+          <RowArrow
+            icon={<Trash2 size={14} />}
+            iconType="danger"
+            label={t.clearData}
+            sub={t.clearSub}
+            danger
+            onClick={() => setShowClearModal(true)}
+          />
+          <div className="st-divider" />
+          <RowArrow
+            icon={<RefreshCw size={14} />}
+            iconType="accent"
             label={language === 'bn' ? '💼 অ্যাডভান্সড ব্যাকআপ' : '💼 Advanced Backup'}
             sub={language === 'bn' ? 'ভ্যালিডেট, মার্জ, রিপ্লেস, স্ন্যাপশট' : 'Validate, Merge, Replace, Snapshot'}
             onClick={() => setShowBackupManager(true)}
@@ -627,14 +755,39 @@ export default function SettingsPage() {
         </Section>
 
         {/* About */}
-        <Section icon={<Info size={15} />} title={t.about}>
+        <Section icon={<Info size={15} />} title={t.about} desc={t.secAbout}>
           <div className="st-about-card">
-            <div className="st-about-logo">SS</div>
+            <img src="/icons/app-icon.png" alt="SelfSync" className="st-about-logo-img" />
             <div>
               <p className="st-about-name">SelfSync</p>
               <p className="st-about-ver">{t.version}</p>
             </div>
           </div>
+
+          {/* Storage Visualization */}
+          <div className="st-storage-section">
+            <div className="st-storage-header">
+              <span className="st-storage-label">
+                <HardDrive size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                {t.storageUsed}
+              </span>
+              <span className="st-storage-value">{getStorageSize()}</span>
+            </div>
+            <div className="st-storage-bar">
+              <div
+                className={`st-storage-bar-fill ${storagePercent > 0.7 ? 'st-storage-bar-fill--high' : ''} ${storagePercent > 0.9 ? 'st-storage-bar-fill--full' : ''}`}
+                style={{ width: `${Math.max(storagePercent * 100, 5)}%` }}
+              />
+            </div>
+            <div className="st-storage-breakdown">
+              <span className="st-storage-tag">
+                <span className="st-storage-tag-dot" style={{ background: 'var(--st-accent)' }} />
+                {t.dataSummary}
+              </span>
+              <span className="st-storage-tag">{dataSummary}</span>
+            </div>
+          </div>
+
           <div className="st-divider" />
           <RowArrow label={t.storageUsed} sub={getStorageSize()} onClick={() => {}} noArrow />
           <div className="st-divider" />
@@ -742,21 +895,36 @@ export default function SettingsPage() {
 }
 
 // ==================== Sub-components ====================
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({ icon, title, desc, children }: { icon: React.ReactNode; title: string; desc?: string; children: React.ReactNode }) {
   return (
     <div className="st-section">
       <div className="st-section-head">
         <span className="st-section-icon">{icon}</span>
-        <span className="st-section-title">{title}</span>
+        <div className="st-section-title-group">
+          <span className="st-section-title">{title}</span>
+          {desc && <span className="st-section-desc">{desc}</span>}
+        </div>
       </div>
       <div className="st-section-body">{children}</div>
     </div>
   )
 }
 
-function RowSwitch({ label, sub, value, onChange }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void }) {
+function RowSwitch({ icon, iconType, label, sub, value, onChange }: {
+  icon?: React.ReactNode;
+  iconType?: 'accent' | 'success' | 'danger' | 'gold' | 'neutral';
+  label: string;
+  sub?: string;
+  value: boolean;
+  onChange: (v: boolean) => void
+}) {
   return (
     <div className="st-row">
+      {icon && (
+        <span className={`st-row-icon st-row-icon--${iconType || 'neutral'}`}>
+          {icon}
+        </span>
+      )}
       <div className="st-row-info">
         <span className="st-row-label">{label}</span>
         {sub && <span className="st-row-sub">{sub}</span>}
@@ -800,9 +968,23 @@ function RowChoice({ label, options, value, onChange }: { label: string; options
   )
 }
 
-function RowArrow({ label, sub, onClick, danger, accent, noArrow }: { label: string; sub?: string; onClick: () => void; danger?: boolean; accent?: boolean; noArrow?: boolean }) {
+function RowArrow({ icon, iconType, label, sub, onClick, danger, accent, noArrow }: {
+  icon?: React.ReactNode;
+  iconType?: 'accent' | 'success' | 'danger' | 'gold' | 'neutral';
+  label: string;
+  sub?: string;
+  onClick: () => void;
+  danger?: boolean;
+  accent?: boolean;
+  noArrow?: boolean
+}) {
   return (
     <button className={`st-row st-row-btn ${danger ? 'st-row--danger' : ''}`} onClick={onClick}>
+      {icon && (
+        <span className={`st-row-icon st-row-icon--${iconType || 'neutral'}`}>
+          {icon}
+        </span>
+      )}
       <div className="st-row-info">
         <span className={`st-row-label ${danger ? 'st-label--danger' : ''} ${accent ? 'st-label--accent' : ''}`}>{label}</span>
         {sub && <span className="st-row-sub">{sub}</span>}
@@ -821,6 +1003,9 @@ function RowExternalLink({ label, sub, href }: { label: string; sub?: string; hr
       rel="noopener noreferrer"
       aria-label={`${label} (opens in a new tab)`}
     >
+      <span className="st-row-icon st-row-icon--neutral">
+        <ExternalLink size={14} />
+      </span>
       <div className="st-row-info">
         <span className="st-row-label">{label}</span>
         {sub && <span className="st-row-sub">{sub}</span>}
@@ -954,7 +1139,7 @@ function BackupModal({
         <p className="st-backup-title">{summaryTitle}</p>
         <div className="st-backup-list">
           {items.map((item) => (
-            <div key={item.label} className="st-backup-row">
+            <div key={item.label} className="st-backup-row st-count-item">
               <span>{item.label}</span>
               <span className="st-backup-value">{item.value}</span>
             </div>
@@ -972,8 +1157,14 @@ function ExportCsvModal({ language, onClose, onExportTasks, onExportMoney }: { l
   return (
     <ModalShell title={t.exportTitle} onClose={onClose}>
       <div className="st-export-body">
-        <button className="st-export-btn" onClick={onExportTasks}>{t.exportTasks}</button>
-        <button className="st-export-btn" onClick={onExportMoney}>{t.exportMoney}</button>
+        <button className="st-export-btn" onClick={onExportTasks}>
+          <FileSpreadsheet size={16} className="st-export-btn-icon" />
+          {t.exportTasks}
+        </button>
+        <button className="st-export-btn" onClick={onExportMoney}>
+          <FileSpreadsheet size={16} className="st-export-btn-icon" />
+          {t.exportMoney}
+        </button>
       </div>
       <button className="mo-submit mo-submit--cancel" onClick={onClose}>{t.cancel}</button>
     </ModalShell>

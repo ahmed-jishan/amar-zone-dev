@@ -126,10 +126,13 @@ export default function CloudSyncCard() {
     <section className="st-section">
       <div className="st-section-head">
         <span className="st-section-icon">{settings.gdriveConnected ? <Cloud size={15} /> : <CloudOff size={15} />}</span>
-        <span className="st-section-title">Cloud & Backup</span>
+        <div className="st-section-title-group">
+          <span className="st-section-title">Cloud & Backup</span>
+          <span className="st-section-desc">Google Drive sync & backup management</span>
+        </div>
       </div>
-      <div className="p-4">
-        <div className="st-cloud-card overflow-hidden">
+      <div className="st-section-body">
+        <div className="st-cloud-card overflow-hidden" style={{ margin: 16 }}>
           {/* ── Health Status Banner ── */}
           <div
             className="st-cloud-health-banner"
