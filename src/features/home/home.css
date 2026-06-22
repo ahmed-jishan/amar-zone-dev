@@ -364,6 +364,553 @@
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
+/* ─── Glass Card (Premium) ─── */
+
+.hm-glass-card {
+  background: var(--hm-surface);
+  border: 1px solid var(--hm-border);
+  border-radius: 20px;
+  box-shadow: var(--hm-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 1.125rem;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.hm-glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  pointer-events: none;
+}
+
+.hm-glass-card:hover {
+  border-color: var(--hm-border-strong);
+  box-shadow: var(--hm-shadow), 0 0 20px rgba(99,102,241,0.06);
+}
+
+.dark .hm-glass-card {
+  background: rgba(18, 18, 34, 0.86);
+  border-color: rgba(120, 122, 168, 0.12);
+}
+
+.dark .hm-glass-card::before {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+}
+
+/* ─── Section Labels ─── */
+
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+/* ─── Card Title ─── */
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--hm-text);
+  letter-spacing: -0.2px;
+}
+
+/* ─── Live Time Header ─── */
+
+.live-time-header {
+  padding: 0.25rem 0;
+}
+
+.greeting-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.greeting-emoji {
+  font-size: 20px;
+}
+
+.greeting-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--hm-muted);
+}
+
+.clock-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.clock-digit {
+  display: inline-block;
+  font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--hm-text);
+  line-height: 1;
+  min-width: 28px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--hm-text), var(--hm-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.clock-colon {
+  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--hm-accent);
+  margin: 0 1px;
+  line-height: 1;
+}
+
+.clock-ampm {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hm-accent);
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--hm-accent-soft);
+  letter-spacing: 0.5px;
+}
+
+.clock-label {
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--hm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 1px;
+}
+
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.date-dayname {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--hm-text-soft);
+}
+
+.date-sep {
+  color: var(--hm-muted);
+}
+
+.date-full {
+  font-size: 13px;
+  color: var(--hm-muted);
+}
+
+.date-bd {
+  font-size: 11px;
+  color: var(--hm-muted);
+  opacity: 0.7;
+  margin-left: auto;
+}
+
+/* ─── Namaz Pulse Card ─── */
+
+.next-prayer-banner {
+  background: var(--hm-accent-softer);
+  border: 1px solid var(--hm-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.prayer-icon-large {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.next-prayer-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hm-text);
+}
+
+.next-prayer-time {
+  font-size: 12px;
+  color: var(--hm-muted);
+  margin-top: 1px;
+}
+
+.countdown-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.countdown-value {
+  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--hm-accent);
+  line-height: 1.2;
+}
+
+.countdown-label {
+  font-size: 10px;
+  color: var(--hm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prayer-dots-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.prayer-dot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.prayer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: prayer-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes prayer-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+.prayer-dot-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--hm-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.prayer-dot-status {
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hm-amber);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* ─── Progress Bar ─── */
+
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hm-soft);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--hm-muted);
+  white-space: nowrap;
+}
+
+/* ─── Today Focus Card ─── */
+
+.overdue-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ef4444;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.ring-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--hm-text);
+  line-height: 1.1;
+}
+
+.ring-label {
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--hm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.today-stats-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.today-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--hm-text);
+  line-height: 1;
+}
+
+.today-stat-label {
+  font-size: 12px;
+  color: var(--hm-muted);
+}
+
+.next-task-card {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--hm-accent-softer);
+  border: 1px solid var(--hm-border);
+  border-radius: 12px;
+}
+
+.next-task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.next-task-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--hm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.priority-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.next-task-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hm-text);
+  line-height: 1.3;
+}
+
+.next-task-due {
+  font-size: 11px;
+  color: var(--hm-muted);
+  margin-top: 2px;
+}
+
+.empty-task-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--hm-muted);
+}
+
+/* ─── Money Glance Card ─── */
+
+.pulse-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulse-dot-blink 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.balance-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.balance-label {
+  font-size: 12px;
+  color: var(--hm-muted);
+}
+
+.balance-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--hm-text);
+  letter-spacing: -0.5px;
+}
+
+.balance-currency {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--hm-accent);
+  margin-right: 2px;
+}
+
+.pulse-row {
+  margin-bottom: 10px;
+}
+
+.pulse-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.pulse-label {
+  font-size: 11px;
+  color: var(--hm-muted);
+}
+
+.pulse-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hm-text);
+}
+
+.pulse-bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hm-soft);
+  overflow: hidden;
+}
+
+.pulse-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.budget-row {
+  margin-bottom: 10px;
+}
+
+.budget-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.budget-label {
+  font-size: 11px;
+  color: var(--hm-muted);
+}
+
+.budget-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--hm-text-soft);
+}
+
+.recent-txn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--hm-border);
+}
+
+.recent-txn-label {
+  font-size: 11px;
+  color: var(--hm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.recent-txn-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recent-txn-cat {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--hm-text-soft);
+  text-transform: capitalize;
+}
+
+.recent-txn-amount {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty-finance-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--hm-muted);
+}
+
 /* ─── Scrollbar ─── */
 
 .hm-scroll::-webkit-scrollbar {
