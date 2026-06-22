@@ -18,8 +18,9 @@ function formatTime(date: Date): { hours: string; minutes: string; seconds: stri
   const h = date.getHours()
   const m = date.getMinutes()
   const s = date.getSeconds()
+  const h12 = h % 12 || 12  // convert to 12‑hour format (0 → 12)
   return {
-    hours: h.toString().padStart(2, '0'),
+    hours: h12.toString().padStart(2, '0'),
     minutes: m.toString().padStart(2, '0'),
     seconds: s.toString().padStart(2, '0'),
     ampm: h >= 12 ? 'PM' : 'AM',

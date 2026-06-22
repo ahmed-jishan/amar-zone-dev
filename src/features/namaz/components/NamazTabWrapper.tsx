@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import TopbarNav, { type ActiveTab } from './TopbarNav';
-import MoreSheet from './MoreSheet';
 import DashboardView from './DashboardView';
 import LogsView from './LogsView';
 import CalendarView from './CalendarView';
@@ -26,7 +25,6 @@ const TAB_ORDER: ActiveTab[] = ['dashboard', 'qibla', 'tasbih'];
 
 export function NamazTabWrapper() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [animateKey, setAnimateKey] = useState(0);
   const { language } = useSettingsStore();
   const locationSync = useLocationSync(true);
@@ -98,17 +96,15 @@ export function NamazTabWrapper() {
         className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6"
         {...(isPrimaryTab ? swipeHandlers : {})}
       >
-        <TopbarNav 
-          activeTab={activeTab} 
-          onTabChange={handleTabChange} 
-          language={language}
-          onOpenMore={() => {
-            triggerHaptic('light');
-            setMoreSheetOpen(true);
-          }}
-        />
+        <div className="relative" style={{ zIndex: 50 }}>
+          <TopbarNav 
+            activeTab={activeTab} 
+            onTabChange={handleTabChange} 
+            language={language}
+          />
+        </div>
         
-        <div className="mt-6 transition-all duration-300">
+        <div className="mt-6 transition-all duration-300 relative" style={{ zIndex: 1 }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={`${activeTab}-${animateKey}`}
@@ -140,13 +136,6 @@ export function NamazTabWrapper() {
         </div>
       </div>
 
-      <MoreSheet
-        open={moreSheetOpen}
-        onClose={() => setMoreSheetOpen(false)}
-        onTabChange={handleTabChange}
-        language={language}
-        currentTab={activeTab}
-      />
     </div>
   );
 }

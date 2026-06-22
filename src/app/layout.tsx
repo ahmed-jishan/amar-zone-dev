@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import SplashProvider from '@/components/splash/SplashProvider'
 
 
 export const metadata: Metadata = {
@@ -35,8 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-        {children}
-        
+        <SplashProvider>
+          {children}
+        </SplashProvider>
       </body>
     </html>
   )
