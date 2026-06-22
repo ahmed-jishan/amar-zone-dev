@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { CheckSquare, Moon, Home, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import CalculatorModal from '@/components/ui/CalculatorModal'
 import NotificationCenter from '@/components/ui/NotificationCenter'
 import AppLockGate from '@/components/security/AppLockGate'
@@ -49,45 +48,22 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
                   aria-current={active ? 'page' : undefined}
                   className={`bottom-nav-item ${active ? 'active' : ''}`}
                   data-active={active}
-                  style={{
-                    backgroundColor: active ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                    border: active ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
-                    boxShadow: active ? '0 2px 8px rgba(99, 102, 241, 0.2)' : 'none',
-                    transition: 'all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1)',
-                    borderRadius: '12px',
-                  }}
                 >
                   <div className="bottom-nav-icon-wrapper">
-                    <Icon
-                      size={18}
-                      strokeWidth={active ? 2.2 : 1.8}
-                      className="bottom-nav-icon"
-                      style={{
-                        color: active ? '#6366f1' : 'rgb(var(--muted))',
-                        transform: active ? 'scale(1.08)' : 'scale(1)',
-                        filter: active ? 'drop-shadow(0 0 4px #6366f1)' : 'none',
-                        transition: 'transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1), color 0.2s, filter 0.2s',
-                      }}
-                    />
-                    {active && <div className="active-top-bar" />}
+                    <div className="bottom-nav-icon-bg">
+                      <Icon
+                        size={18}
+                        strokeWidth={active ? 2.4 : 1.8}
+                        className="bottom-nav-icon"
+                      />
+                    </div>
                   </div>
-                  <span
-                    className="bottom-nav-label"
-                    style={{
-                      fontWeight: active ? 700 : 500,
-                      color: active ? '#6366f1' : 'rgb(var(--muted))',
-                      transform: active ? 'scale(1.01)' : 'scale(1)',
-                      transition: 'all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1)',
-                      display: 'inline-block',
-                      fontSize: '9px',
-                    }}
-                  >
+                  <span className="bottom-nav-label">
                     {label}
                   </span>
                 </Link>
               )
             })}
-
           </div>
         </nav>
       </div>
@@ -98,44 +74,162 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
       <AppLockGate />
 
       <style>{`
+        /* ============================================
+           PREMIUM FLOATING NAVBAR — Apple/Samsung feel
+           ============================================ */
+
+        /* --- The floating pill container --- */
         .bottom-nav {
           position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          bottom: 14px;
+          left: 50%;
+          transform: translateX(-50%);
           z-index: 50;
-          background: rgb(var(--bg));
-          backdrop-filter: blur(20px);
-          border-top: 1px solid rgba(var(--border), 0.6);
-          padding: 6px 12px;
-          padding-bottom: max(6px, env(safe-area-inset-bottom));
+          width: auto;
+          min-width: 0;
+          max-width: calc(100vw - 32px);
+          background: rgba(var(--bg), 0.78);
+          backdrop-filter: blur(32px) saturate(180%);
+          -webkit-backdrop-filter: blur(32px) saturate(180%);
+          border: 1px solid rgba(var(--border), 0.25);
+          border-radius: 28px;
+          padding: 6px 10px;
+          padding-bottom: 8px;
+          box-shadow:
+            0 4px 6px rgba(0, 0, 0, 0.02),
+            0 8px 24px rgba(0, 0, 0, 0.06),
+            0 16px 48px rgba(0, 0, 0, 0.04),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+          transition:
+            box-shadow 0.3s ease,
+            background 0.3s ease;
+          /* Subtle entrance */
+          animation: navbarFloatIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
+        @keyframes navbarFloatIn {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px) scale(0.95);
+            filter: blur(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        /* --- Inner flex container --- */
         .bottom-nav-container {
           display: flex;
-          justify-content: space-around;
-          align-items: center;
-          max-width: 500px;
-          margin: 0 auto;
-          gap: 6px;
+          justify-content: center;
+          align-items: flex-end;
+          gap: 2px;
         }
 
+        /* --- Each nav item (pill inside the pill) --- */
         .bottom-nav-item {
-          flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 3px;
-          padding: 6px 6px 8px;
-          border-radius: 12px;
+          gap: 2px;
+          padding: 4px 14px 6px;
+          border-radius: 18px;
           text-decoration: none;
           cursor: pointer;
           position: relative;
-          overflow: hidden;
-          transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+          border: none;
+          background: transparent;
+          transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+          min-width: 48px;
         }
 
-        /* Ripple effect on click */
+        /* Hover lift (desktop) */
+        @media (hover: hover) {
+          .bottom-nav-item:not(.active):hover {
+            transform: translateY(-2px);
+          }
+          .bottom-nav-item:not(.active):hover .bottom-nav-icon {
+            color: rgba(99, 102, 241, 0.7);
+          }
+        }
+
+        /* Tap feedback */
+        .bottom-nav-item:active {
+          transform: scale(0.94);
+          transition: transform 0.08s;
+        }
+
+        /* --- Active item — relaxed premium highlight --- */
+        .bottom-nav-item.active {
+          background: rgba(99, 102, 241, 0.10);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        /* --- Icon wrapper --- */
+        .bottom-nav-icon-wrapper {
+          position: relative;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        /* --- Icon background for extra polish --- */
+        .bottom-nav-icon-bg {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 32px;
+          height: 28px;
+          border-radius: 10px;
+          transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        .bottom-nav-item.active .bottom-nav-icon-bg {
+          transform: scale(1.05);
+        }
+
+        /* --- Icon itself --- */
+        .bottom-nav-icon {
+          color: rgb(var(--muted));
+          transition:
+            color 0.25s ease,
+            transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1),
+            filter 0.25s ease;
+          transform: scale(1);
+        }
+
+        .bottom-nav-item.active .bottom-nav-icon {
+          color: #6366f1;
+          transform: scale(1.06);
+          filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.25));
+          animation: iconRelax 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes iconRelax {
+          0%   { transform: scale(1); filter: drop-shadow(0 0 0 rgba(99, 102, 241, 0)); }
+          50%  { transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.3)); }
+          100% { transform: scale(1.06); filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.25)); }
+        }
+
+        /* --- Label --- */
+        .bottom-nav-label {
+          font-size: 9px;
+          font-weight: 500;
+          color: rgb(var(--muted));
+          letter-spacing: 0.02em;
+          transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+          display: inline-block;
+        }
+
+        .bottom-nav-item.active .bottom-nav-label {
+          font-weight: 600;
+          color: #6366f1;
+          opacity: 1;
+        }
+
+        /* --- Ripple effect --- */
         .bottom-nav-item::after {
           content: '';
           position: absolute;
@@ -144,88 +238,60 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
           width: 0;
           height: 0;
           border-radius: 50%;
-          background: rgba(99, 102, 241, 0.4);
+          background: rgba(99, 102, 241, 0.3);
           transform: translate(-50%, -50%);
-          transition: width 0.4s ease-out, height 0.4s ease-out;
+          transition: width 0.5s ease-out, height 0.5s ease-out, opacity 0.3s ease;
           pointer-events: none;
+          opacity: 0;
         }
         .bottom-nav-item:active::after {
-          width: 200px;
-          height: 200px;
-          background: rgba(99, 102, 241, 0.15);
+          width: 180px;
+          height: 180px;
+          opacity: 1;
+          background: rgba(99, 102, 241, 0.12);
         }
 
-        .bottom-nav-icon-wrapper {
-          position: relative;
-          display: flex;
-          justify-content: center;
-        }
-
-        /* Animated top bar with glow pulse */
-        .active-top-bar {
-          position: absolute;
-          top: -10px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 28px;
-          height: 2px;
-          background: #6366f1;
-          border-radius: 2px;
-          box-shadow: 0 0 6px #6366f1;
-          animation: barSlide 0.4s cubic-bezier(0.2, 1.2, 0.4, 1), glowPulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes barSlide {
-          0% { width: 0; opacity: 0; transform: translateX(-50%) scaleX(0); }
-          60% { width: 34px; }
-          100% { width: 28px; opacity: 1; transform: translateX(-50%) scaleX(1); }
-        }
-
-        @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 3px #6366f1; opacity: 0.9; }
-          50% { box-shadow: 0 0 10px #818cf8; opacity: 1; }
-        }
-
-        /* Icon bounce animation on mount (only for active) */
-        .bottom-nav-item.active .bottom-nav-icon {
-          animation: iconBounce 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
-        }
-
-        @keyframes iconBounce {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.15); }
-          100% { transform: scale(1.08); }
-        }
-
-        /* Label subtle bounce */
-        .bottom-nav-item.active .bottom-nav-label {
-          animation: labelPop 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
-        }
-
-        @keyframes labelPop {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.04); }
-          100% { transform: scale(1.01); }
-        }
-
-        /* Hover effect for non-active (desktop) */
-        @media (hover: hover) {
-          .bottom-nav-item:not(.active):hover {
-            transform: translateY(-1px);
+        /* --- Responsive: narrower screens get tighter navbar --- */
+        @media (max-width: 380px) {
+          .bottom-nav {
+            padding: 5px 6px;
+            padding-bottom: 6px;
+            border-radius: 24px;
+            max-width: calc(100vw - 20px);
           }
-          .bottom-nav-item:not(.active):hover .bottom-nav-icon {
-            transform: scale(1.04);
-            color: rgba(99, 102, 241, 0.8);
+          .bottom-nav-item {
+            padding: 3px 8px 5px;
+            min-width: 40px;
           }
-          .bottom-nav-item:not(.active):hover .bottom-nav-label {
-            color: rgba(99, 102, 241, 0.8);
+          .bottom-nav-icon-bg {
+            width: 28px;
+            height: 24px;
+          }
+          .bottom-nav-container {
+            gap: 0;
           }
         }
 
-        /* Tap feedback */
-        .bottom-nav-item:active {
-          transform: scale(0.98);
-          transition: transform 0.05s;
+        /* --- Wide screens get more spacious --- */
+        @media (min-width: 500px) {
+          .bottom-nav {
+            padding: 8px 16px;
+            padding-bottom: 10px;
+            border-radius: 32px;
+            max-width: 460px;
+          }
+          .bottom-nav-item {
+            padding: 6px 20px 8px;
+            gap: 3px;
+          }
+          .bottom-nav-container {
+            gap: 4px;
+          }
+        }
+
+        /* Prevent bottom-nav from clashing with content */
+        main {
+          padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
         }
       `}</style>
     </>
