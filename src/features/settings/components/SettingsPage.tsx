@@ -768,7 +768,7 @@ export default function SettingsPage() {
           <div className="st-storage-section">
             <div className="st-storage-header">
               <span className="st-storage-label">
-                <HardDrive size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                <HardDrive size={12} className="st-storage-icon" />
                 {t.storageUsed}
               </span>
               <span className="st-storage-value">{getStorageSize()}</span>
@@ -788,8 +788,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="st-divider" />
-          <RowArrow label={t.storageUsed} sub={getStorageSize()} onClick={() => {}} noArrow />
           <div className="st-divider" />
           <RowArrow label={t.dataSummary} sub={dataSummary} onClick={() => {}} noArrow />
           <div className="st-divider" />
