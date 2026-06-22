@@ -33,7 +33,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(68px + env(safe-area-inset-bottom))' }}>
+        <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
           {children}
         </main>
 
@@ -289,9 +289,13 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
           }
         }
 
-        /* Prevent bottom-nav from clashing with content */
+        /* main scroll container uses the app's default bg.
+           Tasks/Money/Settings pages all use this color.
+           Namaz and Home pages override with their own gradient end colors
+           via CSS rules in their respective stylesheets. */
         main {
           padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+          background: rgb(var(--bg));
         }
       `}</style>
     </>

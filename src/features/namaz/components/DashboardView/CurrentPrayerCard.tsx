@@ -52,15 +52,15 @@ const pad2 = (value: number, lang: 'bn' | 'en') => {
   return lang === 'bn' ? toBN(raw) : raw;
 };
 
-// ─── Dynamic gradient based on time of day ───
+// ─── Premium light-tone gradient — Apple-inspired muted palette ───
 function getTimeOfDayGradient(isTomorrow: boolean): string {
-  if (isTomorrow) return 'linear-gradient(135deg, #0c1a2e 0%, #1a1a2e 50%, #16213e 100%)';
+  if (isTomorrow) return 'linear-gradient(135deg, #1e3830 0%, #2a4d3e 50%, #3a5d4a 100%)';
   const h = new Date().getHours();
-  if (h >= 5 && h < 8)  return 'linear-gradient(135deg, #c94b4b 0%, #e8a87c 40%, #f5d6a8 100%)';
-  if (h >= 8 && h < 12) return 'linear-gradient(135deg, #0f4a3a 0%, #0f5a51 40%, #1a7a6a 100%)';
-  if (h >= 12 && h < 16) return 'linear-gradient(135deg, #0f3d2e 0%, #0f5a51 45%, #2a7a6a 100%)';
-  if (h >= 16 && h < 19) return 'linear-gradient(135deg, #0a3d2e 0%, #0d6b4a 40%, #1a8a5a 100%)';
-  return 'linear-gradient(135deg, #0c1a2e 0%, #1a1a3e 40%, #0f2a4a 100%)';
+  if (h >= 5 && h < 8)  return 'linear-gradient(135deg, #4a7a60 0%, #689a78 40%, #88ba8e 100%)';
+  if (h >= 8 && h < 12) return 'linear-gradient(135deg, #3a6a50 0%, #4a8a62 40%, #6aaa78 100%)';
+  if (h >= 12 && h < 16) return 'linear-gradient(135deg, #2a5a40 0%, #3a7a52 45%, #5a9a68 100%)';
+  if (h >= 16 && h < 19) return 'linear-gradient(135deg, #3a6048 0%, #4a8058 40%, #6a9a70 100%)';
+  return 'linear-gradient(135deg, #1e3830 0%, #2a4d3e 40%, #3a5d4a 100%)';
 }
 
 function getGradientLabel(lang: 'bn' | 'en'): string {
@@ -72,11 +72,11 @@ function getGradientLabel(lang: 'bn' | 'en'): string {
   return '🌙 রাত';
 }
 
-// ─── Timer Digit ───
+// ─── Premium Timer Digit (Apple-style glass) ───
 function TimerDigit({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-md px-3 py-2 min-w-[3.5rem] text-center border border-white/10 shadow-inner">
+      <div className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-2xl px-3 py-3 sm:px-4 sm:py-3 min-w-[3.5rem] sm:min-w-[4.2rem] text-center border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(0,0,0,0.08)]">
         <AnimatePresence mode="popLayout">
           <motion.span
             key={value}
@@ -84,13 +84,13 @@ function TimerDigit({ value, label }: { value: string; label: string }) {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -24, opacity: 0, scale: 0.8 }}
             transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
-            className="block text-2xl sm:text-3xl font-bold tabular-nums text-white tracking-tight"
+            className="block text-2xl sm:text-4xl font-bold tabular-nums text-white tracking-tight drop-shadow-sm"
           >
             {value}
           </motion.span>
         </AnimatePresence>
       </div>
-      <span className="mt-1.5 text-[9px] font-semibold text-white/40 uppercase tracking-widest">{label}</span>
+      <span className="mt-2 text-[9px] font-semibold text-white/50 uppercase tracking-[0.15em]">{label}</span>
     </div>
   );
 }
@@ -124,7 +124,7 @@ function TimerCard({
       initial={{ opacity: 0, scale: 0.9, x: 20 }}
       animate={{ opacity: 1, scale: 1, x: 0 }}
       transition={{ type: 'spring', stiffness: 100, damping: 20, delay: 0.15 }}
-      className="flex flex-col items-center gap-3 rounded-2xl bg-white/8 backdrop-blur-xl border border-white/12 px-5 py-5 min-w-[150px] shadow-xl"
+      className="flex flex-col items-center gap-4 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 px-5 py-5 min-w-[150px] shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_28px_rgba(0,0,0,0.08),0_24px_60px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.15)]"
     >
       {/* Time-of-day badge */}
       {timeLabel && (
@@ -343,7 +343,7 @@ export default function CurrentPrayerCard({ prayerTimes, prayerTimesResponse, lo
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-      className="relative overflow-hidden rounded-3xl shadow-2xl"
+      className="relative overflow-hidden rounded-3xl shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_28px_rgba(0,0,0,0.08),0_24px_60px_rgba(0,0,0,0.04)]"
     >
       <div
         className="relative overflow-hidden px-5 py-6 sm:px-7 sm:py-8"
@@ -368,23 +368,38 @@ export default function CurrentPrayerCard({ prayerTimes, prayerTimesResponse, lo
           {/* LEFT: Clean Prayer Information */}
           <div className="flex-1 min-w-0">
             {/* Status badge */}
-            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 150, damping: 20, delay: 0.05 }}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur-md"
+            >
               <Clock size={12} />
               {currentStage === 'next'
                 ? (language === 'bn' ? 'সমাপ্ত' : 'Completed')
                 : isTomorrow
                   ? (language === 'bn' ? 'কাল ফজর' : 'Tomorrow Fajr')
                   : (language === 'bn' ? 'বর্তমান ওয়াক্ত' : 'Current prayer')}
-            </div>
+            </motion.div>
 
             {/* Prayer name */}
-            <h2 className="mt-1 text-4xl sm:text-5xl font-bold leading-none text-white tracking-tight">
+            <motion.h2
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 150, damping: 20, delay: 0.1 }}
+              className="text-4xl sm:text-5xl font-bold leading-none text-white tracking-tight"
+            >
               {prayerLabel}
-            </h2>
+            </motion.h2>
 
             {/* Premium Badges: Azan · Jamat · Ends */}
             {isPrayerActive && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="mt-4 flex flex-wrap items-center gap-2"
+              >
                 <div className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
                   <BellRing size={13} className="text-white/70" />
                   <span className="text-xs font-semibold text-white/60">{language === 'bn' ? 'আজান' : 'Azan'}</span>
@@ -406,7 +421,7 @@ export default function CurrentPrayerCard({ prayerTimes, prayerTimesResponse, lo
                     {formatPrayerTime12h(activeEntry.endTime, { banglaDigits: language === 'bn', padHour: true })}{endSuffix}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             )}
 
           </div>
@@ -428,11 +443,15 @@ export default function CurrentPrayerCard({ prayerTimes, prayerTimesResponse, lo
           </div>
         </div>
 
-        {/* ─── 5 Prayer Time Pills Strip ─── */}
-        <div className="relative mt-6 flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {/* ─── 5 Premium Prayer Time Cards (Apple-style) ─── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, type: 'spring', stiffness: 100, damping: 20 }}
+          className="relative mt-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+        >
           {PRAYER_ORDER.map((name, index) => {
             const window = windows.find((w) => w.prayer === LEGACY_TO_CANONICAL[name]);
-            const isActivePrayer = window?.status === 'active';
             const isTarget = index === activeIdx;
             const isEnded = window?.status === 'ended';
             const label = PRAYER_NAME_LABELS[name]?.[language] ?? name;
@@ -445,46 +464,62 @@ export default function CurrentPrayerCard({ prayerTimes, prayerTimesResponse, lo
               <motion.div
                 key={name}
                 whileTap={{ scale: 0.95 }}
-                className={`flex min-w-[68px] flex-shrink-0 flex-col items-center gap-1 rounded-xl border px-2.5 py-2 transition-all duration-300 ${
-                  isTarget ? 'border-white/40 bg-white/15 shadow-lg' : 'border-white/10 bg-white/5'
+                className={`flex min-w-[85px] flex-shrink-0 flex-col items-center rounded-2xl border px-3 py-2 transition-all duration-300 ${
+                  isTarget 
+                    ? 'border-white/40 bg-white/15 shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.2)]' 
+                    : 'border-white/8 bg-white/5'
                 }`}
-                style={{ opacity: isEnded && !isTarget ? 0.45 : 1 }}
+                style={{ opacity: isEnded && !isTarget ? 0.4 : 1 }}
               >
-                <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">{label}</span>
-                <div
-                  className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
-                    isActivePrayer ? 'bg-emerald-300 shadow-lg shadow-emerald-300/50' : 
-                    isEnded ? 'bg-white/20' : 'bg-white/30'
-                  }`}
-                  style={{
-                    boxShadow: isActivePrayer ? '0 0 8px rgba(110, 231, 183, 0.5)' : 'none',
-                  }}
-                />
-                <span className="text-[8px] font-semibold text-white/40">{language === 'bn' ? 'আজান' : 'Azan'}</span>
-                <span className="text-[10px] font-bold tabular-nums text-white/80">
-                  {formatPrayerTime12h(conf.azanTime, { banglaDigits: false, padHour: true })}
+                <span className={`text-[10px] font-bold uppercase tracking-[0.08em] ${
+                  isTarget ? 'text-white/90' : 'text-white/50'
+                }`}>
+                  {label}
                 </span>
-                <span className="text-[8px] font-semibold text-amber-300/60">{language === 'bn' ? 'জামাত' : 'Jamat'}</span>
-                <span className="text-[10px] font-bold tabular-nums text-amber-200/80">
-                  {formatPrayerTime12h(conf.jamatTime, { banglaDigits: false, padHour: true })}
-                </span>
+
+                <div className="mt-2 w-full border-t border-white/8" />
+
+                <div className="mt-1.5 flex w-full items-center justify-between gap-1">
+                  <span className="text-[8px] font-semibold tracking-wider text-white/45 uppercase">
+                    {language === 'bn' ? 'আ.' : 'Az'}
+                  </span>
+                  <span className="text-[11px] font-bold tabular-nums text-white/85 tracking-tight">
+                    {formatPrayerTime12h(conf.azanTime, { banglaDigits: false, padHour: true })}
+                  </span>
+                </div>
+
+                <div className="flex w-full items-center justify-between gap-1">
+                  <span className="text-[8px] font-semibold tracking-wider text-amber-300/60 uppercase">
+                    {language === 'bn' ? 'জা.' : 'Jm'}
+                  </span>
+                  <span className="text-[11px] font-bold tabular-nums text-amber-200/90 tracking-tight">
+                    {formatPrayerTime12h(conf.jamatTime, { banglaDigits: false, padHour: true })}
+                  </span>
+                </div>
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* ─── Location + Date Footer ─── */}
-        <div className="relative mt-4 pt-3 border-t border-white/10">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="relative mt-5 pt-4"
+        >
+          {/* Subtle gradient divider that blends with card color */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <div className="flex items-center gap-1.5 text-white/50">
               <MapPin size={11} className="flex-shrink-0 text-white/40" />
-              <span className="text-[11px] font-medium leading-relaxed text-white/60">{displayLocation}</span>
+              <span className="text-[11px] font-medium leading-relaxed text-white/65">{displayLocation}</span>
             </div>
             <div className="flex items-center gap-1.5 text-white/40">
-              <span className="text-[11px] font-medium tabular-nums">{dateLabel}</span>
+              <span className="text-[11px] font-medium tabular-nums text-white/60">{dateLabel}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </motion.div>
   );

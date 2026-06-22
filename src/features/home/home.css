@@ -53,6 +53,14 @@
   stroke-width: 1.7;
 }
 
+/* Match <main>'s background to the Home page gradient end color in each mode */
+main:has(.home-root) {
+  background: #f5f3ff !important;
+}
+.dark main:has(.home-root) {
+  background: #14141f !important;
+}
+
 .dark .home-root {
   --hm-bg: #0e0e18;
   --hm-bg-2: #14141f;

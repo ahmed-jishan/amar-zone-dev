@@ -54,7 +54,7 @@ const PRAYER_ICONS = {
   Dhuhr: <Sun size={16} className="text-amber-500" />,
   Asr: <Sun size={16} className="text-amber-600" />,
   Maghrib: <Sunset size={16} className="text-rose-500" />,
-  Isha: <Moon size={16} className="text-indigo-500" />,
+  Isha: <Moon size={16} className="text-emerald-700 dark:text-emerald-400" />,
 } as const;
 const STATUS_LABELS: Record<'bn' | 'en', Record<PrayerStatus, string>> = {
   bn: { pending: 'বাকি', onTime: 'সময়মত', jamaat: 'জামাতে', late: 'দেরিতে', missed: 'কাজা' },
@@ -63,7 +63,7 @@ const STATUS_LABELS: Record<'bn' | 'en', Record<PrayerStatus, string>> = {
 const STATUS_META: Record<PrayerStatus, { className: string; icon: React.ReactNode; description: string }> = {
   pending: { className: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400', icon: <Circle size={20} />, description: 'Not yet marked' },
   onTime: { className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300', icon: <CheckCircle size={20} />, description: 'Prayed within the time' },
-  jamaat: { className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300', icon: <Users size={20} />, description: 'Prayed in congregation' },
+  jamaat: { className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300', icon: <Users size={20} />, description: 'Prayed in congregation' },
   late: { className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300', icon: <Clock size={20} />, description: 'Prayed but late' },
   missed: { className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300', icon: <XCircle size={20} />, description: 'Missed, need qada' },
 };
