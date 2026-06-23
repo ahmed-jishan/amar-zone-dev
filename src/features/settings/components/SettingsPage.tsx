@@ -1,14 +1,16 @@
 // src/app/(tabs)/settings/page.tsx
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import {
   Sun, Moon, Monitor, Globe, Lock, Download,
-  Upload, Trash2, ChevronRight, Check, Shield,
+  Upload, Trash2, ChevronDown, Check, Shield,
   Info, Palette, Bell, Eye, EyeOff, X, ExternalLink,
   Smartphone, Clock, ShieldCheck, ShieldAlert, HardDrive,
   DownloadCloud, UploadCloud, FileSpreadsheet, Database,
-  Key, Share2, RefreshCw
+  Key, Share2, RefreshCw, Search, MoonStar, Sun as SunIcon,
+  ShieldBan, Fingerprint, Wifi, Activity, BatteryFull,
+  Server, HardDrive as HDD, User, ChevronRight, ChevronLeft
 } from 'lucide-react'
 import { useSettingsStore, type Theme, type Language } from '@/features/settings/store/settingsStore'
 import { usePrefsStore } from '@/features/namaz/store/prefsStore'
@@ -127,6 +129,14 @@ const translations = {
     secSecurity: 'PIN ও বায়োমেট্রিক দিয়ে অ্যাপ সুরক্ষিত করুন',
     secData: 'ব্যাকআপ, রিস্টোর ও ডেটা এক্সপোর্ট',
     secAbout: 'অ্যাপ সংক্রান্ত তথ্য',
+    searchPlaceholder: 'সেটিংস খুঁজুন...',
+    healthScore: 'ডেটা হেল্থ',
+    healthDesc: 'আপনার ডেটা সুরক্ষিত এবং ব্যাকআপ করা আছে',
+    darkMode: 'ডার্ক মোড',
+    quickTheme: 'থিম',
+    quickSecurity: 'সুরক্ষা',
+    quickNotifications: 'নোটিফিকেশন',
+    dataHealth: 'ডেটা হেল্থ',
   },
   en: {
     customize: 'Customize',
@@ -227,8 +237,33 @@ const translations = {
     secSecurity: 'Secure your app with PIN & biometric',
     secData: 'Backup, restore & export your data',
     secAbout: 'App information & privacy',
+    searchPlaceholder: 'Search settings...',
+    healthScore: 'Data Health',
+    healthDesc: 'Your data is secured and backed up',
+    darkMode: 'Dark Mode',
+    quickTheme: 'Theme',
+    quickSecurity: 'Security',
+    quickNotifications: 'Notifications',
+    dataHealth: 'Data Health',
   }
 }
+
+// ==================== Section Definitions ====================
+interface SectionDef {
+  id: string
+  icon: React.ReactNode
+  titleKey: string
+  descKey?: string
+}
+
+const sectionDefs = (t: typeof translations.en): SectionDef[] => [
+  { id: 'theme', icon: <Palette size={16} />, titleKey: t.theme },
+  { id: 'lang', icon: <Globe size={16} />, titleKey: t.langCurrency },
+  { id: 'notifications', icon: <Bell size={16} />, titleKey: t.notifications, descKey: t.secNotifications },
+  { id: 'security', icon: <Shield size={16} />, titleKey: t.security, descKey: t.secSecurity },
+  { id: 'data', icon: <Download size={16} />, titleKey: t.dataManage, descKey: t.secData },
+  { id: 'about', icon: <Info size={16} />, titleKey: t.about, descKey: t.secAbout },
+]
 
 // ==================== Helper ====================
 function getStorageSize(): string {
@@ -327,6 +362,10 @@ export default function SettingsPage() {
   const [showBackupManager, setShowBackupManager] = useState(false)
   const [showQuickTransfer, setShowQuickTransfer] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const [showSearch, setShowSearch] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -495,12 +534,83 @@ export default function SettingsPage() {
     setReminderPrefs(true)
   }
 
-  // Compute storage percentage for storage bar
+  // Compute storage
   const storageKB = getStorageSizeBytes()
-  const storagePercent = Math.min(storageKB / 200, 1) // assume ~200KB max for display
+  const storagePercent = Math.min(storageKB / 500, 1) // assume ~500KB max for ring
+
+  // Compute health score
+  const healthScore = useMemo(() => {
+    let score = 0
+    if (pinEnabled) score += 30
+    if (biometricLockEnabled) score += 10
+    if (notificationsEnabled) score += 10
+    if (tasks.length > 0) score += 10
+    if (namazRecords.length > 0) score += 10
+    if (transactions.length > 0) score += 10
+    // backup check - if any data exists
+    if (tasks.length > 0 || transactions.length > 0 || namazRecords.length > 0) score += 20
+    return Math.min(score, 100)
+  }, [pinEnabled, biometricLockEnabled, notificationsEnabled, tasks.length, namazRecords.length, transactions.length])
+
+  const healthRingColor = healthScore >= 80 ? 'var(--st-success)' : healthScore >= 50 ? 'var(--st-gold)' : 'var(--st-danger)'
+  const healthRingOffset = 188.5 - (188.5 * healthScore / 100)
+  const healthRingCircumference = 188.5
+
+  // Storage ring circumference
+  const storageRingOffset = 188.5 - (188.5 * storagePercent)
+
+  // Toggle section collapse
+  const toggleSection = (id: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // Spotlight search
+  const sectionDefsList = useMemo(() => sectionDefs(t), [t])
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return sectionDefsList.filter(s => {
+      const title = s.titleKey.toLowerCase()
+      const desc = s.descKey?.toLowerCase() || ''
+      return title.includes(q) || desc.includes(q)
+    })
+  }, [searchQuery, sectionDefsList])
+
+  const handleSearchSelect = (id: string) => {
+    setSearchQuery('')
+    setShowSearch(false)
+    // Scroll to section
+    const el = document.getElementById(`st-section-${id}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const handleQuickSearch = () => {
+    setShowSearch(true)
+    setTimeout(() => searchRef.current?.focus(), 100)
+  }
 
   return (
     <div className="st-root">
+      {/* SVG Defs for gradients */}
+      <svg className="st-svg-defs" aria-hidden="true">
+        <defs>
+          <linearGradient id="st-ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="var(--st-accent)" />
+            <stop offset="100%" stopColor="var(--st-accent-2)" />
+          </linearGradient>
+          <linearGradient id="st-health-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={healthScore >= 80 ? 'var(--st-success)' : healthScore >= 50 ? 'var(--st-gold)' : 'var(--st-danger)'} />
+            <stop offset="100%" stopColor={healthScore >= 80 ? '#34d399' : healthScore >= 50 ? '#dbb85c' : '#ef4444'} />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* Header */}
       <div className="st-header">
         <div className="st-header-bg" />
         <div className="st-header-inner">
@@ -510,29 +620,128 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Greeting Bar */}
-      <div className="st-header-greeting">
-        <div className="st-greeting-avatar">
-          <span>AZ</span>
-        </div>
-        <div>
-          <div className="st-greeting-text">{greeting} 👋</div>
-          <div className="st-greeting-sub">{t.about === 'About' ? 'Your settings, your way' : 'আপনার সেটিংস, আপনার পছন্দ'}</div>
-        </div>
-        <div className="st-greeting-badge">
-          <Database size={9} />
-          {language === 'bn' ? 'স্থানীয়' : 'Local'}
-        </div>
-      </div>
+      {/* Premium Profile Hub with Integrated Search (moved into .st-body) */}
 
       <div className="st-body">
+        {/* Quick Toggle Dock */}
+        <div className="st-quick-dock">
+          <button
+            className={`st-quick-dock-pill ${theme === 'dark' ? 'st-quick-dock-pill--active' : ''}`}
+            onClick={() => update({ theme: theme === 'dark' ? 'light' : 'dark' as Theme })}
+          >
+            {theme === 'dark' ? <MoonStar size={14} /> : <SunIcon size={14} />}
+            {t.quickTheme}
+          </button>
+          <button
+            className={`st-quick-dock-pill ${pinEnabled ? 'st-quick-dock-pill--active' : ''}`}
+            onClick={() => pinEnabled ? setShowPinDisable(true) : setShowPinSetup(true)}
+          >
+            <Shield size={14} />
+            {t.quickSecurity}
+          </button>
+          <button
+            className={`st-quick-dock-pill ${notificationsEnabled ? 'st-quick-dock-pill--active' : ''}`}
+            onClick={() => update({ notificationsEnabled: !notificationsEnabled })}
+          >
+            <Bell size={14} />
+            {t.quickNotifications}
+          </button>
+          <button
+            className="st-quick-dock-pill"
+            onClick={handleQuickSearch}
+          >
+            <Search size={14} />
+            {language === 'bn' ? 'খুঁজুন' : 'Search'}
+          </button>
+        </div>
+        {/* Premium Profile Hub with Integrated Search */}
+        <div className="st-profile-hub">
+          <div className="st-profile-hub-top">
+            <div className="st-profile-avatar-wrap">
+              <div className="st-profile-avatar">
+                <span>AJ</span>
+              </div>
+              <div className="st-profile-avatar-badge" />
+            </div>
+            <div className="st-profile-info">
+              <div className="st-profile-greeting">{greeting} 👋</div>
+              <div className="st-profile-sub">{language === 'bn' ? 'আপনার সেটিংস, আপনার পছন্দ' : 'Your settings, your way'}</div>
+            </div>
+            <div className="st-profile-stats">
+              <div className="st-profile-stat-badge">
+                <Database size={9} />
+                {language === 'bn' ? 'স্থানীয়' : 'Local'}
+              </div>
+            </div>
+          </div>
+          
+          {/* Search integrated inside profile hub */}
+          <div className="st-profile-search">
+            <div className="st-spotlight-input-wrap">
+              <span className="st-spotlight-icon">
+                <Search size={14} />
+              </span>
+              <input
+                ref={searchRef}
+                className="st-spotlight-input"
+                type="text"
+                placeholder={t.searchPlaceholder}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setShowSearch(true)
+                }}
+                onFocus={() => setShowSearch(true)}
+                onBlur={() => setTimeout(() => setShowSearch(false), 200)}
+              />
+              <button
+                className={`st-spotlight-clear ${searchQuery ? 'st-spotlight-clear--visible' : ''}`}
+                onClick={() => {
+                  setSearchQuery('')
+                  setShowSearch(false)
+                }}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            {showSearch && searchQuery && (
+              <div className="st-spotlight-results">
+                {searchResults.length > 0 ? (
+                  searchResults.map((s) => (
+                    <button
+                      key={s.id}
+                      className="st-spotlight-result-item"
+                      onMouseDown={() => handleSearchSelect(s.id)}
+                    >
+                      <span className="st-spotlight-result-icon">
+                        {s.icon}
+                      </span>
+                      <span>{s.titleKey}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="st-spotlight-no-results">
+                    {language === 'bn' ? 'কোনো ফলাফল পাওয়া যায়নি' : 'No results found'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         {/* Theme */}
-        <Section icon={<Palette size={15} />} title={t.theme}>
+        <Section
+          id="theme"
+          icon={<Palette size={16} />}
+          title={t.theme}
+          collapsed={collapsedSections.has('theme')}
+          onToggle={() => toggleSection('theme')}
+        >
           <div className="st-theme-grid">
             {[
-              { val: 'light' as Theme, icon: <Sun size={20} />, label: t.themeLight },
-              { val: 'dark' as Theme,  icon: <Moon size={20} />, label: t.themeDark },
-              { val: 'system' as Theme, icon: <Monitor size={20} />, label: t.themeSystem },
+              { val: 'light' as Theme, icon: <Sun size={22} />, label: t.themeLight },
+              { val: 'dark' as Theme,  icon: <Moon size={22} />, label: t.themeDark },
+              { val: 'system' as Theme, icon: <Monitor size={22} />, label: t.themeSystem },
             ].map(({ val, icon, label }) => (
               <button
                 key={val}
@@ -548,7 +757,13 @@ export default function SettingsPage() {
         </Section>
 
         {/* Language & Currency */}
-        <Section icon={<Globe size={15} />} title={t.langCurrency}>
+        <Section
+          id="lang"
+          icon={<Globe size={16} />}
+          title={t.langCurrency}
+          collapsed={collapsedSections.has('lang')}
+          onToggle={() => toggleSection('lang')}
+        >
           <RowToggle
             label={t.language}
             left={t.bnLabel}
@@ -569,7 +784,14 @@ export default function SettingsPage() {
         </Section>
 
         {/* Notifications */}
-        <Section icon={<Bell size={15} />} title={t.notifications} desc={t.secNotifications}>
+        <Section
+          id="notifications"
+          icon={<Bell size={16} />}
+          title={t.notifications}
+          desc={t.secNotifications}
+          collapsed={collapsedSections.has('notifications')}
+          onToggle={() => toggleSection('notifications')}
+        >
           <RowSwitch
             icon={<Bell size={14} />}
             iconType="accent"
@@ -644,7 +866,14 @@ export default function SettingsPage() {
         </Section>
 
         {/* Security */}
-        <Section icon={<Shield size={15} />} title={t.security} desc={t.secSecurity}>
+        <Section
+          id="security"
+          icon={<Shield size={16} />}
+          title={t.security}
+          desc={t.secSecurity}
+          collapsed={collapsedSections.has('security')}
+          onToggle={() => toggleSection('security')}
+        >
           {/* Security Status Card */}
           <div className="st-security-card">
             <div className={`st-security-icon-box ${pinEnabled ? 'st-security-icon-box--locked' : 'st-security-icon-box--unlocked'}`}>
@@ -700,10 +929,43 @@ export default function SettingsPage() {
           )}
         </Section>
 
+        {/* Data Health Score - Premium Ring */}
+        <div className="st-health-score">
+          <div className="st-health-score-ring">
+            <svg viewBox="0 0 65 65">
+              <circle className="st-health-score-ring-bg" cx="32.5" cy="32.5" r="30" />
+              <circle
+                className="st-health-score-ring-fill"
+                cx="32.5"
+                cy="32.5"
+                r="30"
+                stroke={healthRingColor}
+                style={{ strokeDashoffset: healthRingOffset }}
+              />
+            </svg>
+            <div className="st-health-score-ring-center">{healthScore}</div>
+          </div>
+          <div className="st-health-score-info">
+            <div className="st-health-score-title">{t.dataHealth}</div>
+            <div className="st-health-score-desc">
+              {healthScore >= 80 ? (language === 'bn' ? 'চমৎকার! সবকিছু সুরক্ষিত' : 'Excellent! Everything is secure')
+                : healthScore >= 50 ? (language === 'bn' ? 'ভালো, কিন্তু আরও উন্নতি সম্ভব' : 'Good, but can improve')
+                : (language === 'bn' ? 'একটি PIN সেট করুন এবং ব্যাকআপ নিন' : 'Set a PIN and take a backup')}
+            </div>
+          </div>
+        </div>
+
         <CloudSyncCard />
 
         {/* Data Management */}
-        <Section icon={<Download size={15} />} title={t.dataManage} desc={t.secData}>
+        <Section
+          id="data"
+          icon={<Download size={16} />}
+          title={t.dataManage}
+          desc={t.secData}
+          collapsed={collapsedSections.has('data')}
+          onToggle={() => toggleSection('data')}
+        >
           <RowArrow
             icon={<Share2 size={14} />}
             iconType="accent"
@@ -755,7 +1017,14 @@ export default function SettingsPage() {
         </Section>
 
         {/* About */}
-        <Section icon={<Info size={15} />} title={t.about} desc={t.secAbout}>
+        <Section
+          id="about"
+          icon={<Info size={16} />}
+          title={t.about}
+          desc={t.secAbout}
+          collapsed={collapsedSections.has('about')}
+          onToggle={() => toggleSection('about')}
+        >
           <div className="st-about-card">
             <img src="/icons/app-icon.png" alt="SelfSync" className="st-about-logo-img" />
             <div>
@@ -764,27 +1033,34 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Storage Visualization */}
-          <div className="st-storage-section">
-            <div className="st-storage-header">
-              <span className="st-storage-label">
-                <HardDrive size={12} className="st-storage-icon" />
-                {t.storageUsed}
-              </span>
-              <span className="st-storage-value">{getStorageSize()}</span>
+          {/* Storage Ring (replaces bar) */}
+          <div className="st-storage-ring-section">
+            <div className="st-storage-ring">
+              <svg viewBox="0 0 65 65">
+                <circle className="st-storage-ring-bg" cx="32.5" cy="32.5" r="30" />
+                <circle
+                  className={`st-storage-ring-fill ${storagePercent > 0.7 ? 'st-storage-ring-fill--high' : ''} ${storagePercent > 0.9 ? 'st-storage-ring-fill--full' : 'st-storage-ring-fill--default'}`}
+                  cx="32.5"
+                  cy="32.5"
+                  r="30"
+                  style={{ strokeDashoffset: storageRingOffset }}
+                />
+              </svg>
+              <div className="st-storage-ring-center">{Math.round(storagePercent * 100)}%</div>
             </div>
-            <div className="st-storage-bar">
-              <div
-                className={`st-storage-bar-fill ${storagePercent > 0.7 ? 'st-storage-bar-fill--high' : ''} ${storagePercent > 0.9 ? 'st-storage-bar-fill--full' : ''}`}
-                style={{ width: `${Math.max(storagePercent * 100, 5)}%` }}
-              />
-            </div>
-            <div className="st-storage-breakdown">
-              <span className="st-storage-tag">
-                <span className="st-storage-tag-dot" style={{ background: 'var(--st-accent)' }} />
-                {t.dataSummary}
-              </span>
-              <span className="st-storage-tag">{dataSummary}</span>
+            <div className="st-storage-ring-info">
+              <div className="st-storage-ring-label">
+                <HardDrive size={11} />
+                {' '}{t.storageUsed}
+              </div>
+              <div className="st-storage-ring-value">{getStorageSize()}</div>
+              <div className="st-storage-breakdown">
+                <span className="st-storage-tag">
+                  <span className="st-storage-tag-dot" style={{ background: 'var(--st-accent)' }} />
+                  {t.dataSummary}
+                </span>
+                <span className="st-storage-tag">{dataSummary}</span>
+              </div>
             </div>
           </div>
 
@@ -893,17 +1169,37 @@ export default function SettingsPage() {
 }
 
 // ==================== Sub-components ====================
-function Section({ icon, title, desc, children }: { icon: React.ReactNode; title: string; desc?: string; children: React.ReactNode }) {
+function Section({ id, icon, title, desc, children, collapsed, onToggle }: {
+  id?: string;
+  icon: React.ReactNode;
+  title: string;
+  desc?: string;
+  children: React.ReactNode;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
   return (
-    <div className="st-section">
-      <div className="st-section-head">
+    <div className="st-section" id={id ? `st-section-${id}` : undefined}>
+      <div
+        className={`st-section-head ${onToggle ? 'st-section-head--clickable' : ''}`}
+        onClick={onToggle}
+      >
         <span className="st-section-icon">{icon}</span>
         <div className="st-section-title-group">
           <span className="st-section-title">{title}</span>
           {desc && <span className="st-section-desc">{desc}</span>}
         </div>
+        {onToggle && (
+          <span className={`st-section-chevron ${collapsed ? '' : 'st-section-chevron--open'}`}>
+            <ChevronDown size={16} />
+          </span>
+        )}
       </div>
-      <div className="st-section-body">{children}</div>
+      <div className={`st-section-body ${collapsed ? 'st-section-body--collapsed' : 'st-section-body--expanded'}`}>
+        <div className="st-section-body-inner">
+          {children}
+        </div>
+      </div>
     </div>
   )
 }
@@ -999,7 +1295,6 @@ function RowExternalLink({ label, sub, href }: { label: string; sub?: string; hr
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`${label} (opens in a new tab)`}
     >
       <span className="st-row-icon st-row-icon--neutral">
         <ExternalLink size={14} />
@@ -1008,68 +1303,75 @@ function RowExternalLink({ label, sub, href }: { label: string; sub?: string; hr
         <span className="st-row-label">{label}</span>
         {sub && <span className="st-row-sub">{sub}</span>}
       </div>
-      <ExternalLink size={15} className="st-row-arrow" aria-hidden="true" />
+      <ExternalLink size={13} className="st-row-arrow" />
     </a>
   )
 }
 
+// ==================== Modal Components ====================
+function PinSetupModal({ language, onClose, onSave }: { language: Language; onClose: () => void; onSave: (pin: string) => void }) {
+  const t = translations[language]
+  const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [step, setStep] = useState(0)
+  const [error, setError] = useState('')
+  const [showPin, setShowPin] = useState(false)
 
-// ==================== Modals ====================
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const handleNext = () => {
+    if (pin.length < 4) {
+      setError(t.pinErrorShort)
+      return
+    }
+    setError('')
+    setStep(1)
+  }
+
+  const handleSave = () => {
+    if (pin !== confirmPin) {
+      setError(t.pinErrorMismatch)
+      return
+    }
+    onSave(pin)
+  }
+
   return (
     <div className="mo-backdrop" onClick={onClose}>
       <div className="mo-sheet" onClick={e => e.stopPropagation()}>
         <div className="mo-notch" />
         <div className="mo-head">
-          <h2 className="mo-title">{title}</h2>
+          <span className="mo-title">{step === 0 ? t.pinSetupTitle : t.pinConfirm}</span>
           <button className="mo-close" onClick={onClose}><X size={16} /></button>
         </div>
-        {children}
+        <div className="st-pin-wrap">
+          <p className="st-pin-hint">{step === 0 ? t.pinEnter : t.pinConfirm}</p>
+          <div className="st-pin-input-row">
+            <input
+              className="mo-inp"
+              type={showPin ? 'text' : 'password'}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="••••"
+              value={step === 0 ? pin : confirmPin}
+              onChange={e => {
+                step === 0 ? setPin(e.target.value) : setConfirmPin(e.target.value)
+                setError('')
+              }}
+              autoFocus
+            />
+            <button className="st-eye" onClick={() => setShowPin(!showPin)} aria-label="Toggle PIN visibility">
+              {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {error && <p className="st-error">{error}</p>}
+          <button
+            className="mo-submit mo-submit--neu"
+            onClick={step === 0 ? handleNext : handleSave}
+          >
+            {step === 0 ? t.pinNext : t.pinSave}
+          </button>
+        </div>
       </div>
     </div>
-  )
-}
-
-function PinSetupModal({ language, onClose, onSave }: { language: Language; onClose: () => void; onSave: (pin: string) => void }) {
-  const t = translations[language]
-  const [step, setStep] = useState<'enter' | 'confirm'>('enter')
-  const [pin, setPin] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [show, setShow] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleNext = () => {
-    if (pin.length < 4) { setError(t.pinErrorShort); return }
-    setStep('confirm'); setError('')
-  }
-  const handleConfirm = () => {
-    if (pin !== confirm) { setError(t.pinErrorMismatch); return }
-    onSave(pin)
-  }
-
-  return (
-    <ModalShell title={t.pinSetupTitle} onClose={onClose}>
-      <div className="st-pin-wrap">
-        {step === 'enter' ? (
-          <>
-            <p className="st-pin-hint">{t.pinEnter}</p>
-            <div className="st-pin-input-row">
-              <input className="mo-inp" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} autoFocus />
-              <button className="st-eye" onClick={() => setShow(!show)}>{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-            </div>
-            {error && <p className="st-error">{error}</p>}
-            <button className="mo-submit mo-submit--neu" onClick={handleNext}>{t.pinNext}</button>
-          </>
-        ) : (
-          <>
-            <p className="st-pin-hint">{t.pinConfirm}</p>
-            <input className="mo-inp" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={8} placeholder="••••" value={confirm} onChange={e => setConfirm(e.target.value.replace(/\D/g, ''))} autoFocus />
-            {error && <p className="st-error">{error}</p>}
-            <button className="mo-submit mo-submit--neu" onClick={handleConfirm}>{t.pinSave}</button>
-          </>
-        )}
-      </div>
-    </ModalShell>
   )
 }
 
@@ -1077,113 +1379,174 @@ function PinDisableModal({ language, pinHash, onClose, onConfirm }: { language: 
   const t = translations[language]
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
-  const handleCheck = () => {
-    if (hashPin(pin) === pinHash) onConfirm()
-    else setError(t.pinErrorWrong)
+  const [showPin, setShowPin] = useState(false)
+
+  const handleConfirm = () => {
+    if (hashPin(pin) !== pinHash) {
+      setError(t.pinErrorWrong)
+      return
+    }
+    onConfirm()
   }
-  return (
-    <ModalShell title={t.pinDisableTitle} onClose={onClose}>
-      <p className="st-pin-hint">{t.pinDisableConfirm}</p>
-      <input className="mo-inp" type="password" inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} autoFocus />
-      {error && <p className="st-error">{error}</p>}
-      <button className="mo-submit mo-submit--exp" onClick={handleCheck}>{t.pinDisableBtn}</button>
-    </ModalShell>
-  )
-}
 
-function ConfirmModal({ language, title, body, confirmLabel, confirmClass, onConfirm, onClose, icon, danger }: { language: Language; title: string; body: string; confirmLabel: string; confirmClass: string; onConfirm: () => void; onClose: () => void; icon?: React.ReactNode; danger?: boolean }) {
-  const t = translations[language]
   return (
-    <ModalShell title={title} onClose={onClose}>
-      <div className="st-confirm-body">
-        {icon && <div className={`st-confirm-icon ${danger ? 'st-confirm-icon--danger' : 'st-confirm-icon--gold'}`}>{icon}</div>}
-        <p className="st-confirm-text">{body}</p>
+    <div className="mo-backdrop" onClick={onClose}>
+      <div className="mo-sheet" onClick={e => e.stopPropagation()}>
+        <div className="mo-notch" />
+        <div className="mo-head">
+          <span className="mo-title">{t.pinDisableTitle}</span>
+          <button className="mo-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="st-pin-wrap">
+          <p className="st-pin-hint">{t.pinDisableConfirm}</p>
+          <div className="st-pin-input-row">
+            <input
+              className="mo-inp"
+              type={showPin ? 'text' : 'password'}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="••••"
+              value={pin}
+              onChange={e => { setPin(e.target.value); setError('') }}
+              autoFocus
+            />
+            <button className="st-eye" onClick={() => setShowPin(!showPin)} aria-label="Toggle PIN visibility">
+              {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {error && <p className="st-error">{error}</p>}
+          <button className="mo-submit mo-submit--exp" onClick={handleConfirm}>
+            {t.pinDisableBtn}
+          </button>
+        </div>
       </div>
-      <button className={`mo-submit ${confirmClass}`} onClick={onConfirm}>{confirmLabel}</button>
-      <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>{t.cancel}</button>
-    </ModalShell>
+    </div>
   )
 }
 
-function BackupModal({
-  language,
-  title,
-  body,
-  summaryTitle,
-  items,
-  confirmLabel,
-  onConfirm,
-  onClose,
-}: {
-  language: Language
-  title: string
-  body: string
-  summaryTitle: string
-  items: Array<{ label: string; value: number }>
-  confirmLabel: string
-  onConfirm: () => void
-  onClose: () => void
+function BackupModal({ language, title, body, summaryTitle, items, confirmLabel, onConfirm, onClose }: {
+  language: Language; title: string; body: string; summaryTitle: string; items: { label: string; value: number }[]; confirmLabel: string; onConfirm: () => void; onClose: () => void
+}) {
+  return (
+    <div className="mo-backdrop" onClick={onClose}>
+      <div className="mo-sheet" onClick={e => e.stopPropagation()}>
+        <div className="mo-notch" />
+        <div className="mo-head">
+          <span className="mo-title">{title}</span>
+          <button className="mo-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--st-text-3)', marginBottom: 8, lineHeight: 1.5 }}>{body}</p>
+        <div className="st-confirm-body">
+          <div className="st-confirm-icon st-confirm-icon--gold">
+            <Download size={24} />
+          </div>
+          <div className="st-backup-block">
+            <div className="st-backup-title">{summaryTitle}</div>
+            <div className="st-backup-list">
+              {items.map((item) => (
+                <div key={item.label} className="st-backup-row">
+                  <span>{item.label}</span>
+                  <span className="st-backup-value">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button className="mo-submit mo-submit--neu" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RestoreModal({ language, onClose, onRestore }: { language: Language; onClose: () => void; onRestore: (file: File) => void }) {
+  const t = translations[language]
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="mo-backdrop" onClick={onClose}>
+      <div className="mo-sheet" onClick={e => e.stopPropagation()}>
+        <div className="mo-notch" />
+        <div className="mo-head">
+          <span className="mo-title">{t.restoreTitle}</span>
+          <button className="mo-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="st-restore-body">
+          <Upload size={40} className="st-restore-icon" />
+          <p className="st-restore-text">{t.restoreBody}</p>
+          <p className="st-restore-warn">{t.restoreWarn}</p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) onRestore(file)
+            }}
+          />
+          <button className="st-file-label" onClick={() => fileRef.current?.click()}>
+            <UploadCloud size={16} />
+            {' '}{t.restoreSelect}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmModal({ language, title, body, confirmLabel, confirmClass, onConfirm, onClose, icon, danger }: {
+  language: Language; title: string; body: string; confirmLabel: string; confirmClass?: string; onConfirm: () => void; onClose: () => void; icon: React.ReactNode; danger?: boolean
+}) {
+  return (
+    <div className="mo-backdrop" onClick={onClose}>
+      <div className="mo-sheet" onClick={e => e.stopPropagation()}>
+        <div className="mo-notch" />
+        <div className="mo-head">
+          <span className="mo-title">{title}</span>
+          <button className="mo-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="st-confirm-body">
+          <div className={`st-confirm-icon ${danger ? 'st-confirm-icon--danger' : 'st-confirm-icon--gold'}`}>
+            {icon}
+          </div>
+          <p className="st-confirm-text">{body}</p>
+        </div>
+        <button className={`mo-submit ${confirmClass || 'mo-submit--neu'}`} onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+        <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>
+          {translations[language].cancel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ExportCsvModal({ language, onClose, onExportTasks, onExportMoney }: {
+  language: Language; onClose: () => void; onExportTasks: () => void; onExportMoney: () => void
 }) {
   const t = translations[language]
   return (
-    <ModalShell title={title} onClose={onClose}>
-      <div className="st-confirm-body">
-        <div className="st-confirm-icon st-confirm-icon--gold">
-          <Download size={22} />
+    <div className="mo-backdrop" onClick={onClose}>
+      <div className="mo-sheet" onClick={e => e.stopPropagation()}>
+        <div className="mo-notch" />
+        <div className="mo-head">
+          <span className="mo-title">{t.exportTitle}</span>
+          <button className="mo-close" onClick={onClose}><X size={16} /></button>
         </div>
-        <p className="st-confirm-text">{body}</p>
-      </div>
-      <div className="st-backup-block">
-        <p className="st-backup-title">{summaryTitle}</p>
-        <div className="st-backup-list">
-          {items.map((item) => (
-            <div key={item.label} className="st-backup-row st-count-item">
-              <span>{item.label}</span>
-              <span className="st-backup-value">{item.value}</span>
-            </div>
-          ))}
+        <div className="st-export-body">
+          <button className="st-export-btn" onClick={onExportTasks}>
+            <FileSpreadsheet size={18} className="st-export-btn-icon" />
+            {t.exportTasks}
+          </button>
+          <button className="st-export-btn" onClick={onExportMoney}>
+            <FileSpreadsheet size={18} className="st-export-btn-icon" />
+            {t.exportMoney}
+          </button>
         </div>
       </div>
-      <button className="mo-submit mo-submit--neu" onClick={onConfirm}>{confirmLabel}</button>
-      <button className="mo-submit mo-submit--cancel" onClick={onClose} style={{ marginTop: 8 }}>{t.cancel}</button>
-    </ModalShell>
+    </div>
   )
 }
-
-function ExportCsvModal({ language, onClose, onExportTasks, onExportMoney }: { language: Language; onClose: () => void; onExportTasks: () => void; onExportMoney: () => void }) {
-  const t = translations[language]
-  return (
-    <ModalShell title={t.exportTitle} onClose={onClose}>
-      <div className="st-export-body">
-        <button className="st-export-btn" onClick={onExportTasks}>
-          <FileSpreadsheet size={16} className="st-export-btn-icon" />
-          {t.exportTasks}
-        </button>
-        <button className="st-export-btn" onClick={onExportMoney}>
-          <FileSpreadsheet size={16} className="st-export-btn-icon" />
-          {t.exportMoney}
-        </button>
-      </div>
-      <button className="mo-submit mo-submit--cancel" onClick={onClose}>{t.cancel}</button>
-    </ModalShell>
-  )
-}
-
-function RestoreModal({ language, onClose, onRestore }: { language: Language; onClose: () => void; onRestore: (f: File) => void }) {
-  const t = translations[language]
-  return (
-    <ModalShell title={t.restoreTitle} onClose={onClose}>
-      <div className="st-restore-body">
-        <Upload size={30} className="st-restore-icon" />
-        <p className="st-restore-text">{t.restoreBody}</p>
-        <label className="st-file-label">
-          {t.restoreSelect}
-          <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) onRestore(f) }} />
-        </label>
-        <p className="st-restore-warn">{t.restoreWarn}</p>
-      </div>
-    </ModalShell>
-  )
-}
-
-export const dynamic = 'force-dynamic'
