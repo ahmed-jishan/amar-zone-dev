@@ -22,7 +22,7 @@ export default function SpendingPulse({ currencySymbol }: { currencySymbol: stri
   }, [pulse])
 
   return (
-    <div className="mon-card p-4 flex items-center gap-4">
+        <div className="mon-card p-4 flex items-center gap-4 mon-animate-breathe" style={{ animation: 'mon-breathe 4s ease-in-out infinite' }}>
       <div className="mon-pulse-ring flex-shrink-0">
         <svg width="80" height="80" viewBox="0 0 80 80">
           <circle

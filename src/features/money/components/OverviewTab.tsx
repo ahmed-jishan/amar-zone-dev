@@ -42,7 +42,9 @@ export default function OverviewTab({
       {/* Category Breakdown */}
       {Object.keys(spendingByCategory).length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] mb-3" style={{ color: 'var(--mon-text-3)' }}>{t.categoryBreakdown}</h3>
+          <div className="mon-sticky-header">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px]" style={{ color: 'var(--mon-text-3)' }}>{t.categoryBreakdown}</h3>
+          </div>
           <div className="flex flex-col gap-3">
             {Object.entries(spendingByCategory).sort(([, a]: any, [, b]: any) => b - a).map(([cat, amt]: any, i: number) => {
               const m = CATEGORY_META[cat] || CATEGORY_META.other
@@ -82,7 +84,9 @@ export default function OverviewTab({
       {/* Insights */}
       {insights.filter((i: FinancialInsight) => !i.read).length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] mb-3" style={{ color: 'var(--mon-text-3)' }}>{t.financialInsights}</h3>
+          <div className="mon-sticky-header">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px]" style={{ color: 'var(--mon-text-3)' }}>{t.financialInsights}</h3>
+          </div>
           <div className="flex flex-col gap-2">
             {insights.filter((i: FinancialInsight) => !i.read).slice(0, 3).map((insight: FinancialInsight) => (
               <div key={insight.id} className="flex items-start gap-3 p-3 rounded-[var(--mon-radius-lg)]"
@@ -127,7 +131,7 @@ export default function OverviewTab({
 
       {/* Recent Transactions */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="mon-sticky-header flex items-center justify-between">
           <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px]" style={{ color: 'var(--mon-text-3)' }}>{t.recentTransactions}</h3>
           <button onClick={() => onSetTab('transactions')} className="text-[11px] font-semibold" style={{ color: 'var(--mon-gold)' }}>{t.seeAll}</button>
         </div>
@@ -168,7 +172,7 @@ function TransactionCard({ txn, index, currency_symbol, language, onDelete }: an
       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ background: m.bg }}>{m.icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-[14px] font-semibold truncate" style={{ color: 'var(--mon-text-1)' }}>{txn.note || (language === 'bn' ? m.labelBn : m.labelEn)}</p>
-        <p className="text-[11px]" style={{ color: 'var(--mon-text-3)' }}>{txn.date} · {language === 'bn' ? m.labelBn : m.labelEn}</p>
+        <p className="text-[11px]" style={{ color: 'var(--mon-text-3)' }}>{txn.date} / {language === 'bn' ? m.labelBn : m.labelEn}</p>
       </div>
       <div className="text-right">
         <p className={`text-[15px] font-bold ${isIncome ? '' : ''}`} style={{ color: isIncome ? 'var(--mon-income)' : 'var(--mon-expense)' }}>

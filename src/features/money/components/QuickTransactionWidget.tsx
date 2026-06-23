@@ -1,7 +1,15 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Plus, ArrowDownLeft, ArrowUpRight, Wallet, Receipt } from 'lucide-react'
+import { Plus, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, type LucideIcon } from 'lucide-react'
+import { useMoneyHaptics } from '../hooks/useMoneyHaptics'
+
+interface FabAction {
+  icon: LucideIcon
+  label: string
+  color: string
+  onClick: () => void
+}
 
 interface Props {
   onAddExpense: () => void
@@ -13,6 +21,7 @@ interface Props {
 export default function QuickTransactionWidget({ onAddExpense, onAddIncome, onWalletTools, onScanReceipt }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const haptics = useMoneyHaptics()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -24,17 +33,25 @@ export default function QuickTransactionWidget({ onAddExpense, onAddIncome, onWa
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const actions = [
-    { icon: ArrowDownLeft, label: 'Expense', color: 'var(--mon-expense)', onClick: () => { onAddExpense(); setIsOpen(false) } },
-    { icon: ArrowUpRight, label: 'Income', color: 'var(--mon-income)', onClick: () => { onAddIncome(); setIsOpen(false) } },
-    { icon: Wallet, label: 'Wallets', color: 'var(--mon-gold)', onClick: () => { onWalletTools(); setIsOpen(false) } },
-    ...(onScanReceipt ? [{ icon: Receipt, label: 'Receipt', color: 'var(--mon-accent)', onClick: () => { onScanReceipt(); setIsOpen(false) } }] : []),
+  const toggleFab = () => {
+    if (!isOpen) haptics.tapMedium()
+    setIsOpen((v) => !v)
+  }
+
+  const actions: FabAction[] = [
+    { icon: ArrowDownLeft, label: 'Expense', color: 'var(--mon-expense)', onClick: () => { onAddExpense(); setIsOpen(false); haptics.tap() } },
+    { icon: ArrowUpRight, label: 'Income', color: 'var(--mon-income)', onClick: () => { onAddIncome(); setIsOpen(false); haptics.tap() } },
+    { icon: Wallet, label: 'Wallets', color: 'var(--mon-gold)', onClick: () => { onWalletTools(); setIsOpen(false); haptics.tap() } },
   ]
 
+  if (onScanReceipt) {
+    actions.push({ icon: Receipt, label: 'Receipt', color: 'var(--mon-accent)', onClick: () => { onScanReceipt(); setIsOpen(false); haptics.tap() } })
+  }
+
   return (
-    <div ref={ref} className={`mon-fab ${isOpen ? 'open' : ''}`}>
+    <div ref={ref} className={`mon-fab ${isOpen ? 'open' : ''}`} style={{ zIndex: 40 }}>
       <button
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={toggleFab}
         className="w-full h-full flex items-center justify-center bg-none border-none cursor-pointer"
         aria-label="Quick actions"
       >
