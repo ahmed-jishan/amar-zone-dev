@@ -289,14 +289,24 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
           }
         }
 
-        /* main scroll container uses the app's default bg.
-           Tasks/Money/Settings pages all use this color.
-           Namaz and Home pages override with their own gradient end colors
-           via CSS rules in their respective stylesheets. */
+        /* main is transparent by default — each page's root element provides its own background.
+           The translucent nav seamlessly blends with the page's background.
+           These main:has() overrides are placed here (inside the inline style tag) so they
+           have equal specificity priority with the transparent default. */
         main {
           padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
-          background: rgb(var(--bg));
+          background: transparent !important;
         }
+        main:has(.namaz-root) { background: #fbf6e8 !important; }
+        .dark main:has(.namaz-root) { background: #151614 !important; }
+        main:has(.home-root) { background: #f5f3ff !important; }
+        .dark main:has(.home-root) { background: #14141f !important; }
+        main:has(.st-root) { background: #f6f8fc !important; }
+        .dark main:has(.st-root) { background: #0b0d10 !important; }
+        main:has(.mon-root) { background: #f8f9fb !important; }
+        .dark main:has(.mon-root) { background: #0b0c0e !important; }
+        main:has(.az-root) { background: #f8f9fb !important; }
+        .dark main:has(.az-root) { background: #0b0c0e !important; }
       `}</style>
     </>
   )

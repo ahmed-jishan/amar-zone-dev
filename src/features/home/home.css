@@ -53,14 +53,6 @@
   stroke-width: 1.7;
 }
 
-/* Match <main>'s background to the Home page gradient end color in each mode */
-main:has(.home-root) {
-  background: #f5f3ff !important;
-}
-.dark main:has(.home-root) {
-  background: #14141f !important;
-}
-
 .dark .home-root {
   --hm-bg: #0e0e18;
   --hm-bg-2: #14141f;
@@ -432,72 +424,257 @@ main:has(.home-root) {
   letter-spacing: -0.2px;
 }
 
-/* ─── Live Time Header ─── */
+/* ═══════════════════════════════════════════
+   ─── PREMIUM LIVE TIME HEADER ───
+   Apple/Samsung-level animated clock
+   ═══════════════════════════════════════════ */
 
+/* ─── Container ─── */
 .live-time-header {
-  padding: 0.25rem 0;
+  padding: 0.5rem 0;
+  position: relative;
 }
 
+/* ─── [Removed] Ambient Background — no color cast ─── */
+
+/* ─── Greeting Row ─── */
 .greeting-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 8px;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
 }
 
 .greeting-emoji {
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 1;
+  display: inline-block;
+  animation: greeting-float 3s ease-in-out infinite;
+}
+
+@keyframes greeting-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 
 .greeting-text {
   font-size: 15px;
   font-weight: 500;
   color: var(--hm-muted);
+  letter-spacing: 0.2px;
 }
 
+/* ─── Clock Row ─── */
 .clock-row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-bottom: 2px;
+  gap: 1px;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
 }
 
-.clock-digit {
-  display: inline-block;
-  font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  font-size: 42px;
+/* ─── 3D Flip Digit Card ─── */
+.flip-card-container {
+  perspective: 600px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 1px;
+}
+
+.flip-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  border-radius: 10px;
+  background: var(--hm-surface-strong);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+}
+
+.flip-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+.dark .flip-card::after {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.flip-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.flip-card-face-top {
+  clip-path: inset(0 0 50% 0);
+  background: var(--hm-surface-strong);
+  border-bottom: 1px solid transparent;
+}
+
+.flip-card-face-bottom {
+  clip-path: inset(50% 0 0 0);
+  background: linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
+}
+
+.dark .flip-card-face-bottom {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+}
+
+.flip-card-face-back {
+  transform: rotateX(180deg);
+}
+
+.flip-card-face-back.flip-card-face-top {
+  clip-path: inset(0 0 50% 0);
+  background: linear-gradient(0deg, rgba(0,0,0,0.02), transparent);
+}
+
+.dark .flip-card-face-back.flip-card-face-top {
+  background: linear-gradient(0deg, rgba(255,255,255,0.03), transparent);
+}
+
+.flip-card-face-back.flip-card-face-bottom {
+  clip-path: inset(50% 0 0 0);
+}
+
+/* ─── Premium Digit — Apple-grade Clean ─── */
+.premium-digit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'SF Pro Display', 'Inter Display', 'Plus Jakarta Sans', 'SF Mono', 'JetBrains Mono', monospace;
+  font-size: 48px;
   font-weight: 700;
-  letter-spacing: -1px;
+  letter-spacing: -2px;
   color: var(--hm-text);
   line-height: 1;
-  min-width: 28px;
+  min-width: 32px;
   text-align: center;
-  background: linear-gradient(135deg, var(--hm-text), var(--hm-accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  position: relative;
+  z-index: 2;
+  padding: 0 2px;
 }
 
-.clock-colon {
-  font-family: 'SF Mono', 'JetBrains Mono', monospace;
-  font-size: 36px;
+/* ─── Colon — Clean Minimal ─── */
+.premium-colon {
+  font-family: 'SF Pro Display', 'Inter Display', 'Plus Jakarta Sans', monospace;
+  font-size: 42px;
   font-weight: 300;
   color: var(--hm-accent);
-  margin: 0 1px;
+  margin: 0 2px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  opacity: 0.7;
 }
 
-.clock-ampm {
-  font-size: 13px;
+.premium-colon-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hm-accent);
+}
+
+/* ─── AM/PM — Clean Badge ─── */
+.premium-ampm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--hm-accent);
-  margin-left: 6px;
-  padding: 2px 6px;
+  color: var(--hm-accent-strong);
+  margin-left: 8px;
+  padding: 3px 9px;
   border-radius: 6px;
-  background: var(--hm-accent-soft);
-  letter-spacing: 0.5px;
+  background: var(--hm-accent-softer);
+  border: 1px solid var(--hm-accent-soft);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 
+/* ─── Date Row ─── */
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.date-dayname {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--hm-text-soft);
+  letter-spacing: -0.2px;
+}
+
+.date-sep {
+  color: var(--hm-muted);
+  font-size: 14px;
+}
+
+.date-full {
+  font-size: 14px;
+  color: var(--hm-muted);
+  font-weight: 400;
+}
+
+.date-bd-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--hm-muted);
+  opacity: 0.7;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--hm-accent-softer);
+  border: 1px solid var(--hm-border);
+}
+
+.date-bd-flag svg {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+/* ─── Second Tick Pulse ─── */
+@keyframes tick-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.004); }
+  100% { transform: scale(1); }
+}
+
+.tick-pulse {
+  animation: tick-pulse 0.3s ease-out;
+}
+
+/* ─── Clock Label ─── */
 .clock-label {
   font-size: 8px;
   font-weight: 500;
@@ -505,36 +682,6 @@ main:has(.home-root) {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   margin-top: 1px;
-}
-
-.date-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-top: 2px;
-}
-
-.date-dayname {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--hm-text-soft);
-}
-
-.date-sep {
-  color: var(--hm-muted);
-}
-
-.date-full {
-  font-size: 13px;
-  color: var(--hm-muted);
-}
-
-.date-bd {
-  font-size: 11px;
-  color: var(--hm-muted);
-  opacity: 0.7;
-  margin-left: auto;
 }
 
 /* ─── Namaz Pulse Card ─── */
