@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, X } from 'lucide-react';
 import TaskHeader from './components/TaskList/TaskHeader';
 import QuickAdd from './components/QuickAdd/QuickAdd';
 import TaskFilters from './components/TaskFilters/TaskFilters';
@@ -23,6 +24,98 @@ import { useTaskAnalytics } from './hooks/useTaskAnalytics';
 import { Task, ViewMode, SortMode } from './types';
 import { useTaskStore } from '@/lib/store/taskStore';
 import './tasks.css';
+
+// ─── Premium Success Burst Component ───
+function SuccessBurst({ visible, onComplete }: { visible: boolean; onComplete: () => void }) {
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(onComplete, 700);
+    return () => clearTimeout(timer);
+  }, [visible, onComplete]);
+
+  if (!visible) return null;
+
+  const particles = Array.from({ length: 8 }, (_, i) => {
+    const angle = (i / 8) * Math.PI * 2;
+    const dist = 40 + Math.random() * 30;
+    return {
+      id: i,
+      dx: Math.cos(angle) * dist,
+      dy: Math.sin(angle) * dist,
+      color: ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#14b8a6', '#8b5cf6', '#ec4899', '#38bdf8'][i],
+    };
+  });
+
+  return (
+    <div className="az-success-burst" aria-hidden>
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="az-success-burst-particle"
+          style={{
+            background: p.color,
+            '--dx': `${p.dx}px`,
+            '--dy': `${p.dy}px`,
+          } as React.CSSProperties}
+        />
+      ))}
+      <div className="az-success-check">
+        <Check size={22} strokeWidth={3} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Premium Snackbar Toast ───
+interface SnackbarState {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  visible: boolean;
+  exiting: boolean;
+}
+
+function Snackbar({
+  snackbar,
+  onDismiss,
+}: {
+  snackbar: SnackbarState;
+  onDismiss: () => void;
+}) {
+  useEffect(() => {
+    if (!snackbar.visible) return;
+    const timer = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(timer);
+  }, [snackbar.visible, onDismiss]);
+
+  if (!snackbar.visible) return null;
+
+  return (
+    <div className={`az-snackbar ${snackbar.exiting ? 'exiting' : ''}`}>
+      <span className="flex-1 text-[13px] font-semibold text-[var(--az-text-1)]">
+        {snackbar.message}
+      </span>
+      {snackbar.actionLabel && (
+        <button
+          className="px-3 py-1.5 rounded-[var(--az-radius-md)] text-[12px] font-bold text-[var(--az-accent)] bg-[var(--az-accent-bg)] border border-[var(--az-accent-border)] cursor-pointer whitespace-nowrap transition-all hover:bg-[var(--az-accent-bg-hover)]"
+          onClick={() => {
+            snackbar.onAction?.();
+            onDismiss();
+          }}
+        >
+          {snackbar.actionLabel}
+        </button>
+      )}
+      <button
+        className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--az-text-3)] hover:text-[var(--az-text-1)] hover:bg-[var(--az-surface-2)] transition-all cursor-pointer bg-none border-none"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
 
 export default function TasksPage() {
   const tasks = useTaskStore((s) => s.tasks);

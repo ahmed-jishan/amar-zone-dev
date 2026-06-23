@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, memo } from 'react';
+import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Task, Subtask } from '../../types';
 import { PRIORITIES } from '../../constants/priorities';
@@ -19,6 +19,48 @@ interface Props {
   onFocus?: (task: Task) => void;
   onOpenDetails?: (task: Task) => void;
   onContextMenu?: (e: React.MouseEvent, task: Task) => void;
+}
+
+// ─── Premium Confetti Burst ───
+function CompletionBurst({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+      {Array.from({ length: 6 }, (_, i) => {
+        const angle = (i / 6) * Math.PI * 2;
+        const dist = 40 + Math.random() * 30;
+        return (
+          <motion.div
+            key={i}
+            className="absolute w-1.5 h-1.5 rounded-full"
+            style={{
+              background: ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#14b8a6', '#8b5cf6'][i],
+              top: '50%',
+              left: '50%',
+            }}
+            initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+            animate={{
+              x: Math.cos(angle) * dist,
+              y: Math.sin(angle) * dist + (Math.random() * -20),
+              scale: [0, 1.5, 0],
+              opacity: [1, 1, 0],
+            }}
+            transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
+          />
+        );
+      })}
+      <motion.div
+        className="absolute top-1/2 left-1/2 w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[var(--az-success)] to-emerald-500 flex items-center justify-center"
+        initial={{ scale: 0 }}
+        animate={{ scale: [0, 1.3, 1] }}
+        transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+      >
+        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </motion.div>
+    </div>
+  );
 }
 
 // ─── Sub-components ───
@@ -52,8 +94,8 @@ const Checkbox = memo(function Checkbox({
       whileTap={{ scale: 0.85 }}
       whileHover={{ scale: 1.1 }}
       className={`
-        relative flex-shrink-0 w-[26px] h-[26px] rounded-full border-2
-        flex items-center justify-center transition-colors duration-300
+        relative flex-shrink-0 w-[28px] h-[28px] rounded-full border-2
+        flex items-center justify-center transition-all duration-300
         ${completed
           ? 'bg-[var(--az-success)] border-[var(--az-success)] shadow-[0_0_16px_var(--az-success-glow)]'
           : 'border-[var(--az-border-strong)] hover:border-[var(--az-accent)] hover:shadow-[0_0_12px_var(--az-accent-glow)]'
@@ -70,7 +112,7 @@ const Checkbox = memo(function Checkbox({
             animate={{ scale: 1, rotate: 0 }}
             exit={{ scale: 0, rotate: 45 }}
             transition={springs.bouncy}
-            className="w-3.5 h-3.5 text-white"
+            className="w-4 h-4 text-white"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -94,13 +136,14 @@ const PriorityBar = memo(function PriorityBar({ priority, completed }: { priorit
         background: completed
           ? `linear-gradient(180deg, ${p.accentColor}40, transparent)`
           : p.accentColor,
-        boxShadow: completed ? 'none' : `0 0 10px ${p.accentColor}60`,
+        boxShadow: completed ? 'none' : `0 0 12px ${p.accentColor}60`,
       }}
       animate={{
         opacity: completed ? 0.5 : 1,
         scaleY: completed ? 0.8 : 1,
+        height: completed ? '60%' : 'calc(100% - 24px)',
       }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     />
   );
 });
@@ -113,7 +156,11 @@ const SubtaskRing = memo(function SubtaskRing({ subtasks }: { subtasks?: Subtask
   const strokeDashoffset = circumference * (1 - pct);
 
   return (
-    <div className="flex items-center gap-1.5">
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1.5"
+    >
       <svg className="w-5 h-5" viewBox="0 0 22 22">
         <circle
           cx="11" cy="11" r="8"
@@ -143,7 +190,7 @@ const SubtaskRing = memo(function SubtaskRing({ subtasks }: { subtasks?: Subtask
       >
         {completed}/{subtasks.length}
       </motion.span>
-    </div>
+    </motion.div>
   );
 });
 
@@ -180,9 +227,12 @@ const TimeBadge = memo(function TimeBadge({ estimate, actual }: { estimate?: num
 
 const TagPill = memo(function TagPill({ tag }: { tag: string }) {
   return (
-    <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[var(--az-surface-3)] text-[var(--az-text-3)] border border-[var(--az-border)]">
+    <motion.span
+      whileHover={{ scale: 1.05 }}
+      className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[var(--az-surface-3)] text-[var(--az-text-3)] border border-[var(--az-border)]"
+    >
       {tag}
-    </span>
+    </motion.span>
   );
 });
 
@@ -202,9 +252,20 @@ function TaskCardComponent({
   const [ripple, setRipple] = useState<{ x: number; y: number } | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [showSwipeIndicator, setShowSwipeIndicator] = useState<'complete' | 'archive' | null>(null);
+  const [showCompletionBurst, setShowCompletionBurst] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const haptics = useHaptics();
   const swipeThresholdReached = useRef(false);
+  const prevCompletedRef = useRef(task.completed);
+
+  // Trigger completion burst when task gets completed
+  useEffect(() => {
+    if (task.completed && !prevCompletedRef.current) {
+      setShowCompletionBurst(true);
+      setTimeout(() => setShowCompletionBurst(false), 800);
+    }
+    prevCompletedRef.current = task.completed;
+  }, [task.completed]);
 
   const canComplete = useTaskStore((s) => s.canComplete);
   const toggleSelect = useTaskStore((s) => s.toggleSelect);
@@ -376,7 +437,7 @@ function TaskCardComponent({
       whileTap={{ scale: 0.99 }}
       className={`
         group relative flex items-start gap-3 px-4 py-3.5 rounded-[var(--az-radius-lg)]
-        border transition-colors duration-300 cursor-pointer select-none overflow-hidden
+        border transition-all duration-300 cursor-pointer select-none overflow-hidden
         ${isDragging
           ? 'opacity-60 shadow-[var(--az-shadow-lg)] z-50'
           : 'opacity-100'
@@ -398,8 +459,12 @@ function TaskCardComponent({
           : ''
         }
         ${blocked ? 'opacity-70' : ''}
+        ${task.completed ? 'hover:brightness-[1.02]' : ''}
       `}
     >
+      {/* Completion Burst Animation */}
+      <CompletionBurst show={showCompletionBurst} />
+
       {/* Swipe Indicators */}
       <AnimatePresence>
         {showSwipeIndicator === 'complete' && (
@@ -457,6 +522,15 @@ function TaskCardComponent({
           style={{
             background: `radial-gradient(600px circle at 50% 50%, ${pri?.accentColor}08, transparent 40%)`,
           }}
+        />
+      )}
+
+      {/* Completed overlay shimmer */}
+      {task.completed && (
+        <motion.div
+          className="absolute inset-0 rounded-[var(--az-radius-lg)] pointer-events-none bg-gradient-to-r from-transparent via-[var(--az-success)]/[0.02] to-transparent"
+          animate={{ x: ['-100%', '100%'] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
         />
       )}
 
@@ -527,7 +601,7 @@ function TaskCardComponent({
             className={`
               text-[15px] font-semibold leading-snug
               ${task.completed
-                ? 'text-[var(--az-text-3)] line-through decoration-[var(--az-text-4)]'
+                ? 'text-[var(--az-text-3)] line-through decoration-[var(--az-text-4)] decoration-2'
                 : 'text-[var(--az-text-1)]'
               }
             `}
@@ -561,7 +635,7 @@ function TaskCardComponent({
         )}
 
         {/* Metadata row */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {/* Priority badge */}
           {task.priority !== 'medium' && (
             <motion.span
@@ -593,8 +667,10 @@ function TaskCardComponent({
               className={`
                 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border
                 ${dueOverdue
-                  ? 'text-[var(--az-danger)] bg-[var(--az-danger-bg)] border-[var(--az-danger-border)]'
-                  : 'text-[var(--az-text-2)] bg-[var(--az-surface-2)] border-[var(--az-border)]'
+                  ? 'text-[var(--az-danger)] bg-[var(--az-danger-bg)] border-[var(--az-danger-border)] animate-[az-glow-pulse_2s_ease-in-out_infinite]'
+                  : task.completed
+                    ? 'text-[var(--az-text-3)] bg-[var(--az-surface-2)] border-[var(--az-border)]'
+                    : 'text-[var(--az-text-2)] bg-[var(--az-surface-2)] border-[var(--az-border)]'
                 }
               `}
             >

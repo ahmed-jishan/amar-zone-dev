@@ -1,9 +1,10 @@
 /*
- ╔══════════════════════════════════════════════════════════╗
- ║ AZ Tasks — Premium Design Token Layer                    ║
- ║ Cinematic · Futuristic · Calm · Intelligent              ║
- ╚══════════════════════════════════════════════════════════╝
-*/
+ ╔══════════════════════════════════════════════════════════════════════╗
+ ║ AZ Tasks — Super Premium Design System v3.0                         ║
+ ║ Apple Dynamic Island × Samsung One UI × Nothing OS Minimalism       ║
+ ║ Cinematic · Fluid · Premium · Fun · Intelligent                     ║
+ ╚══════════════════════════════════════════════════════════════════════╝
+ */
 
 /* ── Dark mode (default) ── */
 :root {
@@ -56,6 +57,7 @@
   --az-shadow-sm: 0 1px 2px rgba(0,0,0,0.40), 0 0 0 1px var(--az-border);
   --az-shadow-md: 0 4px 12px rgba(0,0,0,0.50), 0 0 0 1px var(--az-border);
   --az-shadow-lg: 0 8px 32px rgba(0,0,0,0.60), 0 0 0 1px var(--az-border);
+  --az-shadow-xl: 0 12px 48px rgba(0,0,0,0.70), 0 0 0 1px var(--az-border);
   --az-shadow-glow: 0 0 20px var(--az-accent-glow);
   --az-shadow-success-glow: 0 0 20px var(--az-success-glow);
   --az-shadow-danger-glow: 0 0 20px var(--az-danger-glow);
@@ -65,11 +67,15 @@
   --az-radius-lg: 16px;
   --az-radius-xl: 20px;
   --az-radius-2xl: 24px;
+  --az-radius-3xl: 28px;
+  --az-radius-full: 9999px;
 
   --az-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --az-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --az-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
   --az-transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --az-transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --az-transition-elastic: 600ms cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 
 .az-root {
@@ -91,6 +97,16 @@
 .az-root > * {
   position: relative;
   z-index: 1;
+}
+
+/* ── Ambient Floating Orbs ── */
+.az-ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  animation: az-orb-float 8s ease-in-out infinite;
+  opacity: 0.3;
 }
 
 /* ── Light mode overrides ── */
@@ -141,6 +157,7 @@ html:not(.dark) {
   --az-shadow-sm: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px var(--az-border);
   --az-shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px var(--az-border);
   --az-shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 0 0 1px var(--az-border);
+  --az-shadow-xl: 0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px var(--az-border);
   --az-shadow-glow: 0 0 20px var(--az-accent-glow);
   --az-shadow-success-glow: 0 0 20px var(--az-success-glow);
   --az-shadow-danger-glow: 0 0 20px var(--az-danger-glow);
@@ -234,11 +251,106 @@ html:not(.dark) {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Super Premium Animations ── */
+
+/* Apple Dynamic Island style breathe */
+@keyframes az-breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.03); opacity: 0.85; }
+}
+
+/* Floating orbs for ambient background */
+@keyframes az-orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(20px, -15px) scale(1.1); }
+  50% { transform: translate(-10px, 10px) scale(0.9); }
+  75% { transform: translate(15px, 5px) scale(1.05); }
+}
+
+/* Particle burst for task completion */
+@keyframes az-particle-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
+
+/* Confetti cascade */
+@keyframes az-confetti-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
+}
+
+/* Premium ring fill animation */
+@keyframes az-ring-fill {
+  from { stroke-dashoffset: var(--circumference); }
+  to { stroke-dashoffset: var(--target); }
+}
+
+/* Soft glow breathe for cards */
+@keyframes az-glow-breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* Slide in from left with spring */
+@keyframes az-slide-in-left {
+  0% { transform: translateX(-20px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Scale pulse for buttons */
+@keyframes az-pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Gradient shimmer for skeleton */
+@keyframes az-gradient-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Apple-style spring reveal */
+@keyframes az-spring-reveal {
+  0% { opacity: 0; transform: scale(0.92) translateY(10px); }
+  50% { transform: scale(1.01) translateY(-2px); }
+  70% { transform: scale(0.98) translateY(1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Staggered list item entrance */
+@keyframes az-stagger-in {
+  0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Pulse ring for notifications */
+@keyframes az-ring-pulse {
+  0% { box-shadow: 0 0 0 0 var(--az-accent-glow); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Skeleton shimmer */
+@keyframes az-skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Floating badge */
+@keyframes az-badge-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
 /* ── Utility Classes ── */
 .az-animate-fade { animation: az-fade-in var(--az-transition-base) ease-out; }
 .az-animate-slide-up { animation: az-slide-up var(--az-transition-slow) cubic-bezier(0.16, 1, 0.3, 1); }
 .az-animate-scale-in { animation: az-scale-in var(--az-transition-spring); }
 .az-animate-glow { animation: az-glow-pulse 2s ease-in-out infinite; }
+.az-animate-spring { animation: az-spring-in var(--az-transition-spring); }
+.az-animate-breathe { animation: az-breathe 3s ease-in-out infinite; }
+.az-animate-stagger { animation: az-stagger-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.az-animate-spring-reveal { animation: az-spring-reveal 600ms cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 .az-glass {
   background: var(--az-brand-grad), var(--az-glass-bg);
@@ -252,6 +364,18 @@ html:not(.dark) {
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border: 1px solid var(--az-glass-border);
+}
+
+.az-glass-card {
+  background: var(--az-brand-grad), var(--az-glass-bg);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid var(--az-glass-border);
+  transition: all var(--az-transition-base);
+}
+.az-glass-card:hover {
+  border-color: var(--az-glass-border);
+  box-shadow: var(--az-shadow-md);
 }
 
 .az-root .lucide {
@@ -776,6 +900,340 @@ html:not(.dark) {
   border-radius: var(--az-radius-sm);
 }
 
+/* ── Premium Skeleton Variants ── */
+.az-skeleton-premium {
+  background: linear-gradient(90deg, 
+    color-mix(in srgb, var(--az-accent) 5%, var(--az-surface-2)) 25%, 
+    color-mix(in srgb, var(--az-accent) 10%, var(--az-surface-3)) 50%, 
+    color-mix(in srgb, var(--az-accent) 5%, var(--az-surface-2)) 75%
+  );
+  background-size: 200% 100%;
+  animation: az-shimmer 1.2s ease-in-out infinite;
+  border-radius: var(--az-radius-sm);
+}
+
+/* ── Pulse Ring (Focus/Active) ── */
+.az-pulse-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.az-pulse-ring .pulse-ring-bg {
+  stroke: var(--az-surface-3);
+}
+
+.az-pulse-ring .pulse-ring-fg {
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.az-pulse-ring .pulse-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: az-breathe 2s ease-in-out infinite;
+}
+
+/* ── Premium Gradient Button ── */
+.az-btn-gradient {
+  background: linear-gradient(135deg, var(--az-accent), var(--az-accent-2));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 14px var(--az-accent-glow);
+  transition: all var(--az-transition-spring);
+  position: relative;
+  overflow: hidden;
+}
+
+.az-btn-gradient::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.az-btn-gradient:hover::after {
+  transform: translateX(100%);
+}
+
+.az-btn-gradient:active {
+  transform: scale(0.96);
+}
+
+/* ── Premium Glass Bottom Sheet ── */
+.az-bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: az-fade-in 200ms ease-out;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.az-bottom-sheet {
+  width: 100%;
+  max-width: 680px;
+  max-height: 85dvh;
+  background: var(--az-surface-1);
+  border: 1px solid var(--az-accent-border);
+  border-radius: var(--az-radius-3xl) var(--az-radius-3xl) 0 0;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.3);
+  animation: az-bottom-sheet-in 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+@keyframes az-bottom-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.az-bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--az-text-4);
+  margin: 10px auto;
+  flex-shrink: 0;
+}
+
+/* ── Success Burst / Confetti ── */
+.az-success-burst {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 300;
+  pointer-events: none;
+}
+
+.az-success-burst-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: az-burst-fly 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes az-burst-fly {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+}
+
+.az-success-check {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 301;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--az-success), #16a34a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 32px var(--az-success-glow);
+  animation: az-success-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes az-success-pop {
+  0% { transform: translate(-50%, -50%) scale(0); }
+  60% { transform: translate(-50%, -50%) scale(1.2); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ── Stagger Animation Helpers ── */
+.az-stagger > * {
+  animation: az-stagger-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.az-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.az-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.az-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.az-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.az-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.az-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.az-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.az-stagger > *:nth-child(8) { animation-delay: 350ms; }
+.az-stagger > *:nth-child(9) { animation-delay: 400ms; }
+.az-stagger > *:nth-child(10) { animation-delay: 450ms; }
+
+/* ── Switch Toggle (iOS Style) ── */
+.az-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.az-switch-track {
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--az-surface-3);
+  border: 1px solid var(--az-border);
+  transition: background var(--az-transition-fast);
+  position: relative;
+}
+
+.az-switch-track.active {
+  background: var(--az-accent);
+  border-color: var(--az-accent-border);
+  box-shadow: 0 0 8px var(--az-accent-glow);
+}
+
+.az-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform var(--az-transition-spring);
+}
+
+.az-switch-track.active .az-switch-thumb {
+  transform: translateX(16px);
+}
+
+/* ── Floating Pill (Dynamic Island style) ── */
+.az-float-pill {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--az-surface-1);
+  border: 1px solid var(--az-accent-border);
+  border-radius: var(--az-radius-full);
+  box-shadow: var(--az-shadow-lg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  animation: az-spring-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.az-float-pill.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Pull to Refresh ── */
+.az-pull-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0;
+  height: 48px;
+  overflow: hidden;
+}
+
+.az-pull-indicator .pull-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--az-border);
+  border-top-color: var(--az-accent);
+  border-radius: 50%;
+  animation: az-pull-spin 0.6s linear infinite;
+}
+
+@keyframes az-pull-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Swipe-to-Delete ── */
+.az-swipe-row {
+  position: relative;
+  overflow: hidden;
+}
+
+.az-swipe-row .swipe-content {
+  position: relative;
+  z-index: 2;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: pan-y;
+}
+
+.az-swipe-row .swipe-content.swiped {
+  transform: translateX(-76px);
+}
+
+.az-swipe-row .swipe-delete-action {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--az-danger);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 0 var(--az-radius-lg) var(--az-radius-lg) 0;
+  z-index: 1;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+/* ── Snackbar Toast ── */
+.az-snackbar {
+  position: fixed;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--az-surface-1);
+  border: 1px solid var(--az-border);
+  border-radius: var(--az-radius-xl);
+  box-shadow: var(--az-shadow-lg), 0 8px 32px rgba(0,0,0,0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  min-width: 280px;
+  max-width: calc(100vw - 32px);
+  animation: az-snackbar-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.az-snackbar.exiting {
+  animation: az-snackbar-out 200ms ease-in forwards;
+}
+
+@keyframes az-snackbar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes az-snackbar-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  to { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.95); }
+}
+
 /* ── Scrollbar ── */
 .az-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
 .az-scrollbar::-webkit-scrollbar-track {
@@ -796,4 +1254,20 @@ html:not(.dark) {
 ::selection {
   background: var(--az-accent-bg);
   color: var(--az-accent-2);
+}
+
+/* ── Hide Scrollbar Utility ── */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ── Modal Open State ── */
+body.modal-open {
+  overflow: hidden !important;
 }
