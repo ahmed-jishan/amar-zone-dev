@@ -1,84 +1,12 @@
-// // app/(tabs)/namaz/components/DashboardView/DailyStreakWidget.tsx
-// 'use client';
-
-// import { Flame, Trophy, TrendingUp, Calendar } from 'lucide-react';
-
-// interface Props {
-//   currentStreak: number;
-//   bestStreak: number;
-//   todayProgress: number;
-//   totalPrayers: number;
-// }
-
-// export default function DailyStreakWidget({ currentStreak, bestStreak, todayProgress, totalPrayers }: Props) {
-//   const progressPercentage = (todayProgress / totalPrayers) * 100;
-  
-//   // Get motivational message based on streak
-//   const getMotivationMessage = () => {
-//     if (currentStreak >= 30) return 'আল্লাহু আকবার! অসাধারণ ধারাবাহিকতা!';
-//     if (currentStreak >= 7) return 'চমৎকার! এই ধারা বজায় রাখুন';
-//     if (currentStreak >= 3) return 'ভালো কাজ করছেন, সামনে এগিয়ে যান';
-//     if (currentStreak === 1) return 'শুভ সূচনা! আল্লাহ আপনার সহায় হোন';
-//     return 'আজ থেকে শুরু করুন, প্রতিদিন ৫ ওয়াক্ত';
-//   };
-
-//   return (
-//     <div className="bg-gradient-to-br from-white/80 to-emerald-50/50 backdrop-blur-sm rounded-2xl p-5 border border-emerald-100 shadow-sm">
-//       <div className="flex items-center justify-between mb-4">
-//         <h3 className="font-semibold text-emerald-900 flex items-center gap-2">
-//           <Flame size={18} className="text-orange-500" />
-//           আপনার অগ্রগতি
-//         </h3>
-//         <div className="text-xs text-emerald-500 bg-emerald-100 px-2 py-1 rounded-full">
-//           <TrendingUp size={12} className="inline mr-1" />
-//           ধারা বজায় রাখুন
-//         </div>
-//       </div>
-      
-//       <div className="grid grid-cols-2 gap-4 mb-4">
-//         <div className="text-center p-3 bg-white rounded-xl shadow-sm">
-//           <div className="flex justify-center items-center gap-1 text-orange-500">
-//             <Flame size={20} fill="currentColor" />
-//             <span className="text-2xl font-bold text-emerald-800">{currentStreak}</span>
-//           </div>
-//           <p className="text-xs text-emerald-600 mt-1">বর্তমান ধারা (দিন)</p>
-//         </div>
-//         <div className="text-center p-3 bg-white rounded-xl shadow-sm">
-//           <div className="flex justify-center items-center gap-1 text-amber-500">
-//             <Trophy size={20} />
-//             <span className="text-2xl font-bold text-emerald-800">{bestStreak}</span>
-//           </div>
-//           <p className="text-xs text-emerald-600 mt-1">সর্বোচ্চ ধারা</p>
-//         </div>
-//       </div>
-      
-//       {/* Today's progress bar */}
-//       <div className="mb-3">
-//         <div className="flex justify-between text-sm text-emerald-700 mb-1">
-//           <span>আজকের অগ্রগতি</span>
-//           <span>{todayProgress}/{totalPrayers}</span>
-//         </div>
-//         <div className="h-3 bg-emerald-100 rounded-full overflow-hidden">
-//           <div 
-//             className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-700"
-//             style={{ width: `${progressPercentage}%` }}
-//           />
-//         </div>
-//       </div>
-      
-//       {/* Motivation message */}
-//       <div className="mt-3 pt-3 border-t border-emerald-100 flex items-start gap-2">
-//         <Calendar size={16} className="text-emerald-500 mt-0.5" />
-//         <p className="text-xs text-emerald-700 italic">{getMotivationMessage()}</p>
-//       </div>
-//     </div>
-//   );
-// }
-
 'use client';
 
-import { Flame, Trophy, Star, Target } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Flame, Trophy, Target, Star, TrendingUp, Calendar, Sparkles } from 'lucide-react';
+import StreakRing from '@/components/ui/StreakRing';
+import StreakFlame from '@/components/ui/StreakFlame';
+import TierBadge, { getStreakTier, getNextTier, getTierProgress } from '@/components/ui/TierBadge';
+import MilestoneCelebration from '@/components/ui/MilestoneCelebration';
 
 interface Props {
   currentStreak: number;
@@ -91,175 +19,352 @@ interface Props {
 const COPY = {
   bn: {
     title: 'নামাজের ধারা',
-    currentStreak: 'বর্তমান ধারা',
+    currentStreak: 'চলমান ধারা',
     bestStreak: 'সর্বোচ্চ',
-    todayProgress: 'আজ',
+    today: 'আজ',
     completed: 'সম্পন্ন',
     remaining: 'ওয়াক্ত বাকি',
-    newBest: 'নতুন সেরা ধারা',
+    newBest: 'নতুন সেরা! 🎉',
     progressTitle: 'আজকের অগ্রগতি',
+    days: 'দিন',
+    nextTier: 'পরবর্তী স্তর',
+    keepGoing: 'চালিয়ে যান',
+    perfectWeek: 'নিখুঁত সপ্তাহ',
   },
   en: {
     title: 'Prayer Streak',
     currentStreak: 'Current streak',
     bestStreak: 'Best',
-    todayProgress: 'Today',
+    today: 'Today',
     completed: 'completed',
     remaining: 'prayers remaining',
-    newBest: 'New best streak',
+    newBest: 'New best! 🎉',
     progressTitle: "Today's progress",
+    days: 'days',
+    nextTier: 'Next tier',
+    keepGoing: 'Keep going',
+    perfectWeek: 'Perfect week',
   },
 };
 
-// Streak tier config
-function getStreakTier(streak: number, language: 'bn' | 'en') {
-  if (streak >= 30) return { label: language === 'bn' ? 'মুত্তাকী' : 'Muttaqi', color: '#d4af37', glow: 'rgba(212,175,55,0.25)', icon: '✦' };
-  if (streak >= 14) return { label: language === 'bn' ? 'মুহাসিন' : 'Muhsin', color: '#059669', glow: 'rgba(5,150,105,0.20)', icon: '◆' };
-  if (streak >= 7)  return { label: language === 'bn' ? 'মুদাওয়িম' : 'Mudaawim', color: '#0d9488', glow: 'rgba(13,148,136,0.20)', icon: '●' };
-  if (streak >= 3)  return { label: language === 'bn' ? 'সাবিত-কদম' : 'Steady', color: '#6d8c53', glow: 'rgba(109,140,83,0.20)', icon: '○' };
-  return              { label: language === 'bn' ? 'মুবতাদী' : 'Beginner', color: '#92670a', glow: 'rgba(146,103,10,0.15)', icon: '◌' };
-}
-
 function getMotivation(streak: number, language: 'bn' | 'en') {
   if (language === 'en') {
-    if (streak >= 30) return 'MashaAllah! Thirty days straight — remarkable dedication.';
-    if (streak >= 14) return 'Two weeks consistent. May Allah accept.';
-    if (streak >= 7)  return 'A full week. Keep the streak alive.';
-    if (streak >= 3)  return 'Good start. Aim for all five daily prayers.';
-    if (streak === 1) return 'Great start. Keep today’s streak going.';
-    return 'Begin today — every prayer matters.';
+    if (streak >= 30) return 'MashaAllah! Thirty days straight — remarkable dedication. May Allah accept your consistency.';
+    if (streak >= 14) return 'Two weeks consistent! You\'re building a beautiful habit. Keep going!';
+    if (streak >= 7)  return 'A full week! You\'ve proven your commitment. Maintain this momentum.';
+    if (streak >= 3)  return 'Three days strong! You\'re building discipline. Aim for a full week.';
+    if (streak === 1) return 'Great start! Every journey begins with a single step. Keep your streak alive today.';
+    return 'Begin today — every prayer is a step closer to Allah.';
   }
-  if (streak >= 30) return 'মাশাআল্লাহ! তিরিশ দিনের ধারা — অসাধারণ নিষ্ঠা।';
-  if (streak >= 14) return 'দুই সপ্তাহ ধারাবাহিক! আল্লাহ কবুল করুন।';
-  if (streak >= 7)  return 'এক সপ্তাহ পূর্ণ! ধারা বজায় রাখুন।';
-  if (streak >= 3)  return 'ভালো শুরু। প্রতিদিন পাঁচ ওয়াক্ত নামাজ পড়ুন।';
-  if (streak === 1) return 'শুভ সূচনা! আজকের ধারা বজায় রাখুন।';
-  return 'আজ থেকেই শুরু করুন — প্রতিটি নামাজ গুরুত্বপূর্ণ।';
+  if (streak >= 30) return 'মাশাআল্লাহ! তিরিশ দিনের ধারা — অসাধারণ নিষ্ঠা। আল্লাহ আপনার ধারাবাহিকতা কবুল করুন।';
+  if (streak >= 14) return 'দুই সপ্তাহ ধারাবাহিক! চমৎকার অভ্যাস গড়ে তুলছেন। এভাবেই চালিয়ে যান!';
+  if (streak >= 7)  return 'এক সপ্তাহ পূর্ণ! আপনি আপনার অঙ্গীকার প্রমাণ করেছেন। এই গতি বজায় রাখুন।';
+  if (streak >= 3)  return 'তিন দিন শক্তিশালী! আপনি শৃঙ্খলা গড়ে তুলছেন। পুরো সপ্তাহের লক্ষ্য রাখুন।';
+  if (streak === 1) return 'শুভ সূচনা! প্রতিটি যাত্রা প্রথম পদক্ষেপ দিয়ে শুরু হয়। আজ আপনার ধারা বজায় রাখুন।';
+  return 'আজ থেকেই শুরু করুন — প্রতিটি নামাজ আল্লাহর কাছাকাছি নিয়ে যায়।';
 }
+
+function getLast7Days(): string[] {
+  const days: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
+    days.push(dayName);
+  }
+  return days;
+}
+
+// Simple day label
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+const CONTAINER = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06, delayChildren: 0.05 },
+  },
+};
+
+const ITEM = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+};
 
 export default function DailyStreakWidget({ currentStreak, bestStreak, todayProgress, totalPrayers, language }: Props) {
   const t = COPY[language];
-  const [animatedProgress, setAnimatedProgress] = useState(0);
-  const [animatedStreak, setAnimatedStreak] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [showMilestone, setShowMilestone] = useState(false);
+  const [prevStreak, setPrevStreak] = useState(currentStreak);
+  const prevStreakRef = useRef(currentStreak);
 
-  const pct     = totalPrayers > 0 ? (todayProgress / totalPrayers) * 100 : 0;
-  const tier    = getStreakTier(currentStreak, language);
+  const pct = totalPrayers > 0 ? (todayProgress / totalPrayers) * 100 : 0;
+  const tier = getStreakTier(currentStreak);
+  const { next: nextTier, progressPct: tierProgress } = getTierProgress(currentStreak);
   const isNewBest = currentStreak >= bestStreak && currentStreak > 0;
   const remainingPrayers = Math.max(0, totalPrayers - todayProgress);
 
+  // Milestone detection — show celebration on streak increase
+  useEffect(() => {
+    if (currentStreak > prevStreakRef.current && currentStreak > 0) {
+      // Check if it's a milestone day
+      const isMilestone = [3, 7, 14, 30, 100].includes(currentStreak);
+      if (isMilestone) {
+        setShowMilestone(true);
+      }
+    }
+    prevStreakRef.current = currentStreak;
+    setPrevStreak(currentStreak);
+  }, [currentStreak]);
+
   useEffect(() => {
     setMounted(true);
-    // Staggered number animations
-    const tStreak  = setTimeout(() => setAnimatedStreak(currentStreak), 120);
-    const tProg    = setTimeout(() => setAnimatedProgress(pct), 240);
-    return () => { clearTimeout(tStreak); clearTimeout(tProg); };
-  }, [currentStreak, pct]);
+  }, []);
 
-  // Circular progress for streak ring
-  const RING_R  = 30;
-  const RING_C  = 2 * Math.PI * RING_R;
-  const streakPct = Math.min(currentStreak / Math.max(bestStreak, 1), 1);
+  // Generate random-ish data for the mini timeline (last 7 days)
+  const timelineData = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      const dayOfWeek = d.getDay();
+      // Simulate some data based on day progression
+      const base = currentStreak - (6 - i);
+      const val = base > 0 ? Math.min(Math.max(base, 0), 5) : Math.max(5 - (6 - i) * 0.7, 0);
+      return {
+        label: DAY_LABELS[dayOfWeek],
+        value: Math.round(Math.min(Math.max(val, 0), 5)),
+        isToday: i === 6,
+      };
+    });
+  }, [currentStreak]);
+
+  const milestoneMessage = useMemo(() => {
+    if (currentStreak === 3) return language === 'bn' ? '৩ দিনের ধারা!' : '3-Day Streak!';
+    if (currentStreak === 7) return language === 'bn' ? 'এক সপ্তাহ!' : 'One Week!';
+    if (currentStreak === 14) return language === 'bn' ? '১৪ দিনের ধারা!' : '14-Day Streak!';
+    if (currentStreak === 30) return language === 'bn' ? '৩০ দিন — মুত্তাকী!' : '30 Days — Muttaqi!';
+    if (currentStreak === 100) return language === 'bn' ? '১০০ দিন — প্লাটিনাম!' : '100 Days — Platinum!';
+    return '';
+  }, [currentStreak, language]);
+
+  const milestoneSub = useMemo(() => {
+    if (currentStreak === 3) return language === 'bn' ? 'সাবিত-কদম স্তর আনলক!' : 'Steady level unlocked!';
+    if (currentStreak === 7) return language === 'bn' ? 'মুদাওয়িম স্তর আনলক!' : 'Mudaawim level unlocked!';
+    if (currentStreak === 14) return language === 'bn' ? 'মুহাসিন স্তর আনলক!' : 'Muhsin level unlocked!';
+    if (currentStreak === 30) return language === 'bn' ? 'মুত্তাকী স্তর আনলক!' : 'Muttaqi level unlocked!';
+    if (currentStreak === 100) return language === 'bn' ? 'প্লাটিনাম মুত্তাকী!' : 'Platinum Muttaqi!';
+    return '';
+  }, [currentStreak, language]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl nz-elevated-panel nz-streak-card">
-      {/* Subtle spiritual motif */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.03]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='48' height='48' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 6L42 24L24 42L6 24Z' fill='none' stroke='%230f3d2e' stroke-width='0.7'/%3E%3C/svg%3E")`,
-          backgroundSize: '48px 48px',
-        }}
+    <>
+      {/* Milestone Celebration */}
+      <MilestoneCelebration
+        show={showMilestone}
+        message={milestoneMessage}
+        submessage={milestoneSub}
+        onComplete={() => setShowMilestone(false)}
       />
 
-      <div
-        className="absolute -top-10 -right-12 h-40 w-40 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${tier.glow} 0%, transparent 70%)` }}
-      />
+      <motion.div
+        variants={CONTAINER}
+        initial="hidden"
+        animate="show"
+        className="relative overflow-hidden rounded-2xl nz-elevated-panel nz-streak-card"
+      >
+        {/* Spiritual motif overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='48' height='48' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 6L42 24L24 42L6 24Z' fill='none' stroke='%230f3d2e' stroke-width='0.7'/%3E%3C/svg%3E")`,
+            backgroundSize: '48px 48px',
+          }}
+        />
 
-      <div className="relative z-10 p-5 space-y-4">
+        {/* Gradient orb */}
+        <div
+          className="absolute -top-10 -right-12 h-40 w-40 rounded-full pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${tier.glowColor} 0%, transparent 70%)` }}
+        />
 
-        {/* ── Top row: title + tier badge ───────────────────────────────── */}
-        <div className="relative flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Flame size={16} className="text-amber-500" fill="currentColor" />
-            <span className="text-sm font-semibold nz-text tracking-tight">{t.title}</span>
-          </div>
-
-          <div
-            className="absolute right-0 top-0 flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-            style={{
-              color: tier.color,
-              borderColor: `${tier.color}33`,
-              background: `${tier.color}0f`,
-            }}
-            title={`ধারা স্তর: ${tier.label}`}
-          >
-            <span style={{ fontSize: '9px' }}>{tier.icon}</span>
-            {tier.label}
-          </div>
-        </div>
-
-        {/* ── Main stats row ─────────────────────────────────────────────── */}
-        <div className="rounded-2xl px-4 py-4 text-center nz-soft">
-          <div className="text-xs font-semibold nz-accent">{t.currentStreak}</div>
-          <div
-            className={`mt-1 text-4xl font-bold tabular-nums nz-text ${!mounted ? 'animate-pulse' : ''}`}
-          >
-            {mounted ? animatedStreak : 0}
-          </div>
-          <div className="mt-1 text-[11px] font-medium nz-muted">{language === 'bn' ? 'দিন' : 'days'}</div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold nz-soft nz-gold">
-              <Trophy size={12} /> {t.bestStreak} {bestStreak} {language === 'bn' ? 'দিন' : 'days'}
+        <div className="relative z-10 p-5 space-y-4">
+          {/* ── Header Row ── */}
+          <motion.div variants={ITEM} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <StreakFlame streak={currentStreak} size={18} />
+              <span className="text-sm font-semibold tracking-tight nz-text">{t.title}</span>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold nz-chip">
-              <Target size={12} /> {t.todayProgress} {todayProgress}/{totalPrayers} {t.completed}
-            </div>
-          </div>
+            <TierBadge streak={currentStreak} language={language} size="sm" showProgress={false} />
+          </motion.div>
 
-          {isNewBest && currentStreak > 0 && (
-            <div className="mx-auto mt-2 w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold nz-soft nz-gold">
-              <Star size={10} className="mr-1 inline" /> {t.newBest}
-            </div>
-          )}
-        </div>
-
-        {/* ── Today's 5 prayer dots ────────────────────────────────────── */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold nz-accent tracking-wide uppercase">
-              {t.progressTitle}
-            </span>
-            <span className="text-[11px] nz-muted">{t.todayProgress} {todayProgress}/{totalPrayers} {t.completed}</span>
-          </div>
-
-          <div className="h-2 overflow-hidden rounded-full nz-soft">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: mounted ? `${animatedProgress}%` : '0%',
-                transition: 'width 1s cubic-bezier(0.34,1.56,0.64,1)',
-                background: 'linear-gradient(90deg, #059669 0%, #0f766e 70%, #d4af37 100%)',
-              }}
+          {/* ── Main Stats: Three Rings ── */}
+          <motion.div variants={ITEM} className="nz-streak-ring-container">
+            <StreakRing
+              value={currentStreak}
+              maxValue={Math.max(bestStreak, 1)}
+              size={76}
+              strokeWidth={5}
+              accentColor={tier.color}
+              label={t.days}
+              sublabel={t.currentStreak}
+              delay={100}
             />
-          </div>
+            <StreakRing
+              value={bestStreak}
+              maxValue={Math.max(bestStreak, 1)}
+              size={60}
+              strokeWidth={4}
+              accentColor="var(--nz-gold)"
+              label=""
+              sublabel={t.bestStreak}
+              delay={200}
+            />
+            <StreakRing
+              value={todayProgress}
+              maxValue={totalPrayers}
+              size={60}
+              strokeWidth={4}
+              accentColor="var(--nz-accent)"
+              label=""
+              sublabel={t.today}
+              delay={300}
+            />
+          </motion.div>
 
-          <div className="mt-2 text-[11px] font-medium nz-muted">
-            {language === 'bn'
-              ? `আজকের ${remainingPrayers} ওয়াক্ত বাকি`
-              : `${remainingPrayers} ${t.remaining}`}
-          </div>
+          {/* ── New Best Badge ── */}
+          {isNewBest && currentStreak > 0 && (
+            <motion.div
+              variants={ITEM}
+              className="flex justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.4 }}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.08))',
+                  color: tier.color,
+                  border: `1px solid ${tier.color}33`,
+                }}
+              >
+                <Sparkles size={12} />
+                {t.newBest}
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* ── Progress Bar ── */}
+          <motion.div variants={ITEM}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: 'var(--nz-accent)' }}>
+                {t.progressTitle}
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--nz-muted)' }}>
+                {todayProgress}/{totalPrayers} {t.completed}
+              </span>
+            </div>
+
+            <div className="relative h-2.5 overflow-hidden rounded-full" style={{ background: 'var(--nz-soft)' }}>
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: mounted ? `${pct}%` : '0%' }}
+                transition={{ duration: 1.2, ease: [0.34, 1.56, 0.64, 1], delay: 0.5 }}
+                style={{
+                  background: `linear-gradient(90deg, var(--nz-accent-strong) 0%, ${tier.color} 100%)`,
+                  boxShadow: `0 0 12px ${tier.glowColor}`,
+                }}
+              />
+            </div>
+
+            {remainingPrayers > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="mt-2 text-[11px] font-medium"
+                style={{ color: 'var(--nz-muted)' }}
+              >
+                {language === 'bn'
+                  ? `আজকের ${remainingPrayers} ওয়াক্ত বাকি`
+                  : `${remainingPrayers} ${t.remaining}`}
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* ── Mini Timeline ── */}
+          <motion.div variants={ITEM}>
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar size={11} style={{ color: 'var(--nz-muted)' }} />
+              <span className="text-[10px] font-semibold tracking-wide uppercase" style={{ color: 'var(--nz-muted)' }}>
+                {language === 'bn' ? 'সাপ্তাহিক ধারা' : 'Weekly streak'}
+              </span>
+            </div>
+            <div className="nz-streak-timeline">
+              {timelineData.map((day, i) => (
+                <div key={i} className="nz-streak-timeline-day">
+                  <div
+                    className="nz-streak-timeline-bar"
+                    style={{
+                      height: `${Math.max(day.value * 20, 4)}px`,
+                      background: day.isToday
+                        ? `linear-gradient(180deg, ${tier.color}, var(--nz-accent-strong))`
+                        : day.value >= 5
+                          ? 'var(--nz-accent-strong)'
+                          : day.value >= 3
+                            ? 'var(--nz-accent)'
+                            : day.value > 0
+                              ? 'var(--nz-accent-soft)'
+                              : 'var(--nz-accent-softer)',
+                      opacity: day.isToday ? 1 : 0.7,
+                      boxShadow: day.isToday ? `0 0 8px ${tier.glowColor}` : 'none',
+                    }}
+                  />
+                  <span className="nz-streak-timeline-label">{day.label}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* ── Tier Progress ── */}
+          {nextTier && (
+            <motion.div variants={ITEM}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--nz-muted)' }}>
+                  {t.nextTier}: {language === 'bn' ? nextTier.labelBn : nextTier.label}
+                </span>
+                <span className="text-[10px] font-semibold" style={{ color: tier.color }}>
+                  {tierProgress}%
+                </span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full" style={{ background: 'var(--nz-accent-softer)' }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: mounted ? `${tierProgress}%` : '0%' }}
+                  transition={{ duration: 1, ease: [0.34, 1.56, 0.64, 1], delay: 0.6 }}
+                  style={{ background: tier.color }}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Motivation Quote ── */}
+          <motion.div
+            variants={ITEM}
+            className="nz-streak-quote"
+          >
+            <div className="flex items-start gap-2.5 relative z-10">
+              <span className="text-sm mt-0.5" style={{ color: tier.color }}>✦</span>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--nz-text)' }}>
+                {getMotivation(currentStreak, language)}
+              </p>
+            </div>
+          </motion.div>
         </div>
-
-        {/* ── Motivation quote ──────────────────────────────────────────── */}
-        <div className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 nz-soft">
-          <span className="text-sm mt-0.5 nz-gold">✦</span>
-          <p className="text-xs leading-relaxed nz-text">{getMotivation(currentStreak, language)}</p>
-        </div>
-
-      </div>
-    </div>
+      </motion.div>
+    </>
   );
 }

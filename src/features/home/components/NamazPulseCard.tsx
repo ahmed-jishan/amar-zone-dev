@@ -4,6 +4,8 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { useRouter } from 'next/navigation'
+import StreakFlame from '@/components/ui/StreakFlame'
+import TierBadge from '@/components/ui/TierBadge'
 import type { PrayerName, PrayerStatus } from '@/lib/types'
 
 const PRAYER_ORDER: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
@@ -29,7 +31,6 @@ function getPrayerTimes(date: Date): Record<PrayerName, Date> {
   const year = d.getFullYear()
   const month = d.getMonth()
   const day = d.getDate()
-  // Approximate Dhaka prayer times (based on typical yearly averages)
   return {
     Fajr: new Date(year, month, day, 4, 15),
     Dhuhr: new Date(year, month, day, 12, 0),
@@ -46,7 +47,6 @@ function getNextPrayer(now: Date): { name: PrayerName; time: Date; isCurrent: bo
       return { name, time: times[name], isCurrent: false }
     }
   }
-  // All prayers passed — next is tomorrow's Fajr
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   const tomorrowTimes = getPrayerTimes(tomorrow)
@@ -80,6 +80,9 @@ function getWeeklyStreak(records: { date: string; prayers: Record<PrayerName, Pr
   return streak
 }
 
+// Mini day labels for timeline
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
 export default function NamazPulseCard() {
   const router = useRouter()
   const records = useNamazStore((s) => s.records)
@@ -99,6 +102,25 @@ export default function NamazPulseCard() {
     return { next, countdown, prayedCount, totalCount, progress, streak }
   }, [records, todayRecord])
 
+  // Mini timeline data (last 7 days — simulated from records)
+  const timelineDays = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const record = records.find((r) => r.date === dateStr);
+      const count = record
+        ? PRAYER_ORDER.filter((p) => record.prayers[p] === 'prayed').length
+        : 0;
+      return {
+        label: DAY_LABELS[d.getDay()],
+        value: count,
+        isToday: i === 6,
+      };
+    });
+  }, [records]);
+
   return (
     <motion.button
       initial={{ opacity: 0, y: 20 }}
@@ -109,17 +131,20 @@ export default function NamazPulseCard() {
       whileHover={{ scale: 1.01, y: -2 }}
       whileTap={{ scale: 0.99 }}
     >
-      {/* Header */}
+      {/* Header with animated flame */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">🕌</span>
           <span className="card-title">Prayer Tracker</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="streak-badge">
-            🔥 {stats.streak}
-          </span>
-          <span className="text-xs opacity-60">day streak</span>
+        <div className="flex items-center gap-2">
+          <TierBadge streak={stats.streak} language="en" size="sm" showProgress={false} />
+          <div className="flex items-center gap-1">
+            <StreakFlame streak={stats.streak} size={16} />
+            <span className="text-sm font-bold" style={{ color: stats.streak >= 7 ? '#059669' : 'var(--hm-amber)' }}>
+              {stats.streak}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -185,7 +210,7 @@ export default function NamazPulseCard() {
         })}
       </div>
 
-      {/* Progress Bar */}
+      {/* Premium Progress Bar with glow */}
       <div className="progress-bar-container">
         <div className="progress-bar-track">
           <motion.div
@@ -194,11 +219,51 @@ export default function NamazPulseCard() {
             transition={{ delay: 0.5, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="progress-bar-fill"
             style={{
-              background: 'linear-gradient(90deg, #10b981, #34d399)',
+              background: `linear-gradient(90deg, #10b981, ${stats.streak >= 7 ? '#059669' : '#34d399'})`,
+              boxShadow: stats.progress === 100 ? '0 0 8px rgba(16,185,129,0.5)' : 'none',
             }}
           />
         </div>
         <span className="progress-bar-text">{stats.prayedCount}/{stats.totalCount} prayed</span>
+      </div>
+
+      {/* Mini timeline (last 7 days) */}
+      <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--hm-border)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--hm-muted)' }}>
+            Weekly
+          </span>
+          {stats.streak >= 7 && (
+            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20 rounded-full px-2 py-0.5">
+              ✦ Perfect Week
+            </span>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          {timelineDays.map((day, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className="w-full rounded-sm transition-all"
+                style={{
+                  height: `${Math.max(day.value * 6, 3)}px`,
+                  background: day.isToday
+                    ? 'linear-gradient(180deg, #10b981, #059669)'
+                    : day.value >= 5
+                      ? '#10b981'
+                      : day.value >= 3
+                        ? 'rgba(16,185,129,0.5)'
+                        : day.value > 0
+                          ? 'rgba(16,185,129,0.2)'
+                          : 'rgba(0,0,0,0.06)',
+                  opacity: day.isToday ? 1 : 0.75,
+                }}
+              />
+              <span className="text-[7px] font-semibold uppercase" style={{ color: 'var(--hm-muted)' }}>
+                {day.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </motion.button>
   )

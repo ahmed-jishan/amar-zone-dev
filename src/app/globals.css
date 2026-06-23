@@ -376,10 +376,568 @@ body {
     radial-gradient(circle at 82% 0%, rgba(208, 175, 99, 0.13), transparent 18rem),
     linear-gradient(180deg, rgba(25, 36, 39, 0.96), rgba(16, 25, 29, 0.94));
 }
+
+/* ─── Premium Streak Animations ─── */
+@keyframes streak-flame-flicker {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  25% { transform: scale(1.04) rotate(-1deg); opacity: 1; }
+  50% { transform: scale(0.96) rotate(1deg); opacity: 0.85; }
+  75% { transform: scale(1.02) rotate(-0.5deg); opacity: 0.95; }
+}
+.animate-streak-flame {
+  animation: streak-flame-flicker 2.5s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes streak-glow-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.08); }
+}
+.animate-streak-glow {
+  animation: streak-glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes streak-shimmer-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-streak-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  animation: streak-shimmer-slide 2.5s ease-in-out infinite;
+}
+
+@keyframes streak-count-up {
+  0% { opacity: 0; transform: translateY(12px) scale(0.8); }
+  60% { transform: translateY(-4px) scale(1.05); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-streak-count {
+  animation: streak-count-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ─── Premium Streak Ring Container ─── */
+.namaz-root .nz-streak-ring-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+/* ─── Premium Prayer Mini-Dots Container ─── */
+.namaz-root .nz-streak-prayer-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.namaz-root .nz-streak-prayer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.namaz-root .nz-streak-prayer-dot.completed {
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
+}
+
+.namaz-root .nz-streak-prayer-dot.pending {
+  background: var(--nz-accent-softer);
+  border: 1px solid var(--nz-border);
+}
+
+.namaz-root .nz-streak-prayer-dot.missed {
+  background: var(--nz-danger-soft);
+  border: 1px solid rgba(196, 81, 81, 0.3);
+}
+
+/* ─── Mini Timeline Pills ─── */
+.namaz-root .nz-streak-timeline {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+}
+
+.namaz-root .nz-streak-timeline::-webkit-scrollbar {
+  display: none;
+}
+
+.namaz-root .nz-streak-timeline-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 28px;
+  flex-shrink: 0;
+}
+
+.namaz-root .nz-streak-timeline-bar {
+  width: 6px;
+  border-radius: 3px;
+  min-height: 14px;
+  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.namaz-root .nz-streak-timeline-label {
+  font-size: 7px;
+  font-weight: 600;
+  color: var(--nz-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Motivational Quote Glass ─── */
+.namaz-root .nz-streak-quote {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: var(--nz-accent-softer);
+  border: 1px solid var(--nz-border);
+}
+
+.namaz-root .nz-streak-quote::before {
+  content: '"';
+  position: absolute;
+  top: -4px;
+  left: 6px;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--nz-accent);
+  opacity: 0.2;
+  font-family: Georgia, serif;
+}
+
 .namaz-root .nz-quran-hero {
   background:
     radial-gradient(circle at 92% 0%, var(--nz-gold-soft), transparent 18rem),
     linear-gradient(135deg, var(--nz-surface-strong), var(--nz-card));
+}
+
+/* ─── Premium Quran Tab — Apple/Samsung Grade ────────────────────────────── */
+
+.namaz-root .qz-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(26, 122, 90, 0.06), transparent 40rem),
+    radial-gradient(ellipse 50% 40% at 90% 20%, rgba(176, 138, 53, 0.04), transparent 30rem),
+    linear-gradient(180deg, var(--nz-bg), #f8f6f0 38%, var(--nz-bg-2));
+}
+.dark .namaz-root .qz-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(84, 185, 165, 0.08), transparent 40rem),
+    radial-gradient(ellipse 50% 40% at 90% 20%, rgba(208, 175, 99, 0.04), transparent 30rem),
+    linear-gradient(180deg, #10171c, #0d1418 38%, var(--nz-bg-2));
+}
+
+/* ─── Premium Glassmorphic Surface ─── */
+.namaz-root .qz-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid var(--nz-border);
+  box-shadow: var(--nz-shadow-soft);
+}
+.dark .namaz-root .qz-glass {
+  background: rgba(21, 29, 33, 0.78);
+  box-shadow: 0 8px 32px rgba(1, 5, 8, 0.3);
+}
+
+/* ─── Premium Surah Card ─── */
+.namaz-root .qz-surah-card {
+  background: var(--nz-surface-strong);
+  border: 1px solid var(--nz-border);
+  border-radius: 1.25rem;
+  padding: 1.125rem;
+  transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  position: relative;
+  overflow: hidden;
+}
+.namaz-root .qz-surah-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(135deg, var(--nz-accent-softer), transparent 60%);
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.namaz-root .qz-surah-card:hover {
+  border-color: var(--nz-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--nz-shadow);
+}
+.namaz-root .qz-surah-card:hover::before {
+  opacity: 1;
+}
+.namaz-root .qz-surah-card:active {
+  transform: scale(0.98);
+  transition: transform 0.08s;
+}
+
+/* ─── Premium Surah Number Badge ─── */
+.namaz-root .qz-surah-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  background: var(--nz-accent-soft);
+  color: var(--nz-accent-strong);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.namaz-root .qz-surah-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent 50%);
+  pointer-events: none;
+}
+
+/* ─── Premium Arabic Calligraphy ─── */
+.namaz-root .qz-arabic {
+  font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Scheherazade New', serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+/* ─── Premium Ayah Card ─── */
+.namaz-root .qz-ayah-card {
+  background: var(--nz-surface-strong);
+  border: 1px solid var(--nz-border);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  position: relative;
+}
+.namaz-root .qz-ayah-card.active {
+  border-color: rgba(176, 138, 53, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(176, 138, 53, 0.08),
+    0 12px 32px rgba(12, 30, 27, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.dark .namaz-root .qz-ayah-card.active {
+  border-color: rgba(208, 175, 99, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(208, 175, 99, 0.08),
+    0 12px 32px rgba(1, 5, 8, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Ayah Number Badge ─── */
+.namaz-root .qz-ayah-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  background: var(--nz-gold-soft);
+  color: var(--nz-gold);
+  border: 1px solid rgba(176, 138, 53, 0.15);
+}
+
+/* ─── Premium Now Playing Bar ─── */
+.namaz-root .qz-now-playing {
+  position: fixed;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  width: auto;
+  max-width: calc(100vw - 32px);
+  min-width: 300px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid var(--nz-border);
+  border-radius: 1.25rem;
+  padding: 0.625rem 0.875rem;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.02),
+    0 12px 32px rgba(0, 0, 0, 0.08),
+    0 20px 60px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: qzNowPlayingIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes qzNowPlayingIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.95);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.dark .namaz-root .qz-now-playing {
+  background: rgba(21, 29, 33, 0.88);
+  box-shadow:
+    0 4px 6px rgba(1, 5, 8, 0.1),
+    0 12px 32px rgba(1, 5, 8, 0.2),
+    0 20px 60px rgba(1, 5, 8, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Waveform Bars ─── */
+.namaz-root .qz-waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+}
+.namaz-root .qz-waveform-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--nz-accent);
+  animation: qzWaveform 0.8s ease-in-out infinite alternate;
+}
+.namaz-root .qz-waveform-bar:nth-child(1) { animation-delay: 0s; height: 6px; }
+.namaz-root .qz-waveform-bar:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+.namaz-root .qz-waveform-bar:nth-child(3) { animation-delay: 0.2s; height: 8px; }
+.namaz-root .qz-waveform-bar:nth-child(4) { animation-delay: 0.3s; height: 16px; }
+.namaz-root .qz-waveform-bar:nth-child(5) { animation-delay: 0.15s; height: 10px; }
+.namaz-root .qz-waveform-bar:nth-child(6) { animation-delay: 0.25s; height: 14px; }
+.namaz-root .qz-waveform-bar:nth-child(7) { animation-delay: 0.05s; height: 7px; }
+@keyframes qzWaveform {
+  0% { transform: scaleY(0.5); opacity: 0.6; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+/* ─── Premium Search ─── */
+.namaz-root .qz-search {
+  background: var(--nz-surface-strong);
+  border: 1px solid var(--nz-border);
+  border-radius: 1rem;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+.namaz-root .qz-search:focus-within {
+  border-color: var(--nz-accent);
+  box-shadow: var(--nz-focus);
+  transform: scale(1.01);
+}
+.namaz-root .qz-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--nz-text);
+  font-size: 0.9375rem;
+  width: 100%;
+  padding: 0.25rem 0;
+}
+.namaz-root .qz-search input::placeholder {
+  color: var(--nz-muted);
+  opacity: 0.7;
+}
+
+/* ─── Calm Reading Mode ─── */
+.namaz-root .qz-calm-mode {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+.namaz-root .qz-calm-mode .qz-ayah-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--nz-border);
+}
+.namaz-root .qz-calm-mode .qz-ayah-card.active {
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--nz-accent-soft);
+  margin: 0 -1rem;
+  padding: 1.5rem 1rem;
+  border-radius: 1rem;
+}
+.namaz-root .qz-calm-mode .qz-arabic {
+  font-size: 1.75rem;
+  line-height: 2.4;
+}
+
+/* ─── Premium Filter Chip ─── */
+.namaz-root .qz-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--nz-accent-soft);
+  color: var(--nz-accent-strong);
+  border: 1px solid var(--nz-border);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.namaz-root .qz-chip:hover {
+  background: var(--nz-accent-softer);
+  border-color: var(--nz-border-strong);
+}
+.namaz-root .qz-chip:active {
+  transform: scale(0.95);
+}
+
+/* ─── Scroll Progress Pill ─── */
+.namaz-root .qz-progress-pill {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 4.5rem);
+  right: 1rem;
+  z-index: 45;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--nz-border);
+  border-radius: 9999px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--nz-accent-strong);
+  box-shadow: var(--nz-shadow-soft);
+  pointer-events: none;
+  animation: qzFadeIn 0.4s ease-out;
+}
+.dark .namaz-root .qz-progress-pill {
+  background: rgba(21, 29, 33, 0.85);
+}
+@keyframes qzFadeIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Premium Reading Theme Variants ─── */
+.namaz-root .qz-theme-warm .qz-ayah-card {
+  background: rgba(250, 243, 224, 0.6);
+  border-color: rgba(176, 138, 53, 0.12);
+}
+.dark .namaz-root .qz-theme-warm .qz-ayah-card {
+  background: rgba(44, 38, 26, 0.5);
+}
+.namaz-root .qz-theme-cool .qz-ayah-card {
+  background: rgba(235, 245, 250, 0.6);
+  border-color: rgba(47, 117, 145, 0.1);
+}
+.dark .namaz-root .qz-theme-cool .qz-ayah-card {
+  background: rgba(22, 34, 40, 0.5);
+}
+.namaz-root .qz-theme-night .qz-ayah-card {
+  background: rgba(15, 20, 22, 0.9);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #d4dce0;
+}
+.dark .namaz-root .qz-theme-night .qz-ayah-card {
+  background: rgba(8, 12, 14, 0.95);
+}
+
+/* ─── Floating Action Button ─── */
+.namaz-root .qz-fab {
+  position: fixed;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  right: 1.25rem;
+  z-index: 50;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--nz-accent-strong), var(--nz-accent));
+  color: white;
+  border: none;
+  box-shadow:
+    0 8px 24px rgba(7, 87, 76, 0.3),
+    0 2px 6px rgba(7, 87, 76, 0.15);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+.namaz-root .qz-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(7, 87, 76, 0.35);
+}
+.namaz-root .qz-fab:active {
+  transform: scale(0.92);
+  transition: transform 0.08s;
+}
+.dark .namaz-root .qz-fab {
+  box-shadow: 0 8px 24px rgba(84, 185, 165, 0.25);
+}
+
+/* ─── Mus'haf-inspired Bismillah ─── */
+.namaz-root .qz-bismillah {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Scheherazade New', serif;
+  font-size: 1.75rem;
+  color: var(--nz-accent-strong);
+  opacity: 0.7;
+  letter-spacing: 0.04em;
+  position: relative;
+}
+.namaz-root .qz-bismillah::before,
+.namaz-root .qz-bismillah::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--nz-border-strong), transparent);
+}
+.namaz-root .qz-bismillah::before { top: 0; }
+.namaz-root .qz-bismillah::after { bottom: 0; }
+
+/* ─── Golden Divider ─── */
+.namaz-root .qz-gold-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--nz-gold-soft), var(--nz-gold), var(--nz-gold-soft), transparent);
+  border: none;
+  margin: 0.75rem 0;
+  opacity: 0.4;
+}
+
+/* ─── Revelation Type Tag ─── */
+.namaz-root .qz-revelation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.namaz-root .qz-revelation.makkah {
+  background: var(--nz-accent-soft);
+  color: var(--nz-accent-strong);
+}
+.namaz-root .qz-revelation.madinah {
+  background: var(--nz-info-soft);
+  color: var(--nz-info);
 }
 .dark .namaz-root .nz-quran-hero {
   background:
