@@ -10,7 +10,8 @@ import {
   DownloadCloud, UploadCloud, FileSpreadsheet, Database,
   Key, Share2, RefreshCw, Search, MoonStar, Sun as SunIcon,
   ShieldBan, Fingerprint, Wifi, Activity, BatteryFull,
-  Server, HardDrive as HDD, User, ChevronRight, ChevronLeft
+  Server, HardDrive as HDD, User, ChevronRight, ChevronLeft,
+  Heart, Cloud
 } from 'lucide-react'
 import { useSettingsStore, type Theme, type Language } from '@/features/settings/store/settingsStore'
 import { usePrefsStore } from '@/features/namaz/store/prefsStore'
@@ -930,32 +931,51 @@ export default function SettingsPage() {
         </Section>
 
         {/* Data Health Score - Premium Ring */}
-        <div className="st-health-score">
-          <div className="st-health-score-ring">
-            <svg viewBox="0 0 65 65">
-              <circle className="st-health-score-ring-bg" cx="32.5" cy="32.5" r="30" />
-              <circle
-                className="st-health-score-ring-fill"
-                cx="32.5"
-                cy="32.5"
-                r="30"
-                stroke={healthRingColor}
-                style={{ strokeDashoffset: healthRingOffset }}
-              />
-            </svg>
-            <div className="st-health-score-ring-center">{healthScore}</div>
-          </div>
-          <div className="st-health-score-info">
-            <div className="st-health-score-title">{t.dataHealth}</div>
-            <div className="st-health-score-desc">
-              {healthScore >= 80 ? (language === 'bn' ? 'চমৎকার! সবকিছু সুরক্ষিত' : 'Excellent! Everything is secure')
-                : healthScore >= 50 ? (language === 'bn' ? 'ভালো, কিন্তু আরও উন্নতি সম্ভব' : 'Good, but can improve')
-                : (language === 'bn' ? 'একটি PIN সেট করুন এবং ব্যাকআপ নিন' : 'Set a PIN and take a backup')}
+        <Section
+          id="health"
+          icon={<Heart size={16} />}
+          title={t.dataHealth}
+          desc={t.healthDesc}
+          collapsed={collapsedSections.has('health')}
+          onToggle={() => toggleSection('health')}
+        >
+          <div className="st-health-score">
+            <div className="st-health-score-ring">
+              <svg viewBox="0 0 65 65">
+                <circle className="st-health-score-ring-bg" cx="32.5" cy="32.5" r="30" />
+                <circle
+                  className="st-health-score-ring-fill"
+                  cx="32.5"
+                  cy="32.5"
+                  r="30"
+                  stroke={healthRingColor}
+                  style={{ strokeDashoffset: healthRingOffset }}
+                />
+              </svg>
+              <div className="st-health-score-ring-center">{healthScore}</div>
+            </div>
+            <div className="st-health-score-info">
+              <div className="st-health-score-title">{t.dataHealth}</div>
+              <div className="st-health-score-desc">
+                {healthScore >= 80 ? (language === 'bn' ? 'চমৎকার! সবকিছু সুরক্ষিত' : 'Excellent! Everything is secure')
+                  : healthScore >= 50 ? (language === 'bn' ? 'ভালো, কিন্তু আরও উন্নতি সম্ভব' : 'Good, but can improve')
+                  : (language === 'bn' ? 'একটি PIN সেট করুন এবং ব্যাকআপ নিন' : 'Set a PIN and take a backup')}
+              </div>
             </div>
           </div>
-        </div>
+        </Section>
 
-        <CloudSyncCard />
+        {/* Cloud & Sync */}
+        <Section
+          id="cloud"
+          icon={<Cloud size={16} />}
+          title={language === 'bn' ? 'ক্লাউড ও সিঙ্ক' : 'Cloud & Sync'}
+          desc={language === 'bn' ? 'গুগল ড্রাইভ সিঙ্ক ও ব্যাকআপ ম্যানেজমেন্ট' : 'Google Drive sync & backup management'}
+          collapsed={collapsedSections.has('cloud')}
+          onToggle={() => toggleSection('cloud')}
+        >
+          <CloudSyncCard />
+        </Section>
 
         {/* Data Management */}
         <Section
@@ -1050,7 +1070,7 @@ export default function SettingsPage() {
             </div>
             <div className="st-storage-ring-info">
               <div className="st-storage-ring-label">
-                <HardDrive size={11} />
+                <HardDrive size={14} />
                 {' '}{t.storageUsed}
               </div>
               <div className="st-storage-ring-value">{getStorageSize()}</div>
@@ -1064,9 +1084,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="st-divider" />
-          <RowArrow label={t.dataSummary} sub={dataSummary} onClick={() => {}} noArrow />
-          <div className="st-divider" />
           <RowExternalLink label={t.privacyPolicy} sub={t.privacyPolicySub} href={PRIVACY_URL} />
           <div className="st-divider" />
           <div className="st-local-note">

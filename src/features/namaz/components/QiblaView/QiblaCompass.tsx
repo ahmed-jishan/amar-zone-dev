@@ -253,9 +253,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 interface QiblaCompassProps {
   qiblaAngle: number;
   orientationGranted: boolean;
+  onAlignmentChange?: (aligned: boolean) => void;
+  onDeviationChange?: (deviation: number | null) => void;
 }
 
-export default function QiblaCompass({ qiblaAngle, orientationGranted }: QiblaCompassProps) {
+export default function QiblaCompass({ qiblaAngle, orientationGranted, onAlignmentChange, onDeviationChange }: QiblaCompassProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
   const currentHeadingRef = useRef(0);
@@ -409,9 +411,12 @@ export default function QiblaCompass({ qiblaAngle, orientationGranted }: QiblaCo
     // ── Qibla ray ────────────────────────────────────────────────────────
     const alignDiff = ((qiblaAngle - heading) + 360) % 360;
     const dev = Math.min(alignDiff, 360 - alignDiff);
-    setDeviation(Math.round(dev));
-    const aligned = dev <= 5;
+    const devVal = Math.round(dev);
+    setDeviation(devVal);
+    const aligned = devVal <= 5;
     setIsAligned(aligned);
+    onDeviationChange?.(devVal);
+    onAlignmentChange?.(aligned);
 
     const qRad  = ((qiblaAngle - heading) * Math.PI) / 180 - Math.PI / 2;
     const qEndX = cx + Math.cos(qRad) * R * 0.83;

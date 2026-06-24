@@ -352,9 +352,21 @@ html:not(.dark) {
 .st-header-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 120% 100% at 20% 0%, rgba(124, 140, 255, 0.06) 0%, transparent 60%),
-              radial-gradient(ellipse 80% 100% at 80% 0%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+  background: radial-gradient(ellipse 120% 100% at 20% 0%, rgba(124, 140, 255, 0.08) 0%, transparent 60%),
+              radial-gradient(ellipse 80% 100% at 80% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
   pointer-events: none;
+}
+
+.st-header-bg::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--st-accent-border), transparent);
+  opacity: 0.5;
 }
 
 /* ── Header + Profile Hub + Search + Quick Dock integrated container ── */
@@ -368,7 +380,7 @@ html:not(.dark) {
 .st-header-inner {
   position: relative;
   z-index: 2;
-  padding: 28px 20px 4px;
+  padding: 32px 20px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -377,31 +389,48 @@ html:not(.dark) {
 
 .st-header-eyebrow {
   font-size: 10px;
-  letter-spacing: 3px;
+  letter-spacing: 3.5px;
   text-transform: uppercase;
   color: var(--st-accent);
-  opacity: 0.65;
-  margin-bottom: 6px;
+  opacity: 0.7;
+  margin-bottom: 8px;
   font-weight: 700;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.st-header-eyebrow::before,
+.st-header-eyebrow::after {
+  content: '';
+  width: 20px;
+  height: 1px;
+  background: var(--st-accent-border);
+  opacity: 0.4;
 }
 
 .st-header-title {
-  font-size: 36px;
+  font-size: 38px;
   font-weight: 800;
-  letter-spacing: -1.2px;
+  letter-spacing: -1.5px;
   line-height: 1;
-  background: linear-gradient(135deg, var(--st-text-1) 40%, var(--st-accent-2) 100%);
+  background: linear-gradient(135deg, var(--st-text-1) 30%, var(--st-accent-2) 70%, var(--st-accent-3) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  position: relative;
+  text-shadow: 0 0 40px var(--st-accent-glow);
 }
 
 .st-header-sub {
   font-size: 13px;
   color: var(--st-text-3);
-  margin-top: 7px;
-  line-height: 1.4;
-  max-width: 280px;
+  margin-top: 10px;
+  line-height: 1.5;
+  max-width: 300px;
+  position: relative;
+  padding: 0 4px;
 }
 
 /* ── Profile Hub (with integrated search) ── */

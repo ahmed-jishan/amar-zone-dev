@@ -140,6 +140,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
 interface AccuracyMeterProps {
   onGrantPermission: () => void;
@@ -230,7 +231,7 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
 
   // ── Card shell ───────────────────────────────────────────────────────────
   const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-    <div className={`rounded-2xl p-5 nz-elevated-panel ${className}`}>
+    <div className={`rounded-2xl p-5 bg-white/80 dark:bg-[rgba(13,15,20,0.78)] backdrop-blur-2xl border border-emerald-200/50 dark:border-[rgba(255,255,255,0.06)] ${className}`}>
       {children}
     </div>
   );
@@ -239,22 +240,24 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
   if (sensorState === 'pending-permission') {
     return (
       <Card className="text-center space-y-4">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto nz-chip">
-          <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto bg-emerald-500/10 border border-emerald-500/20">
+          <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
         </div>
         <div>
-          <p className="text-sm font-semibold nz-text">পারমিশন প্রয়োজন</p>
-          <p className="text-xs mt-1 leading-relaxed nz-muted">
+          <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">পারমিশন প্রয়োজন</p>
+          <p className="text-xs mt-1 leading-relaxed text-emerald-500/70 dark:text-emerald-400/60">
             {isIOS ? 'iOS এ কম্পাস চালু করতে নিচের বাটনে ক্লিক করুন' : 'ডিভাইস কম্পাস সক্রিয় করুন'}
           </p>
         </div>
         {isIOS && (
-          <button onClick={onGrantPermission}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold transition active:scale-95 nz-primary">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={onGrantPermission}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20">
             পারমিশন দিন
-          </button>
+          </motion.button>
         )}
       </Card>
     );
@@ -272,8 +275,8 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
             />
           ))}
         </div>
-        <p className="text-sm nz-text">সেন্সর ডাটা লোড হচ্ছে...</p>
-        <p className="text-xs nz-muted">ডিভাইস একটু নাড়াচাড়া করুন</p>
+        <p className="text-sm text-emerald-600 dark:text-emerald-300">সেন্সর ডাটা লোড হচ্ছে...</p>
+        <p className="text-xs text-emerald-500/60 dark:text-emerald-400/50">ডিভাইস একটু নাড়াচাড়া করুন</p>
       </Card>
     );
   }
@@ -282,18 +285,18 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
   if (sensorState === 'no-sensor' || sensorState === 'manual') {
     return (
       <Card className="text-center space-y-4">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto nz-soft">
-          <svg className="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto bg-amber-500/10 border border-amber-500/20">
+          <svg className="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
           </svg>
         </div>
         <div>
-          <p className="text-sm font-semibold nz-text">ম্যানুয়াল মোড</p>
-          <p className="text-xs mt-1 leading-relaxed nz-muted">
+          <p className="text-sm font-semibold text-amber-600 dark:text-amber-300">ম্যানুয়াল মোড</p>
+          <p className="text-xs mt-1 leading-relaxed text-amber-500/70 dark:text-amber-400/60">
             কম্পাস সেন্সর পাওয়া যায়নি।<br/>স্লাইডার দিয়ে কিবলা নির্ধারণ করুন।
           </p>
         </div>
-        <div className="text-xs rounded-xl px-3 py-2 nz-soft nz-gold">
+        <div className="text-xs rounded-xl px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400">
           💡 কিবলার দিক জানা থাকলে সেই ডিগ্রিতে সেট করুন
         </div>
       </Card>
@@ -302,17 +305,19 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
 
   // ── Live ─────────────────────────────────────────────────────────────────
   const qualityLabel = signalStrength > 75 ? 'উত্তম' : signalStrength > 40 ? 'মাঝারি' : 'দুর্বল';
-  const qualityColor = signalStrength > 75 ? 'nz-chip'
-    : signalStrength > 40 ? 'nz-soft nz-gold'
-    : 'text-rose-600 bg-rose-50 border-rose-200';
+  const qualityColor = signalStrength > 75
+    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+    : signalStrength > 40
+      ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+      : 'bg-rose-500/10 border-rose-500/20 text-rose-400';
 
   return (
     <Card className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between border-b pb-3 nz-divider">
+      <div className="flex items-center justify-between border-b pb-3 border-emerald-500/10">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-sm font-semibold nz-text">লাইভ সেন্সর</span>
+          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">লাইভ সেন্সর</span>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${qualityColor}`}>
           {qualityLabel}
@@ -321,15 +326,15 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
 
       {/* Signal */}
       <div className="flex items-center justify-between">
-        <span className="text-xs nz-muted">সিগনাল শক্তি</span>
+        <span className="text-xs text-emerald-500/70 dark:text-emerald-400/60">সিগনাল শক্তি</span>
         <div className="flex items-center gap-2">
           <SignalBars value={signalStrength} />
-          <span className="text-xs font-mono nz-text">{signalStrength}%</span>
+          <span className="text-xs font-mono text-emerald-600 dark:text-emerald-300">{signalStrength}%</span>
         </div>
       </div>
 
       {/* Axis gauges */}
-      <div className="rounded-xl p-3 space-y-2.5 nz-soft">
+      <div className="rounded-xl p-3 space-y-2.5 bg-emerald-100/50 dark:bg-emerald-500/5 border border-emerald-300/40 dark:border-emerald-500/10">
         <AxisGauge label="α" value={sensorData.alpha} bangla="কম্পাস" />
         <AxisGauge label="β" value={sensorData.beta}  bangla="টিল্ট" />
         <AxisGauge label="γ" value={sensorData.gamma} bangla="রোল" />
@@ -337,22 +342,22 @@ export default function AccuracyMeter({ onGrantPermission, isIOS, permissionGran
 
       {/* Compass type */}
       <div className="flex items-center justify-between text-xs">
-        <span className="nz-muted">কম্পাস ধরন</span>
+        <span className="text-emerald-700/60 dark:text-emerald-400/60">কম্পাস ধরন</span>
         <span className={`px-2 py-0.5 rounded-full border text-xs font-medium ${
           sensorData.absolute
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-            : 'bg-amber-50 border-amber-200 text-amber-700'
+            ? 'bg-emerald-100/70 dark:bg-emerald-500/10 border-emerald-300/50 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+            : 'bg-amber-100/70 dark:bg-amber-500/10 border-amber-300/50 dark:border-amber-500/20 text-amber-700 dark:text-amber-400'
         }`}>
           {sensorData.absolute ? 'পরম (Absolute)' : 'আপেক্ষিক'}
         </span>
       </div>
 
       {/* Tips */}
-      <div className="rounded-xl p-3 space-y-1.5 nz-soft">
-        <p className="text-xs font-semibold nz-text">নির্ভুলতার জন্য:</p>
+      <div className="rounded-xl p-3 space-y-1.5 bg-emerald-100/50 dark:bg-emerald-500/5 border border-emerald-300/40 dark:border-emerald-500/10">
+        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">নির্ভুলতার জন্য:</p>
         {['ডিভাইস সমতল রাখুন', '∞ আকারে ঘুরিয়ে ক্যালিব্রেট করুন', 'ধাতব বস্তু থেকে দূরে রাখুন'].map((t, i) => (
-          <div key={i} className="flex items-start gap-1.5 text-xs nz-muted">
-            <span className="nz-accent mt-px">›</span>
+          <div key={i} className="flex items-start gap-1.5 text-xs text-emerald-700/70 dark:text-emerald-400/60">
+            <span className="text-emerald-500 dark:text-emerald-400 mt-px">›</span>
             <span>{t}</span>
           </div>
         ))}
