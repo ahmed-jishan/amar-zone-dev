@@ -28,6 +28,7 @@ export class VoiceListener {
   private restartTimeout: ReturnType<typeof setTimeout> | null = null
   private restartAttempts = 0
   private maxRestartDelay = 3000
+  private currentStream: MediaStream | null = null
 
   constructor(options: ListenerOptions) {
     this.options = options
@@ -109,6 +110,14 @@ export class VoiceListener {
       this.options.onStateChange('listening')
     }
 
+    // Optional Webkit-specific events for debug logging
+    ;(recognition as any).onaudiostart = () => {
+      console.log('[VoiceListener] Audio started')
+    }
+    ;(recognition as any).onspeechstart = () => {
+      console.log('[VoiceListener] Speech detected')
+    }
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let finalTranscript = ''
       let interimTranscript = ''
@@ -123,10 +132,25 @@ export class VoiceListener {
       }
 
       if (finalTranscript) {
+        console.log('[VoiceListener] Final transcript:', finalTranscript.trim())
         this.options.onTranscript(finalTranscript.trim(), true)
+        
+        // Stop listening after final result to break the continuous loop
+        // This prevents the "listening uthe thakce" issue
+        // The UI will restart via useVoice's startListening if needed
+        setTimeout(() => {
+          if (this.isListening && !this.isStoppingExplicitly) {
+            console.log('[VoiceListener] Auto-stopping after final transcript')
+            this.isStoppingExplicitly = true
+            this.isListening = false
+            this.destroyRecognition()
+            this.options.onStateChange('idle')
+          }
+        }, 100)
       }
 
       if (interimTranscript) {
+        console.log('[VoiceListener] Interim:', interimTranscript.trim())
         this.options.onTranscript(interimTranscript.trim(), false)
       }
     }

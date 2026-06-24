@@ -34,22 +34,39 @@ export type IntentType =
   // Destructive (blocked)
   | 'destructive'
 
-// ─── AI-Powered Intent Types (15 actions) ─────────────────────────────────
+// ─── AI-Powered Intent Types (expanded) ──────────────────────────────────
 export type AiActionType =
+  // Tasks
   | 'create_task'
   | 'update_task'
   | 'delete_task'
   | 'complete_task'
   | 'show_tasks'
+  // Notes
   | 'create_note'
   | 'update_note'
   | 'delete_note'
   | 'open_notes'
+  // Focus
   | 'start_focus_mode'
   | 'stop_focus_mode'
+  // Navigation
   | 'open_calculator'
   | 'open_tasks'
   | 'open_dashboard'
+  | 'navigate_home'
+  | 'navigate_money'
+  | 'navigate_namaz'
+  | 'navigate_settings'
+  | 'navigate_products'
+  | 'navigate_offers'
+  | 'navigate_checkout'
+  // Search
+  | 'search_products'
+  // Context
+  | 'show_featured_collection'
+  | 'conversation'
+  // Fallback
   | 'unknown'
 
 export interface VoiceEntity {
@@ -99,9 +116,56 @@ export interface AiCommand {
   updatedDescription?: string
   /** Raw language detected by Groq */
   language?: VoiceLanguage
+  /** Natural language response for conversational queries */
+  response?: string
+  responseBn?: string
+  /** Suggested follow-up actions */
+  suggestions?: string[]
 }
 
-export type VoiceState = 'idle' | 'listening' | 'processing' | 'understanding' | 'executing' | 'speaking' | 'error' | 'completed'
+// ─── Enhanced Voice States ─────────────────────────────────────────────────
+// Premium state machine: idle → listening → speech_detected → processing
+// → understanding → executing → responding → idle
+export type VoiceState = 
+  | 'idle' 
+  | 'listening' 
+  | 'speech_detected'   // NEW: user is actively speaking, voice detected
+  | 'processing'        // NEW: speech ended, processing audio
+  | 'understanding'     // AI parsing transcript
+  | 'executing'         // Executing command
+  | 'responding'        // NEW: AI speaking back
+  | 'speaking'          // Legacy: TTS active
+  | 'completed'         
+  | 'error'
+
+// ─── VAD (Voice Activity Detection) Types ──────────────────────────────────
+
+export interface VADConfig {
+  /** Silence threshold in dB (lower = more sensitive). Default: -50 */
+  silenceThreshold: number
+  /** Duration of silence in ms before declaring speech ended. Default: 1200 */
+  silenceTimeoutMs: number
+  /** Minimum speech duration in ms to consider valid speech. Default: 300 */
+  minSpeechDurationMs: number
+  /** Check interval in ms. Default: 100 */
+  checkIntervalMs: number
+}
+
+export const DEFAULT_VAD_CONFIG: VADConfig = {
+  silenceThreshold: -50,
+  silenceTimeoutMs: 1200,
+  minSpeechDurationMs: 300,
+  checkIntervalMs: 100,
+}
+
+export type VADState = 'silence' | 'speaking'
+
+export interface VADCallbacks {
+  onSpeechStart: () => void
+  onSpeechEnd: () => void
+  onVADStateChange: (state: VADState) => void
+  onAudioLevel: (level: number) => void // 0–1 normalized
+}
 
 export interface VoiceUIState {
   state: VoiceState
@@ -109,4 +173,6 @@ export interface VoiceUIState {
   partialTranscript: string
   lastResult: CommandResult | null
   suggestions: string[]
+  audioLevel: number // 0–1 for waveform animation
+  hasDetectedSpeech: boolean
 }

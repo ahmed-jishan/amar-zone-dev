@@ -20,6 +20,8 @@ export interface VoiceAPI {
   isVoiceEnabled: boolean
   isAiEnabled: boolean
   suggestions: string[]
+  audioLevel: number
+  hasDetectedSpeech: boolean
   startListening: () => void
   stopListening: () => void
   toggleListening: () => void
@@ -27,11 +29,34 @@ export interface VoiceAPI {
   speakBn: (text: string) => void
 }
 
+// ─── Route Map (defined outside hook for stability) ──────────────────────
+const ROUTE_MAP: Record<string, string> = {
+  'navigate_tasks': '/tasks',
+  'navigate_dashboard': '/',
+  'navigate_notes': '/notes',
+  'navigate_calculator': '/calculator',
+  'navigate_home': '/home',
+  'navigate_money': '/money',
+  'navigate_namaz': '/namaz',
+  'navigate_settings': '/settings',
+  'navigate_products': '/products',
+  'navigate_offers': '/offers',
+  'navigate_checkout': '/checkout',
+  'navigate': '/home',
+  'open_calculator': '/calculator',
+  'open_tasks': '/tasks',
+  'open_dashboard': '/home',
+  'open_notes': '/notes',
+  'search_products': '/products',
+}
+
 export function useVoice(): VoiceAPI {
   const [state, setState] = useState<VoiceState>('idle')
   const [transcript, setTranscript] = useState('')
   const [partialTranscript, setPartialTranscript] = useState('')
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const [hasDetectedSpeech, setHasDetectedSpeech] = useState(false)
   const [suggestions] = useState<string[]>([
     "Create a task called Grocery shopping tomorrow at 10 AM",
     "Show today's tasks",
@@ -43,19 +68,16 @@ export function useVoice(): VoiceAPI {
     "আজকের টাস্কগুলো দেখাও",
   ])
 
-  // Use refs to avoid stale closures in callbacks
+  // Refs for stable cross-callback access
   const listenerRef = useRef<VoiceListener | null>(null)
   const synthRef = useRef<VoiceSynthesizer | null>(null)
   const mountedRef = useRef(true)
-  const stateRef = useRef(state)
-  const transcriptRef = useRef(transcript)
-  const lastResultRef = useRef(lastResult)
+  const isProcessingRef = useRef(false)
   const routerRef = useRef(useRouter())
-
-  // Keep refs synced
-  stateRef.current = state
-  transcriptRef.current = transcript
-  lastResultRef.current = lastResult
+  
+  // Transcript tracking - MUST update ref immediately for VAD/transcript callbacks
+  const latestTranscriptRef = useRef('')
+  const currentAudioStreamRef = useRef<MediaStream | null>(null)
 
   const isVoiceEnabled = useSettingsStore((s) => s.voiceEnabled)
   const language = useSettingsStore((s) => s.language) as VoiceLanguage
@@ -66,70 +88,69 @@ export function useVoice(): VoiceAPI {
     return key.length > 0
   })
 
-  // Stable processVoiceCommand that doesn't change — uses refs
-  const processVoiceCommandRef = useRef(async (text: string) => {
+  // ─── Navigation Helper ──────────────────────────────────────────────────
+  const navigateTo = useCallback((action: string) => {
     const router = routerRef.current
-
-    // Set processing state
-    if (mountedRef.current) {
-      setState('understanding')
+    const route = ROUTE_MAP[action] || '/'
+    try {
+      router.push(route)
+    } catch {
+      // Route may not exist
     }
+  }, [])
+
+  // ─── Process Command (stable, defined before use) ──────────────────────
+  const processCommand = useCallback(async (text: string) => {
+    if (!mountedRef.current || isProcessingRef.current) return
+    isProcessingRef.current = true
+    
+    console.log('[Voice] Processing:', text)
+
+    // 1. Show understanding state
+    setState('understanding')
+    setTranscript(text)
+    setPartialTranscript('')
 
     try {
-      // Process with AI (falls back to keyword parser if Groq unavailable/fails)
+      // 2. Process with AI (falls back to keyword parser if Groq fails)
       const { result, language: detectedLang } = await processVoiceTranscript(text)
 
-      if (!mountedRef.current) return
-
-      // Set executing state
-      setState('executing')
-
-      // Handle navigation actions
-      if (result.action === 'navigate' || 
-          result.action === 'navigate_tasks' || 
-          result.action === 'navigate_dashboard' ||
-          result.action === 'navigate_notes' ||
-          result.action === 'navigate_calculator') {
-        const routeMap: Record<string, string> = {
-          'navigate_tasks': '/tasks',
-          'navigate_dashboard': '/',
-          'navigate_notes': '/notes',
-          'navigate_calculator': '/calculator',
-          'navigate': '/',
-        }
-        const route = routeMap[result.action] || '/'
-        setTimeout(() => {
-          try {
-            router.push(route)
-          } catch {
-            // Silently fail if route doesn't exist
-          }
-        }, 1000)
+      if (!mountedRef.current) {
+        isProcessingRef.current = false
+        return
       }
 
-      // Store the result
+      // 3. Execute / Navigate
+      setState('executing')
       setLastResult(result)
 
-      // Speak the response
+      if (result.action) {
+        navigateTo(result.action)
+      }
+
+      // 4. Speak the response
       const msg = detectedLang === 'bn' ? (result.messageBn || result.message) : result.message
-      if (synthRef.current) {
+      if (synthRef.current && msg) {
         synthRef.current.speak(msg, detectedLang)
       }
 
-      // Set completed state briefly
-      setState('completed')
-      
-      // After 2s, go back to listening
+      // 5. Show responding state
+      setState('responding')
+
+      // 6. After delay, return to idle
       setTimeout(() => {
-        if (mountedRef.current) {
-          setState('listening')
-          setTranscript('')
-          setPartialTranscript('')
-        }
-      }, 2000)
+        if (!mountedRef.current) return
+        isProcessingRef.current = false
+        setState('idle')
+        latestTranscriptRef.current = ''
+      }, 3000)
+
     } catch (error) {
-      console.error('[Voice] Error processing command:', error)
-      if (!mountedRef.current) return
+      console.error('[Voice] Error:', error)
+      if (!mountedRef.current) {
+        isProcessingRef.current = false
+        return
+      }
 
       // Fallback to legacy parser
       const parsed = parseIntent(text)
@@ -138,103 +159,93 @@ export function useVoice(): VoiceAPI {
       setLastResult(result)
       setState('executing')
 
+      if (result.action) {
+        navigateTo(result.action)
+      }
+
       const msg = parsed.language === 'bn' ? (result.messageBn || result.message) : result.message
-      if (synthRef.current) {
+      if (synthRef.current && msg) {
         synthRef.current.speak(msg, parsed.language)
       }
 
-      setState('completed')
-      
+      setState('responding')
+
       setTimeout(() => {
-        if (mountedRef.current) {
-          setState('listening')
-          setTranscript('')
-          setPartialTranscript('')
-        }
-      }, 2000)
-    }
-  })
-
-  // Initialize voice services once on mount
-  useEffect(() => {
-    mountedRef.current = true
-
-    // Create synthesizer
-    synthRef.current = new VoiceSynthesizer({
-      language,
-      onStateChange: (s) => {
-        if (mountedRef.current) setState(s)
-      },
-      rate: 0.9,
-    })
-
-    // Create listener
-    listenerRef.current = new VoiceListener({
-      language,
-      onTranscript: (text, isFinal) => {
         if (!mountedRef.current) return
-        if (isFinal) {
-          setTranscript(text)
-          setPartialTranscript('')
-          // Use the ref to call the processor — avoids stale closure issues
-          processVoiceCommandRef.current(text)
-        } else {
-          setPartialTranscript(text)
-        }
-      },
-      onStateChange: (s) => {
-        if (mountedRef.current) setState(s)
-      },
-      onError: (error) => {
-        console.warn('[Voice]', error)
-      },
-    })
-
-    return () => {
-      mountedRef.current = false
-      listenerRef.current?.destroy()
-      synthRef.current?.destroy()
+        isProcessingRef.current = false
+        setState('idle')
+        latestTranscriptRef.current = ''
+      }, 3000)
     }
-    // Only run on mount — language changes handled by setLanguage
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [navigateTo])
 
-  // Sync language changes without recreating the listener
-  useEffect(() => {
-    listenerRef.current?.setLanguage(language)
-    synthRef.current?.setLanguage(language)
-  }, [language])
-
+  // ─── Start Listening ────────────────────────────────────────────────────
   const startListening = useCallback(async () => {
-    if (!isVoiceEnabled) return
+    if (!isVoiceEnabled || isProcessingRef.current || !listenerRef.current) return
+    
+    console.log('[Voice] Start listening')
+    
+    // Reset state
     setLastResult(null)
     setTranscript('')
     setPartialTranscript('')
-    
-    // Request permission first, then start
-    if (listenerRef.current) {
-      const hasPermission = await listenerRef.current.requestPermission()
-      if (hasPermission) {
-        listenerRef.current.start()
-      } else {
-        setState('error')
-      }
+    setHasDetectedSpeech(false)
+    setAudioLevel(0)
+    latestTranscriptRef.current = ''
+    isProcessingRef.current = false
+
+    // Request mic permission (also gets stream for potential audio level display)
+    const hasPermission = await listenerRef.current.requestPermission()
+    if (!hasPermission) {
+      setState('error')
+      return
     }
+
+    // Optionally get audio stream for waveform (VAD bypassed for reliability)
+    try {
+      if (!currentAudioStreamRef.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        currentAudioStreamRef.current = stream
+      }
+    } catch {
+      // Audio level visualization not available - still works without it
+    }
+
+    // Start speech recognition
+    listenerRef.current.start()
   }, [isVoiceEnabled])
 
+  // ─── Stop Listening ─────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
+    console.log('[Voice] Stop listening')
+    
+    // Stop recognition
     listenerRef.current?.stop()
+    
+    // Release microphone
+    if (currentAudioStreamRef.current) {
+      currentAudioStreamRef.current.getTracks().forEach(t => t.stop())
+      currentAudioStreamRef.current = null
+    }
+    
+    isProcessingRef.current = false
     setState('idle')
+    setHasDetectedSpeech(false)
+    setAudioLevel(0)
   }, [])
 
+  // ─── Toggle ─────────────────────────────────────────────────────────────
   const toggleListening = useCallback(() => {
-    if (stateRef.current === 'listening') {
+    // Use ref to avoid stale state in callbacks
+    const currentState = listenerRef.current?.isActive ? 'listening' : 'idle'
+    if (currentState === 'listening') {
       stopListening()
     } else {
       startListening()
     }
   }, [startListening, stopListening])
 
+  // ─── Speak ──────────────────────────────────────────────────────────────
   const speak = useCallback((text: string, lang?: VoiceLanguage) => {
     synthRef.current?.speak(text, lang)
   }, [])
@@ -243,16 +254,102 @@ export function useVoice(): VoiceAPI {
     synthRef.current?.speak(text, 'bn')
   }, [])
 
+  // ─── Initialize Services ───────────────────────────────────────────────
+  useEffect(() => {
+    mountedRef.current = true
+
+    // Create synthesizer
+    synthRef.current = new VoiceSynthesizer({
+      language,
+      onStateChange: (s) => {
+        if (!mountedRef.current) return
+        // Don't override if we're in a more important state
+        if (s === 'responding' || s === 'completed') {
+          setState(s)
+        }
+      },
+      rate: 0.9,
+    })
+
+    // Create listener with direct callback to processCommand
+    listenerRef.current = new VoiceListener({
+      language,
+      onTranscript: (text: string, isFinal: boolean) => {
+        if (!mountedRef.current) return
+
+        if (isFinal) {
+          // Immediately store in ref so VAD/other callbacks can read it
+          latestTranscriptRef.current = text
+          
+          // Update React state
+          setTranscript(text)
+          setPartialTranscript('')
+          setHasDetectedSpeech(true)
+          
+          // Process the command immediately
+          processCommand(text)
+
+        } else {
+          // Interim transcript - use for live display
+          setPartialTranscript(text)
+          
+          // If we just started getting words, show speech_detected
+          if (text.length > 0) {
+            setHasDetectedSpeech(true)
+            setState('speech_detected')
+          }
+        }
+      },
+      onStateChange: (s: VoiceState) => {
+        if (!mountedRef.current) return
+        
+        // Only apply certain states from listener
+        if (s === 'listening') {
+          // Don't override if we're already in speech_detected or processing
+          if (!hasDetectedSpeech && !isProcessingRef.current) {
+            setState('listening')
+          }
+        } else if (s === 'error') {
+          setState('error')
+        }
+        // Ignore 'idle' from listener - we manage idle ourselves
+      },
+      onError: (error: string) => {
+        console.warn('[Voice]', error)
+      },
+    })
+
+    return () => {
+      mountedRef.current = false
+      isProcessingRef.current = true
+      listenerRef.current?.destroy()
+      synthRef.current?.destroy()
+      if (currentAudioStreamRef.current) {
+        currentAudioStreamRef.current.getTracks().forEach(t => t.stop())
+        currentAudioStreamRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount - services don't need to be recreated
+
+  // Sync language changes without recreating the listener
+  useEffect(() => {
+    listenerRef.current?.setLanguage(language)
+    synthRef.current?.setLanguage(language)
+  }, [language])
+
   return {
     state,
     transcript,
     partialTranscript,
     lastResult,
-    isListening: state === 'listening',
-    isSpeaking: state === 'speaking',
+    isListening: state === 'listening' || state === 'speech_detected',
+    isSpeaking: state === 'speaking' || state === 'responding',
     isVoiceEnabled,
     isAiEnabled,
     suggestions,
+    audioLevel,
+    hasDetectedSpeech,
     startListening,
     stopListening,
     toggleListening,

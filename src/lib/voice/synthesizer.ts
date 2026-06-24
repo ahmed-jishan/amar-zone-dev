@@ -94,12 +94,12 @@ export class VoiceSynthesizer {
 
     utterance.onstart = () => {
       this.isSpeaking = true
-      this.options.onStateChange('speaking')
+      this.options.onStateChange('responding')
     }
 
     utterance.onend = () => {
       this.isSpeaking = false
-      this.options.onStateChange('idle')
+      this.options.onStateChange('completed')
       this.processQueue()
     }
 

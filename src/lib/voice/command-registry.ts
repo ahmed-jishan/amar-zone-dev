@@ -735,6 +735,111 @@ export function executeAiCommand(command: AiCommand): CommandResult {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // CONVERSATION ACTION
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'conversation': {
+      const response = command.response || command.responseBn || "I'm here to help. What would you like to do?"
+      const responseBn = command.responseBn || command.response || 'আমি সাহায্য করতে এখানে আছি। আপনি কী করতে চান?'
+      return {
+        success: true,
+        message: response,
+        messageBn: responseBn,
+        action: 'conversation',
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // NEW NAVIGATION ACTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'navigate_home': {
+      return {
+        success: true,
+        message: 'Going to home...',
+        messageBn: 'হোমে যাচ্ছি...',
+        action: 'navigate_home',
+      }
+    }
+
+    case 'navigate_money': {
+      return {
+        success: true,
+        message: 'Opening money section...',
+        messageBn: 'মানি সেকশন খুলছি...',
+        action: 'navigate_money',
+      }
+    }
+
+    case 'navigate_namaz': {
+      return {
+        success: true,
+        message: 'Opening prayer section...',
+        messageBn: 'নামাজ সেকশন খুলছি...',
+        action: 'navigate_namaz',
+      }
+    }
+
+    case 'navigate_settings': {
+      return {
+        success: true,
+        message: 'Opening settings...',
+        messageBn: 'সেটিংস খুলছি...',
+        action: 'navigate_settings',
+      }
+    }
+
+    case 'navigate_products': {
+      return {
+        success: true,
+        message: 'Opening products...',
+        messageBn: 'প্রোডাক্টস খুলছি...',
+        action: 'navigate_products',
+      }
+    }
+
+    case 'navigate_offers': {
+      return {
+        success: true,
+        message: 'Showing offers...',
+        messageBn: 'অফার দেখাচ্ছি...',
+        action: 'navigate_offers',
+      }
+    }
+
+    case 'navigate_checkout': {
+      return {
+        success: true,
+        message: 'Opening checkout...',
+        messageBn: 'চেকআউট খুলছি...',
+        action: 'navigate_checkout',
+      }
+    }
+
+    case 'search_products': {
+      const query = command.title || ''
+      return {
+        success: true,
+        message: query 
+          ? `Searching for "${query}"...`
+          : 'Opening search...',
+        messageBn: query 
+          ? `"${query}" অনুসন্ধান করছি...`
+          : 'অনুসন্ধান খুলছি...',
+        action: 'search_products',
+      }
+    }
+
+    case 'show_featured_collection': {
+      return {
+        success: true,
+        message: 'Opening featured collection...',
+        messageBn: 'ফিচার্ড কালেকশন খুলছি...',
+        action: 'show_featured_collection',
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // UNKNOWN ACTION
     // ═══════════════════════════════════════════════════════════════
 
