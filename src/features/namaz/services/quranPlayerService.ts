@@ -18,6 +18,13 @@ type ReciterKey = 'alafasy' | 'husary' | 'sudais'
 
 const STATE_KEY = 'quran-playback-state'
 
+function safeStorage(): Storage | null {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage;
+    return null;
+  } catch { return null }
+}
+
 class QuranPlayerService {
   private audio: HTMLAudioElement | null = null
   private listeners = new Set<PlaybackListener>()
@@ -38,9 +45,10 @@ class QuranPlayerService {
   }
 
   private recoverState() {
-    if (typeof sessionStorage === 'undefined') return
+    const storage = safeStorage()
+    if (!storage) return
     try {
-      const saved = sessionStorage.getItem(STATE_KEY)
+      const saved = storage.getItem(STATE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved) as QuranPlaybackState
         this.state = { ...this.state, ...parsed, isPlaying: false, isLoaded: false }
@@ -49,9 +57,10 @@ class QuranPlayerService {
   }
 
   private persistState() {
-    if (typeof sessionStorage === 'undefined') return
+    const storage = safeStorage()
+    if (!storage) return
     try {
-      sessionStorage.setItem(STATE_KEY, JSON.stringify({
+      storage.setItem(STATE_KEY, JSON.stringify({
         surahNumber: this.state.surahNumber,
         ayahNumber: this.state.ayahNumber,
         isPlaying: false,
@@ -169,7 +178,10 @@ class QuranPlayerService {
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'none'
     }
-    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(STATE_KEY)
+    const storage = safeStorage()
+    if (storage) {
+      try { storage.removeItem(STATE_KEY) } catch { /* ignore */ }
+    }
     this.notify()
   }
 

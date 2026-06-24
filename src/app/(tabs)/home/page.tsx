@@ -6,6 +6,7 @@ import HomeTabs, { HomeSubTab } from '@/features/home/components/HomeTabs'
 import DashboardView from '@/features/home/components/DashboardView'
 import NotesList from '@/features/notes/components/NotesList'
 import BMICalculator from '@/features/health/components/BMICalculator'
+import { ZakatWizard } from '@/features/zakat'
 import '@/features/home/home.css'
 
 export default function HomePage() {
@@ -23,6 +24,8 @@ export default function HomePage() {
         return <NotesList />
       case 'health':
         return <BMICalculator />
+      case 'zakat':
+        return <ZakatWizard />
       default:
         return null
     }

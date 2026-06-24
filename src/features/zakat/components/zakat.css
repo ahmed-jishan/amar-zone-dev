@@ -1,0 +1,676 @@
+/* ── Zakat Feature Premium Styles ── */
+
+.zk-root {
+  --zk-bg: #f8f9fc;
+  --zk-surface: rgba(255, 255, 255, 0.84);
+  --zk-surface-strong: rgba(255, 255, 255, 0.96);
+  --zk-card: rgba(255, 255, 255, 0.76);
+  --zk-soft: rgba(237, 239, 248, 0.78);
+  --zk-border: rgba(64, 68, 98, 0.14);
+  --zk-border-strong: rgba(99, 102, 241, 0.28);
+  --zk-text: #151628;
+  --zk-text-soft: #2d2f4a;
+  --zk-muted: #6b6f8a;
+  --zk-accent: #6366f1;
+  --zk-accent-soft: rgba(99, 102, 241, 0.12);
+  --zk-green: #10b981;
+  --zk-amber: #f59e0b;
+  --zk-red: #ef4444;
+  --zk-blue: #3b82f6;
+  --zk-radius: 1rem;
+  --zk-shadow: 0 14px 34px rgba(30, 32, 58, 0.08);
+}
+
+.dark .zk-root {
+  --zk-bg: #0e0e18;
+  --zk-surface: rgba(18, 18, 34, 0.86);
+  --zk-surface-strong: rgba(22, 22, 42, 0.96);
+  --zk-card: rgba(20, 20, 38, 0.9);
+  --zk-soft: rgba(28, 28, 48, 0.72);
+  --zk-border: rgba(120, 122, 168, 0.16);
+  --zk-border-strong: rgba(129, 140, 248, 0.3);
+  --zk-text: #edf0f8;
+  --zk-text-soft: #c8cce0;
+  --zk-muted: #969aba;
+  --zk-accent: #818cf8;
+  --zk-accent-soft: rgba(129, 140, 248, 0.14);
+  --zk-shadow: 0 20px 48px rgba(1, 1, 10, 0.5);
+}
+
+/* ─── Progress Dots ─── */
+
+.zk-progress-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.zk-progress-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 36px;
+}
+
+.zk-progress-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--zk-soft);
+  color: var(--zk-muted);
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
+  border: 2px solid transparent;
+}
+
+.zk-progress-active {
+  background: var(--zk-accent);
+  color: #fff;
+}
+
+.zk-progress-current {
+  border-color: var(--zk-accent);
+  box-shadow: 0 0 0 3px var(--zk-accent-soft);
+}
+
+.zk-progress-label {
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--zk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ─── Option Cards (Nisab Method) ─── */
+
+.zk-option-card {
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--zk-surface);
+  border: 1px solid var(--zk-border);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1);
+}
+
+.zk-option-card:hover {
+  border-color: var(--zk-border-strong);
+}
+
+.zk-option-active {
+  border-color: var(--zk-accent);
+  background: var(--zk-accent-soft);
+  box-shadow: 0 0 0 1px var(--zk-accent);
+}
+
+.zk-option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--zk-soft);
+  color: var(--zk-muted);
+  transition: all 0.3s;
+}
+
+.zk-option-icon-active {
+  background: var(--zk-accent);
+  color: #fff;
+}
+
+.zk-option-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--zk-text);
+}
+
+.zk-option-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--zk-muted);
+  margin-top: 1px;
+}
+
+.zk-option-value {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--zk-accent);
+}
+
+.zk-option-unit {
+  display: block;
+  font-size: 9px;
+  color: var(--zk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.zk-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--zk-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.zk-radio-active {
+  border-color: var(--zk-accent);
+}
+
+.zk-radio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--zk-accent);
+}
+
+/* ─── Nisab Summary ─── */
+
+.zk-nisab-summary {
+  text-align: center;
+  padding: 10px 14px;
+  background: var(--zk-accent-soft);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--zk-muted);
+  border: 1px solid var(--zk-border);
+}
+
+/* ─── Nisab Badge ─── */
+
+.zk-nisab-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--zk-accent-soft);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--zk-border);
+}
+
+.zk-nisab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--zk-accent);
+  flex-shrink: 0;
+}
+
+.zk-nisab-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--zk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.zk-nisab-value {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--zk-accent);
+}
+
+/* ─── Mode Cards ─── */
+
+.zk-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  border-radius: 14px;
+  background: var(--zk-surface);
+  border: 1px solid var(--zk-border);
+  cursor: pointer;
+  transition: all 0.25s;
+  text-align: center;
+}
+
+.zk-mode-card:hover {
+  border-color: var(--zk-border-strong);
+}
+
+.zk-mode-active {
+  border-color: var(--zk-accent);
+  background: var(--zk-accent-soft);
+  box-shadow: 0 0 0 1px var(--zk-accent);
+}
+
+.zk-mode-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zk-text);
+}
+
+.zk-mode-desc {
+  font-size: 10px;
+  color: var(--zk-muted);
+}
+
+/* ─── Price Box ─── */
+
+.zk-price-box {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--zk-soft);
+  border: 1px solid var(--zk-border);
+  text-align: center;
+}
+
+.zk-price-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--zk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.zk-price-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--zk-text);
+  margin: 4px 0;
+}
+
+.zk-price-unit {
+  font-size: 10px;
+  color: var(--zk-muted);
+}
+
+/* ─── Input Group ─── */
+
+.zk-input-group {
+  margin-bottom: 4px;
+}
+
+.zk-input-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--zk-text-soft);
+  margin-bottom: 6px;
+}
+
+.zk-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--zk-surface);
+  border: 1px solid var(--zk-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.zk-input-wrapper:focus-within {
+  border-color: var(--zk-accent);
+  box-shadow: 0 0 0 3px var(--zk-accent-soft);
+}
+
+.zk-stepper-btn {
+  width: 40px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--zk-muted);
+  background: var(--zk-soft);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.zk-stepper-btn:hover {
+  background: var(--zk-accent-soft);
+  color: var(--zk-accent);
+}
+
+.zk-stepper-btn:active {
+  transform: scale(0.95);
+}
+
+.zk-input-field-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 4px;
+}
+
+.zk-input-prefix {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--zk-muted);
+}
+
+.zk-input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--zk-text);
+  text-align: right;
+  padding: 10px 0;
+  min-width: 0;
+  -moz-appearance: textfield;
+}
+
+.zk-input-field::-webkit-outer-spin-button,
+.zk-input-field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.zk-input-field::placeholder {
+  color: var(--zk-muted);
+  opacity: 0.5;
+}
+
+.zk-input-suffix {
+  font-size: 12px;
+  color: var(--zk-muted);
+  font-weight: 500;
+}
+
+/* ─── Unit & Purity Buttons ─── */
+
+.zk-unit-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--zk-soft);
+  border: 1px solid var(--zk-border);
+  color: var(--zk-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.zk-unit-btn:hover {
+  border-color: var(--zk-border-strong);
+}
+
+.zk-unit-active {
+  background: var(--zk-accent);
+  color: #fff;
+  border-color: var(--zk-accent);
+}
+
+/* ─── Conversion Note ─── */
+
+.zk-conversion-note {
+  text-align: center;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--zk-muted);
+  background: var(--zk-soft);
+  border-radius: 8px;
+  border: 1px solid var(--zk-border);
+}
+
+/* ─── Education Card ─── */
+
+.zk-education-card {
+  border: 1px solid var(--zk-border);
+  border-left: 3px solid var(--zk-green);
+}
+
+.zk-education-item {
+  border: 1px solid var(--zk-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--zk-soft);
+}
+
+.zk-education-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.zk-education-header:hover {
+  background: var(--zk-accent-soft);
+}
+
+.zk-education-body {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--zk-border);
+  padding-top: 10px;
+}
+
+/* ─── Purity Buttons ─── */
+
+.zk-purity-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--zk-soft);
+  border: 1px solid var(--zk-border);
+  color: var(--zk-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.zk-purity-btn:hover {
+  border-color: var(--zk-border-strong);
+}
+
+.zk-purity-active {
+  background: var(--zk-accent);
+  color: #fff;
+  border-color: var(--zk-accent);
+}
+
+/* ─── Subtotal ─── */
+
+.zk-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--zk-accent-soft);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zk-muted);
+  border: 1px solid var(--zk-border);
+}
+
+.zk-subtotal-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--zk-accent);
+}
+
+.zk-subtotal-danger {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.zk-subtotal-danger .zk-subtotal-value {
+  color: var(--zk-red);
+}
+
+/* ─── Card ─── */
+
+.zk-card {
+  background: var(--zk-surface);
+  border: 1px solid var(--zk-border);
+  border-radius: var(--zk-radius);
+  box-shadow: var(--zk-shadow);
+  backdrop-filter: blur(14px);
+  padding: 1rem;
+}
+
+.zk-card-warning {
+  border-left: 3px solid var(--zk-amber);
+}
+
+.zk-card-info {
+  border-left: 3px solid var(--zk-accent);
+}
+
+/* ─── Result Card ─── */
+
+.zk-result-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--zk-surface);
+  border: 1px solid var(--zk-border);
+  border-radius: 14px;
+  border-left: 3px solid var(--zk-border);
+  transition: all 0.2s;
+}
+
+.zk-result-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--zk-soft);
+  color: var(--zk-muted);
+  flex-shrink: 0;
+}
+
+.zk-result-body {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.zk-result-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--zk-muted);
+}
+
+.zk-result-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--zk-text);
+  text-align: right;
+}
+
+.zk-result-value-lg {
+  font-size: 20px;
+  color: var(--zk-accent);
+}
+
+/* ─── Results Grid ─── */
+
+.zk-results-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ─── Step Content ─── */
+
+.zk-step-content {
+  min-height: 260px;
+  margin-bottom: 16px;
+}
+
+/* ─── Navigation ─── */
+
+.zk-nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--zk-border);
+}
+
+.zk-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.zk-nav-back {
+  background: var(--zk-soft);
+  color: var(--zk-muted);
+  border: 1px solid var(--zk-border);
+}
+
+.zk-nav-back:hover:not(:disabled) {
+  background: var(--zk-accent-soft);
+  color: var(--zk-accent);
+}
+
+.zk-nav-back:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zk-nav-next {
+  background: var(--zk-accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.zk-nav-next:hover {
+  background: var(--zk-accent);
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.zk-nav-next:active {
+  transform: scale(0.97);
+}
+
+.zk-nav-top {
+  background: var(--zk-soft);
+  color: var(--zk-muted);
+  border: 1px solid var(--zk-border);
+}

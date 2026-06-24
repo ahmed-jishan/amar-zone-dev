@@ -205,12 +205,12 @@ export default function TaskHeader({
               )}
               <motion.button
                 type="button"
-                onClick={stats.today > 0 ? onPlanToday : onAddTask}
+                onClick={stats.today > 0 || stats.overdue > 0 ? onPlanToday : onAddTask}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="rounded-[var(--az-radius-md)] border border-[var(--az-border)] bg-[var(--az-surface-2)] px-3 py-2 text-[12px] font-semibold text-[var(--az-text-2)] hover:border-[var(--az-accent-border)] hover:text-[var(--az-accent)] transition-all"
               >
-                {stats.today > 0 ? '📋 Plan' : '➕ Add'}
+                {stats.today > 0 || stats.overdue > 0 ? '📋 Plan' : '➕ Add'}
               </motion.button>
             </div>
           </div>

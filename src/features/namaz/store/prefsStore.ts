@@ -74,7 +74,7 @@ export const usePrefsStore = create<PrefsState>()(
       ramadanMode: false,
       travelMode: false,
       lifeMode: 'normal',
-      azanEnabled: false,
+      azanEnabled: true,
       quranReciter: 'alafasy',
       prayerTimePreferences: DEFAULT_PRAYER_TIME_PREFERENCES,
       setLocation: (location) => set({ location }),

@@ -1,9 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { LayoutDashboard, StickyNote, Heart } from 'lucide-react'
+import { LayoutDashboard, StickyNote, Heart, HandCoins } from 'lucide-react'
 
-export type HomeSubTab = 'dashboard' | 'notes' | 'health'
+export type HomeSubTab = 'dashboard' | 'notes' | 'health' | 'zakat'
 
 interface HomeTabsProps {
   activeTab: HomeSubTab
@@ -14,6 +14,7 @@ const TABS: { value: HomeSubTab; label: string; icon: typeof LayoutDashboard }[]
   { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { value: 'notes', label: 'Notes', icon: StickyNote },
   { value: 'health', label: 'Health', icon: Heart },
+  { value: 'zakat', label: 'Zakat', icon: HandCoins },
 ]
 
 export default function HomeTabs({ activeTab, onTabChange }: HomeTabsProps) {
