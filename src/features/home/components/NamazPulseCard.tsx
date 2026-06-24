@@ -6,7 +6,7 @@ import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { useRouter } from 'next/navigation'
 import StreakFlame from '@/components/ui/StreakFlame'
 import TierBadge from '@/components/ui/TierBadge'
-import type { PrayerName, PrayerStatus } from '@/lib/types'
+import type { PrayerName, PrayerRecord, PrayerStatus } from '@/lib/types'
 
 const PRAYER_ORDER: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
 
@@ -83,9 +83,21 @@ function getWeeklyStreak(records: { date: string; prayers: Record<PrayerName, Pr
 // Mini day labels for timeline
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object'
+}
+
+function isPrayerRecord(value: unknown): value is PrayerRecord {
+  return isRecord(value) && typeof value.date === 'string' && isRecord(value.prayers)
+}
+
+function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
+  return Array.isArray(value) ? value.filter(guard) : []
+}
+
 export default function NamazPulseCard() {
   const router = useRouter()
-  const records = useNamazStore((s) => s.records)
+  const records = useNamazStore((s) => asArray(s.records, isPrayerRecord))
   const today = new Date().toISOString().split('T')[0]
   const todayRecord = records.find((r) => r.date === today)
 

@@ -1,5 +1,14 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import TabsShell from '@/components/shared/TabsShell'
+import HomePage from './(tabs)/home/page'
+
+const HOME_PATH = '/home/'
 
 export default function Home() {
-  redirect('/tasks')
+  return (
+    <TabsShell activePathname={HOME_PATH}>
+      <HomePage />
+    </TabsShell>
+  )
 }

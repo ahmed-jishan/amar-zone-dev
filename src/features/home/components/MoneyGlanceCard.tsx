@@ -4,6 +4,7 @@ import { useMemo, useEffect } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { useRouter } from 'next/navigation'
+import type { MonthlyBudget, Transaction, Wallet } from '@/lib/types'
 
 function AnimatedNumber({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) {
   const count = useMotionValue(0)
@@ -31,11 +32,36 @@ function getMonthISO(): string {
   return getTodayISO().slice(0, 7)
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object'
+}
+
+function isTransaction(value: unknown): value is Transaction {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.amount === 'number' &&
+    typeof value.createdAt === 'string'
+  )
+}
+
+function isWallet(value: unknown): value is Wallet {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.balance === 'number'
+}
+
+function isBudget(value: unknown): value is MonthlyBudget {
+  return isRecord(value) && typeof value.month === 'string' && typeof value.salary === 'number'
+}
+
+function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
+  return Array.isArray(value) ? value.filter(guard) : []
+}
+
 export default function MoneyGlanceCard() {
   const router = useRouter()
-  const transactions = useMoneyStore((s) => s.transactions)
-  const wallets = useMoneyStore((s) => s.wallets)
-  const budgets = useMoneyStore((s) => s.budgets)
+  const transactions = useMoneyStore((s) => asArray(s.transactions, isTransaction))
+  const wallets = useMoneyStore((s) => asArray(s.wallets, isWallet))
+  const budgets = useMoneyStore((s) => asArray(s.budgets, isBudget))
   const getSpendingPulse = useMoneyStore((s) => s.getSpendingPulse)
   const getMonthSummary = useMoneyStore((s) => s.getMonthSummary)
 

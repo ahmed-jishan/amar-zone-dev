@@ -6,6 +6,10 @@ import { Scale, Ruler, Heart, Activity, RotateCcw, History, TrendingDown, Trendi
 import { useHealthStore } from '../store/healthStore'
 import { calculateBMI, getBMICategory, BMI_CATEGORIES, BMIRecord } from '../types'
 
+function asArray<T>(value: T[] | unknown): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('en-US', {
     month: 'short',
@@ -16,7 +20,23 @@ function formatDate(ts: number): string {
 }
 
 export default function BMICalculator() {
-  const { weightKg, heightCm, setWeight, setHeight, calculateAndSave, history, clearHistory } = useHealthStore()
+  const {
+    weightKg,
+    heightCm,
+    setWeight,
+    setHeight,
+    calculateAndSave,
+    history,
+    clearHistory,
+  } = useHealthStore((s) => ({
+    weightKg: s.weightKg,
+    heightCm: s.heightCm,
+    setWeight: s.setWeight,
+    setHeight: s.setHeight,
+    calculateAndSave: s.calculateAndSave,
+    history: asArray<BMIRecord>(s.history),
+    clearHistory: s.clearHistory,
+  }))
 
   const [weightInput, setWeightInput] = useState(weightKg.toString())
   const [heightInput, setHeightInput] = useState(heightCm.toString())
@@ -328,7 +348,7 @@ export default function BMICalculator() {
               >
                 <div className="mt-3 space-y-2 pt-3 border-t border-[var(--hm-border)]">
                   {recentRecords.map((record) => {
-                    const catInfo = BMI_CATEGORIES[record.category]
+                    const catInfo = BMI_CATEGORIES[record.category as keyof typeof BMI_CATEGORIES] ?? BMI_CATEGORIES.normal
                     return (
                       <div
                         key={record.id}

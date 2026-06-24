@@ -21,6 +21,18 @@ const PRIORITY_LABELS: Record<string, string> = {
   low: 'Low',
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object'
+}
+
+function isTask(value: unknown): value is Task {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.title === 'string'
+}
+
+function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
+  return Array.isArray(value) ? value.filter(guard) : []
+}
+
 function getTodayTasks(tasks: Task[]): Task[] {
   const today = new Date().toISOString().split('T')[0]
   return tasks.filter(
@@ -46,7 +58,7 @@ function getNextPriorityTask(tasks: Task[]): Task | null {
 
 export default function TodayFocusCard() {
   const router = useRouter()
-  const tasks = useTaskStore((s) => s.tasks)
+  const tasks = useTaskStore((s) => asArray(s.tasks, isTask))
   const focusedTask = useTaskStore((s) => s.focusedTask)
 
   const stats = useMemo(() => {

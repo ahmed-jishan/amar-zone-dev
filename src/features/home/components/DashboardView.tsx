@@ -8,6 +8,9 @@ import { useNotesStore } from '@/features/notes/store/notesStore'
 import { useHealthStore } from '@/features/health/store/healthStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useAI } from '@/lib/ai'
+import type { Note } from '@/features/notes/types'
+import type { BMIRecord } from '@/features/health/types'
+import type { Task } from '@/app/(tabs)/tasks/types'
 import { HomeSubTab } from './HomeTabs'
 import LiveTimeHeader from './LiveTimeHeader'
 import NamazPulseCard from './NamazPulseCard'
@@ -19,6 +22,26 @@ import AIFocusCard from './AIFocusCard'
 
 interface DashboardViewProps {
   onNavigate: (tab: HomeSubTab) => void
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object'
+}
+
+function isNote(value: unknown): value is Note {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.title === 'string'
+}
+
+function isBMIRecord(value: unknown): value is BMIRecord {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.bmi === 'number'
+}
+
+function isTask(value: unknown): value is Task {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.title === 'string'
+}
+
+function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
+  return Array.isArray(value) ? value.filter(guard) : []
 }
 
 const CONTAINER = {
@@ -42,9 +65,9 @@ const ITEM = {
 }
 
 export default function DashboardView({ onNavigate }: DashboardViewProps) {
-  const notes = useNotesStore((s) => s.notes)
-  const healthHistory = useHealthStore((s) => s.history)
-  const tasks = useTaskStore((s) => s.tasks)
+  const notes = useNotesStore((s) => asArray(s.notes, isNote))
+  const healthHistory = useHealthStore((s) => asArray(s.history, isBMIRecord))
+  const tasks = useTaskStore((s) => asArray(s.tasks, isTask))
 
   const router = useRouter()
 
@@ -94,7 +117,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     pinnedNotes: notes.filter((n) => n.pinned).length,
     recentNotes: notes.filter((n) => Date.now() - n.createdAt < 86400000 * 7).length,
     bmiRecords: healthHistory.length,
-      latestBMI: healthHistory[0] ?? null as { bmi: string } | null,
+    latestBMI: healthHistory[0] ?? null,
     tasksCompletedToday: tasks.filter((t) => {
       const today = new Date().toISOString().split('T')[0]
       return t.completedDates?.includes(today)

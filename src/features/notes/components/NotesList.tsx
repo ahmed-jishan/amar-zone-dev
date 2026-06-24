@@ -48,8 +48,12 @@ function getPreview(note: Note): string {
   }
 }
 
+function asArray<T>(value: T[] | unknown): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 export default function NotesList() {
-  const notes = useNotesStore((s) => s.notes)
+  const notes = useNotesStore((s) => asArray(s.notes))
   const searchQuery = useNotesStore((s) => s.searchQuery)
   const setSearchQuery = useNotesStore((s) => s.setSearchQuery)
   const getFilteredNotes = useNotesStore((s) => s.getFilteredNotes)

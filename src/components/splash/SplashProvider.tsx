@@ -1,14 +1,11 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-
-const AnimatedSplash = dynamic(() => import('./AnimatedSplash'), { ssr: false });
+import ErrorBoundary from './ErrorBoundary';
 
 export default function SplashProvider({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <AnimatedSplash />
+    <ErrorBoundary>
       {children}
-    </>
+    </ErrorBoundary>
   );
 }

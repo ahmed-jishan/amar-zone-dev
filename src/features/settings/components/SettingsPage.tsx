@@ -272,6 +272,9 @@ const sectionDefs = (t: typeof translations.en): SectionDef[] => [
 
 // ==================== Helper ====================
 function getStorageSize(): string {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return '0.0 KB'
+  }
   let total = 0
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
@@ -284,6 +287,9 @@ function getStorageSize(): string {
 }
 
 function getStorageSizeBytes(): number {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return 0
+  }
   let total = 0
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)

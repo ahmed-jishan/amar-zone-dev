@@ -43,38 +43,40 @@ export interface AIApi {
 }
 
 function gatherInput(): AggregatorInput {
+  const asArray = <T,>(value: T[] | unknown): T[] => (Array.isArray(value) ? value : [])
+
   // Tasks
   const taskState = useTaskStore.getState()
-  const tasks = taskState.tasks
+  const tasks = asArray(taskState.tasks)
 
   // Namaz
   const namazState = useNamazStore.getState()
-  const namazRecords = namazState.records
-  const namazSettings = namazState.settings
+  const namazRecords = asArray(namazState.records)
+  const namazSettings = namazState.settings ?? {}
 
   // Quran
   const quranState = useQuranStore.getState()
-  const quranBookmarks = quranState.bookmarks
-  const quranLastRead = quranState.lastRead
+  const quranBookmarks = asArray(quranState.bookmarks)
+  const quranLastRead = quranState.lastRead ?? null
 
   // Money
   const moneyState = useMoneyStore.getState()
-  const transactions = moneyState.transactions
-  const loans = moneyState.loans
-  const budgets = moneyState.budgets
-  const savingsGoals = moneyState.savingsGoals
-  const wallets = moneyState.wallets
-  const subscriptions = moneyState.subscriptions
-  const assets = moneyState.assets
-  const netWorthHistory = moneyState.netWorthHistory
+  const transactions = asArray(moneyState.transactions)
+  const loans = asArray(moneyState.loans)
+  const budgets = asArray(moneyState.budgets)
+  const savingsGoals = asArray(moneyState.savingsGoals)
+  const wallets = asArray(moneyState.wallets)
+  const subscriptions = asArray(moneyState.subscriptions)
+  const assets = asArray(moneyState.assets)
+  const netWorthHistory = asArray(moneyState.netWorthHistory)
 
   // Health
   const healthState = useHealthStore.getState()
-  const healthHistory = healthState.history
+  const healthHistory = asArray(healthState.history)
 
   // Notes
   const notesState = useNotesStore.getState()
-  const notes = notesState.notes
+  const notes = asArray(notesState.notes)
 
   return {
     tasks,
