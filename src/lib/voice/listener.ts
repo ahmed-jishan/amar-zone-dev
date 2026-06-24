@@ -1,9 +1,10 @@
 // ─── SelfSync Voice — Web Speech API Listener ────────────────────────────
-// Bullet-proof rewrite v2:
-//   - Continuously listens after start() until explicitly stop()'d
-//   - Auto-restarts on end/error with exponential backoff
-//   - No more 2s silence killer — commands are processed while listening continues
-//   - Pre-warmed singleton to avoid re-prompting permissions
+// Reliable v3:
+//   - Fresh SpeechRecognition instance per start() to avoid stale state
+//   - No singleton pattern — creates new instance each time for reliability
+//   - Explicit abort on stop to clean up properly
+//   - Handles permission errors gracefully
+//   - Works on both desktop and mobile browsers
 // ──────────────────────────────────────────────────────────────────────────
 
 import type { VoiceLanguage, VoiceState } from './types'
@@ -19,82 +20,80 @@ interface ListenerOptions {
   onError: ErrorCallback
 }
 
-// Singleton SpeechRecognition instance to avoid repeated permission prompts
-let sharedRecognition: SpeechRecognition | null = null
-
 export class VoiceListener {
   private options: ListenerOptions
+  private recognition: SpeechRecognition | null = null
   private isListening = false
   private isStoppingExplicitly = false
   private restartTimeout: ReturnType<typeof setTimeout> | null = null
   private restartAttempts = 0
-  private maxRestartDelay = 1600
-  private preWarmed = false
+  private maxRestartDelay = 3000
 
   constructor(options: ListenerOptions) {
     this.options = options
   }
 
-  /** Get or create a SpeechRecognition instance (shared singleton) */
-  private getRecognition(): SpeechRecognition | null {
-    if (sharedRecognition) return sharedRecognition
-
+  /** Create a fresh SpeechRecognition instance */
+  private createRecognition(): SpeechRecognition | null {
     if (typeof window === 'undefined') return null
+
     const SpeechRecognitionAPI =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition
-    if (!SpeechRecognitionAPI) return null
+
+    if (!SpeechRecognitionAPI) {
+      this.options.onError('Speech recognition is not supported in this browser.')
+      return null
+    }
 
     try {
-      sharedRecognition = new (SpeechRecognitionAPI as new () => SpeechRecognition)()
-      return sharedRecognition
+      return new (SpeechRecognitionAPI as new () => SpeechRecognition)()
     } catch {
+      this.options.onError('Failed to create speech recognition instance.')
       return null
     }
   }
 
-  /** Pre-warm the Speech API (call on app mount) */
-  preWarm(): void {
-    if (this.preWarmed || typeof window === 'undefined') return
+  /** Request microphone permission without starting full recognition */
+  async requestPermission(): Promise<boolean> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      this.options.onError('Microphone access is not supported.')
+      return false
+    }
+
     try {
-      const recognition = this.getRecognition()
-      if (!recognition) {
-        this.options.onError('Speech recognition not supported')
-        return
-      }
-      recognition.continuous = true
-      recognition.interimResults = true
-      recognition.lang = this.getLangCode(this.options.language)
-      recognition.maxAlternatives = 3
-
-      // Bind noop handlers once
-      recognition.onresult = () => {}
-      recognition.onerror = () => {}
-      recognition.onend = () => {}
-
-      // Quick start/stop to prompt microphone permission
-      recognition.start()
-      setTimeout(() => {
-        try { recognition.abort() } catch { /* ignore */ }
-      }, 100)
-
-      this.preWarmed = true
-    } catch {
-      // Silently fail
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Stop all tracks immediately — we just needed permission
+      stream.getTracks().forEach((track) => track.stop())
+      return true
+    } catch (err: any) {
+      const message = err.name === 'NotAllowedError'
+        ? 'Microphone permission denied. Please allow microphone access in your browser settings.'
+        : `Microphone error: ${err.message || 'Unknown error'}`
+      this.options.onError(message)
+      return false
     }
   }
 
-  /** Start listening (continuous mode) */
-  start(): void {
+  /** Start listening — creates fresh recognition instance */
+  async start(): Promise<void> {
     if (this.isListening) return
     if (typeof window === 'undefined') return
 
-    const recognition = this.getRecognition()
-    if (!recognition) {
-      this.options.onError('Speech recognition is not supported in this browser.')
-      return
+    // Clear any pending restart
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout)
+      this.restartTimeout = null
     }
 
+    // Destroy any previous instance
+    this.destroyRecognition()
+
+    // Create fresh instance
+    const recognition = this.createRecognition()
+    if (!recognition) return
+
+    this.recognition = recognition
     this.isStoppingExplicitly = false
     this.isListening = true
     this.restartAttempts = 0
@@ -133,28 +132,55 @@ export class VoiceListener {
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === 'no-speech' || event.error === 'aborted') {
-        return // onend will fire, restart there
+      console.warn('[VoiceListener] Error:', event.error, event.message)
+
+      if (event.error === 'no-speech') {
+        // Silent — no speech detected, will restart via onend
+        return
       }
+      if (event.error === 'aborted') {
+        // Explicit abort — do nothing
+        return
+      }
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        this.isStoppingExplicitly = true
+        this.isListening = false
+        this.options.onError('Microphone access was denied. Please allow microphone access in your browser settings.')
+        this.options.onStateChange('error')
+        return
+      }
+      if (event.error === 'network') {
+        this.options.onError('Network error occurred. Please check your connection.')
+        return
+      }
+
       this.options.onError(`Recognition error: ${event.error}`)
     }
 
     recognition.onend = () => {
+      this.isListening = false
+
       if (this.isStoppingExplicitly) {
-        this.isListening = false
         this.options.onStateChange('idle')
         return
       }
 
-      this.isListening = false
-      this.options.onStateChange('idle')
+      // Don't change state — we'll restart silently
+      // But if we've restarted too many times, surface the error
+      if (this.restartAttempts > 5) {
+        this.options.onError('Speech recognition keeps stopping. Try reloading the page.')
+        this.options.onStateChange('idle')
+        return
+      }
+
       this.scheduleRestart()
     }
 
     try {
       recognition.start()
-    } catch (error) {
-      try { recognition.abort() } catch { /* ignore */ }
+    } catch (error: any) {
+      this.isListening = false
+      this.options.onError(`Failed to start: ${error.message || 'Unknown error'}`)
       this.scheduleRestart()
     }
   }
@@ -166,7 +192,7 @@ export class VoiceListener {
     }
 
     const delay = Math.min(
-      300 * Math.pow(2, this.restartAttempts),
+      500 * Math.pow(1.5, this.restartAttempts),
       this.maxRestartDelay
     )
     this.restartAttempts++
@@ -179,7 +205,7 @@ export class VoiceListener {
     }, delay)
   }
 
-  /** Stop listening permanently (no auto-restart) */
+  /** Stop listening permanently — destroys the recognition instance */
   stop(): void {
     this.isStoppingExplicitly = true
     this.isListening = false
@@ -189,15 +215,24 @@ export class VoiceListener {
       this.restartTimeout = null
     }
 
-    if (sharedRecognition) {
-      try {
-        sharedRecognition.stop()
-      } catch {
-        try { sharedRecognition.abort() } catch { /* ignore */ }
-      }
-    }
-
+    this.destroyRecognition()
     this.options.onStateChange('idle')
+  }
+
+  /** Destroy the current recognition instance */
+  private destroyRecognition(): void {
+    if (this.recognition) {
+      try {
+        this.recognition.onstart = null
+        this.recognition.onresult = null
+        this.recognition.onerror = null
+        this.recognition.onend = null
+        this.recognition.abort()
+      } catch {
+        // Ignore errors during cleanup
+      }
+      this.recognition = null
+    }
   }
 
   /** Update language mid-session */
@@ -216,8 +251,6 @@ export class VoiceListener {
   /** Clean up */
   destroy(): void {
     this.stop()
-    sharedRecognition = null
-    this.preWarmed = false
   }
 
   private getLangCode(language: VoiceLanguage): string {

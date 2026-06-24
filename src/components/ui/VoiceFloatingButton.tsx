@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mic, MicOff, X, Sparkles, ChevronRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Mic, MicOff, X, Sparkles, ChevronRight, CheckCircle2, AlertCircle, Loader2, Brain, Cpu, Zap } from 'lucide-react'
 import { useVoice } from '@/lib/voice'
 import { useHaptics } from '@/hooks/useHaptics'
 import type { CommandResult } from '@/lib/voice'
@@ -14,10 +14,10 @@ import type { CommandResult } from '@/lib/voice'
 function Waveform({ state }: { state: string }) {
   const isActive = state === 'listening'
   const isProcessing = state === 'processing'
+  const isUnderstanding = state === 'understanding'
+  const isExecuting = state === 'executing'
   const isSpeaking = state === 'speaking'
-
-  // For active state: each bar bounces individually with different heights
-  // For idle: small static bars
+  const isCompleted = state === 'completed'
 
   const barVariants = {
     active: (i: number) => ({
@@ -42,6 +42,28 @@ function Waveform({ state }: { state: string }) {
       opacity: 0.4,
       transition: { duration: 0.5, repeat: Infinity, repeatType: 'reverse' as const },
     },
+    understanding: {
+      height: [14, 20, 16, 22, 14, 18],
+      opacity: 0.5,
+      transition: {
+        height: {
+          duration: 0.6,
+          repeat: Infinity,
+          repeatType: 'reverse' as const,
+        },
+      },
+    },
+    executing: {
+      height: [18, 24, 20, 26, 18, 22],
+      opacity: 0.7,
+      transition: {
+        height: {
+          duration: 0.4,
+          repeat: Infinity,
+          repeatType: 'reverse' as const,
+        },
+      },
+    },
     speaking: (i: number) => ({
       height: [12, 24, 16, 28, 14, 12][i % 6],
       opacity: 0.6,
@@ -53,6 +75,14 @@ function Waveform({ state }: { state: string }) {
         },
       },
     }),
+    completed: {
+      height: [20, 8, 20, 8, 20, 8],
+      opacity: [0.8, 0.3, 0.8, 0.3, 0.8, 0.3],
+      transition: {
+        height: { duration: 0.3, repeat: 2 },
+        opacity: { duration: 0.3, repeat: 2 },
+      },
+    },
   }
 
   const barCount = 6
@@ -75,10 +105,16 @@ function Waveform({ state }: { state: string }) {
         let animate: any
         if (isActive) {
           animate = barVariants.active(i)
+        } else if (isUnderstanding) {
+          animate = barVariants.understanding
+        } else if (isExecuting) {
+          animate = barVariants.executing
         } else if (isProcessing) {
           animate = barVariants.processing
         } else if (isSpeaking) {
           animate = barVariants.speaking(i)
+        } else if (isCompleted) {
+          animate = barVariants.completed
         } else {
           animate = barVariants.idle
         }
@@ -154,34 +190,50 @@ function ResultDisplay({ result }: { result: CommandResult }) {
   )
 }
 
+// ─── State Icon ────────────────────────────────────────────────────────────
+function StateIcon({ state }: { state: string }) {
+  switch (state) {
+    case 'listening':
+      return <Mic size={18} className="text-indigo-400" />
+    case 'understanding':
+      return <Brain size={18} className="text-amber-400" />
+    case 'executing':
+      return <Cpu size={18} className="text-emerald-400" />
+    case 'processing':
+      return <Loader2 size={18} className="text-amber-400 animate-spin" />
+    case 'speaking':
+      return <Zap size={18} className="text-emerald-400" />
+    case 'completed':
+      return <CheckCircle2 size={18} className="text-emerald-400" />
+    case 'error':
+      return <AlertCircle size={18} className="text-red-400" />
+    default:
+      return <Sparkles size={18} className="text-indigo-400" />
+  }
+}
+
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 export default function VoiceFloatingButton() {
   const haptics = useHaptics()
   const voice = useVoice()
   const [isOpen, setIsOpen] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const processedLastResultKey = useRef<string>('')
 
-  // Log when active — for debugging
+  // Prevent body scroll when modal is open
   useEffect(() => {
-    if (voice.state === 'listening') {
-      // console.log('[Voice] actively listening')
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
     }
-  }, [voice.state])
-
-  // Auto-close modal only when user says "stop_listening" or x button pressed
-  // Do NOT auto-close after result — let user see the feedback
-  useEffect(() => {
-    if (voice.state === 'idle' && isOpen && voice.lastResult) {
-      // Only auto-close if voice was stopped explicitly (e.g. user tapped close)
-      // but keep open if listener is running and processing
+    return () => {
+      document.body.style.overflow = ''
     }
-  }, [voice.state, isOpen, voice.lastResult])
+  }, [isOpen])
 
   const handleOpen = useCallback(() => {
     haptics.tap()
     setIsOpen(true)
-    // Clear previous results
     voice.startListening()
   }, [haptics, voice])
 
@@ -193,12 +245,7 @@ export default function VoiceFloatingButton() {
 
   const handleSuggestionClick = useCallback((text: string) => {
     haptics.impact()
-    // Instead of speaking the suggestion text (which only reads it aloud),
-    // we simulate it being spoken by the user → process it as a voice command
-    // The listener is already running, so we "inject" the final transcript
-    // by calling processVoiceCommand directly via the suggest callback
     voice.speak(text)
-    // The speak callback happens, but also simulate voice processing
     setTimeout(() => {
       voice.startListening()
     }, 100)
@@ -208,8 +255,11 @@ export default function VoiceFloatingButton() {
   const getStateColor = () => {
     switch (voice.state) {
       case 'listening': return '#6366f1'
+      case 'understanding': return '#f59e0b'
+      case 'executing': return '#10b981'
       case 'processing': return '#f59e0b'
       case 'speaking': return '#10b981'
+      case 'completed': return '#10b981'
       case 'error': return '#ef4444'
       default: return '#6366f1'
     }
@@ -218,8 +268,11 @@ export default function VoiceFloatingButton() {
   const getStateText = () => {
     switch (voice.state) {
       case 'listening': return 'Listening...'
+      case 'understanding': return 'Understanding command...'
+      case 'executing': return 'Executing...'
       case 'processing': return 'Processing...'
       case 'speaking': return 'Speaking...'
+      case 'completed': return 'Completed'
       case 'error': return 'Error'
       default: return 'Tap to speak'
     }
@@ -256,7 +309,7 @@ export default function VoiceFloatingButton() {
         />
       </motion.button>
 
-      {/* Premium Full-Screen Voice Modal */}
+      {/* Premium Centered Floating Voice Modal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -264,7 +317,8 @@ export default function VoiceFloatingButton() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ overflow: 'hidden' }}
           >
             {/* Backdrop */}
             <motion.div
@@ -275,24 +329,18 @@ export default function VoiceFloatingButton() {
               onClick={handleClose}
             />
 
-            {/* Modal */}
+            {/* Modal — centered floating popup */}
             <motion.div
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="relative w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl
+              initial={{ scale: 0.85, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-sm mx-auto rounded-3xl
                          bg-gradient-to-b from-slate-900/95 to-slate-950/95
                          border border-white/10 backdrop-blur-2xl
                          shadow-[0_20px_60px_rgba(0,0,0,0.5)]
                          overflow-hidden"
-              style={{ maxHeight: '80vh' }}
             >
-              {/* Handle bar */}
-              <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                <div className="w-10 h-1 rounded-full bg-white/20" />
-              </div>
-
               {/* Close button */}
               <button
                 onClick={handleClose}
@@ -303,19 +351,24 @@ export default function VoiceFloatingButton() {
                 <X size={16} className="text-white/60" />
               </button>
 
-              <div className="p-6 pt-4 sm:pt-6">
-                {/* Header */}
-                <div className="flex items-center gap-3 mb-6">
+              <div className="p-6 pt-8">
+                {/* Header with state icon */}
+                <div className="flex items-center gap-3 mb-4">
                   <div
                     className="w-10 h-10 rounded-2xl flex items-center justify-center"
                     style={{ background: `${getStateColor()}20` }}
                   >
-                    <Sparkles size={18} color={getStateColor()} />
+                    <StateIcon state={voice.state} />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white">SelfSync Voice</h3>
                     <p className="text-[11px] text-white/50">{getStateText()}</p>
                   </div>
+                  {voice.isAiEnabled && (
+                    <div className="ml-auto px-2 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30">
+                      <span className="text-[9px] font-medium text-indigo-300">AI</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Waveform — actively animates when listening */}
@@ -323,10 +376,26 @@ export default function VoiceFloatingButton() {
                   <Waveform state={voice.state} />
                 </div>
 
-                {/* Processing spinner */}
-                {voice.state === 'processing' && (
+                {/* Processing spinner for understanding/executing */}
+                {(voice.state === 'understanding' || voice.state === 'executing') && (
                   <div className="flex justify-center mb-4">
-                    <Loader2 size={24} className="text-indigo-400 animate-spin" />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5"
+                    >
+                      {voice.state === 'understanding' ? (
+                        <>
+                          <Brain size={14} className="text-amber-400" />
+                          <span className="text-[10px] text-amber-300/80 font-medium">AI is thinking...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Cpu size={14} className="text-emerald-400" />
+                          <span className="text-[10px] text-emerald-300/80 font-medium">Applying changes...</span>
+                        </>
+                      )}
+                    </motion.div>
                   </div>
                 )}
 

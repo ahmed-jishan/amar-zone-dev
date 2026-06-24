@@ -1,14 +1,21 @@
 // ─── SelfSync Voice — Command Registry ────────────────────────────────────
 // Maps parsed intents to store actions and generates responses.
+// Now supports both legacy keyword-based intents AND AI-powered commands.
+// ──────────────────────────────────────────────────────────────────────────
 
-import type { ParsedIntent, CommandResult } from './types'
+import type { ParsedIntent, CommandResult, AiCommand } from './types'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useNamazStore } from '@/features/namaz/store/namazStore'
 import { usePrefsStore } from '@/features/namaz/store/prefsStore'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { useHealthStore } from '@/features/health/store/healthStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
+import { useNotesStore } from '@/features/notes/store/notesStore'
 import { generateId } from '@/lib/utils/helpers'
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LEGACY COMMAND EXECUTOR (for keyword-based intent-parser)
+// ═══════════════════════════════════════════════════════════════════════════
 
 export function executeCommand(intent: ParsedIntent): CommandResult {
   const lang = intent.language
@@ -83,7 +90,6 @@ export function executeCommand(intent: ParsedIntent): CommandResult {
     }
 
     case 'next_prayer': {
-      // Return a helpful message — actual next prayer time would need prayer times context
       return {
         success: true,
         message: 'Check the Namaz tab for your next prayer time.',
@@ -115,7 +121,7 @@ export function executeCommand(intent: ParsedIntent): CommandResult {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TASK ACTIONS
+    // TASK ACTIONS (LEGACY)
     // ═══════════════════════════════════════════════════════════════
     case 'add_task': {
       const { taskTitle, priority } = intent.entities
@@ -367,4 +373,423 @@ export function executeCommand(intent: ParsedIntent): CommandResult {
         error: 'unknown_intent',
       }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI COMMAND EXECUTOR (for Groq-powered intent extraction)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Execute an AI-generated command.
+ * Reuses existing store actions — no duplicate business logic.
+ * Supports all 15 AI action types.
+ */
+export function executeAiCommand(command: AiCommand): CommandResult {
+  const lang = command.language || 'en'
+
+  switch (command.action) {
+    // ═══════════════════════════════════════════════════════════════
+    // TASK ACTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'create_task': {
+      if (!command.title) {
+        return {
+          success: false,
+          message: "Please tell me the task name.",
+          messageBn: 'টাস্কের নাম বলুন।',
+          error: 'missing_title',
+        }
+      }
+
+      // Resolve date keywords to actual dates
+      let dueDate: string | undefined
+      if (command.date) {
+        const resolved = resolveDateKeyword(command.date)
+        if (resolved) dueDate = resolved
+      }
+
+      useTaskStore.getState().addTask({
+        title: command.title,
+        priority: command.priority || 'medium',
+        category: (command.category || 'personal') as any,
+        status: 'inbox',
+        completed: false,
+        recurring: 'none',
+        energyLevel: 'medium',
+        tags: [],
+        subtasks: [],
+        notes: command.description || '',
+        timeEstimate: 0,
+        goalId: undefined,
+        dueDate,
+      })
+
+      const dateStr = command.date ? ` for ${command.date}` : ''
+      const timeStr = command.time ? ` at ${command.time}` : ''
+      return {
+        success: true,
+        message: `Task "${command.title}" has been created${dateStr}${timeStr}.`,
+        messageBn: `"${command.title}" টাস্কটি তৈরি করা হয়েছে${command.date ? ` ${command.date} এর জন্য` : ''}${command.time ? ` ${command.time} টায়` : ''}।`,
+        action: 'create_task',
+      }
+    }
+
+    case 'update_task': {
+      if (!command.existingTitle) {
+        return {
+          success: false,
+          message: "Which task would you like to update?",
+          messageBn: 'কোন টাস্কটি আপডেট করতে চান?',
+          error: 'missing_existing_title',
+        }
+      }
+
+      const tasks = useTaskStore.getState().tasks
+      const match = findTaskByTitle(tasks, command.existingTitle)
+      if (!match) {
+        return {
+          success: false,
+          message: `Couldn't find a task matching "${command.existingTitle}".`,
+          messageBn: `"${command.existingTitle}" এর সাথে মিলে এমন কোনো টাস্ক পাওয়া যায়নি।`,
+          error: 'task_not_found',
+        }
+      }
+
+      const updates: Record<string, any> = {}
+      if (command.updatedTitle) updates.title = command.updatedTitle
+      if (command.updatedDescription) updates.notes = command.updatedDescription
+      if (command.priority) updates.priority = command.priority
+      if (command.date) {
+        const resolved = resolveDateKeyword(command.date)
+        if (resolved) updates.dueDate = resolved
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return {
+          success: false,
+          message: "What would you like to update?",
+          messageBn: 'আপনি কী আপডেট করতে চান?',
+          error: 'no_updates',
+        }
+      }
+
+      useTaskStore.getState().updateTask(match.id, updates)
+
+      return {
+        success: true,
+        message: `Task "${command.existingTitle}" has been updated.`,
+        messageBn: `"${command.existingTitle}" টাস্কটি আপডেট করা হয়েছে।`,
+        action: 'update_task',
+      }
+    }
+
+    case 'delete_task': {
+      if (!command.existingTitle) {
+        return {
+          success: false,
+          message: "Which task would you like to delete?",
+          messageBn: 'কোন টাস্কটি ডিলিট করতে চান?',
+          error: 'missing_existing_title',
+        }
+      }
+
+      const tasks = useTaskStore.getState().tasks
+      const match = findTaskByTitle(tasks, command.existingTitle)
+      if (!match) {
+        return {
+          success: false,
+          message: `Couldn't find a task matching "${command.existingTitle}".`,
+          messageBn: `"${command.existingTitle}" এর সাথে মিলে এমন কোনো টাস্ক পাওয়া যায়নি।`,
+          error: 'task_not_found',
+        }
+      }
+
+      useTaskStore.getState().deleteTask(match.id)
+
+      return {
+        success: true,
+        message: `Task "${match.title}" has been deleted.`,
+        messageBn: `"${match.title}" টাস্কটি ডিলিট করা হয়েছে।`,
+        action: 'delete_task',
+      }
+    }
+
+    case 'complete_task': {
+      if (!command.existingTitle) {
+        return {
+          success: false,
+          message: "Which task would you like to mark as done?",
+          messageBn: 'কোন টাস্কটি শেষ করতে চান?',
+          error: 'missing_existing_title',
+        }
+      }
+
+      const tasks = useTaskStore.getState().tasks
+      const match = findTaskByTitle(tasks, command.existingTitle)
+      if (!match) {
+        return {
+          success: false,
+          message: `Couldn't find a task matching "${command.existingTitle}".`,
+          messageBn: `"${command.existingTitle}" এর সাথে মিলে এমন কোনো টাস্ক পাওয়া যায়নি।`,
+          error: 'task_not_found',
+        }
+      }
+
+      useTaskStore.getState().toggleComplete(match.id)
+
+      return {
+        success: true,
+        message: `Task "${match.title}" has been marked as done.`,
+        messageBn: `"${match.title}" শেষ হিসেবে চিহ্নিত করা হয়েছে।`,
+        action: 'complete_task',
+      }
+    }
+
+    case 'show_tasks': {
+      const tasks = useTaskStore.getState().tasks
+      const today = new Date().toISOString().split('T')[0]
+      const todayTasks = tasks.filter(
+        (t) => t.dueDate === today || t.createdAt.startsWith(today)
+      )
+      const pending = todayTasks.filter((t) => !t.completed)
+      if (pending.length === 0) {
+        return {
+          success: true,
+          message: 'You have no pending tasks for today. Great job!',
+          messageBn: 'আজকের জন্য কোনো পেন্ডিং টাস্ক নেই। দারুণ!',
+          action: 'show_tasks',
+        }
+      }
+      return {
+        success: true,
+        message: `You have ${pending.length} task${pending.length !== 1 ? 's' : ''} for today. Check the Tasks tab for details.`,
+        messageBn: `আজকের জন্য আপনার ${pending.length} টি টাস্ক আছে। বিস্তারিত জানতে টাস্ক ট্যাবে দেখুন।`,
+        action: 'show_tasks',
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // NOTE ACTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'create_note': {
+      if (!command.title) {
+        return {
+          success: false,
+          message: "Please tell me the note title.",
+          messageBn: 'নোটের শিরোনাম বলুন।',
+          error: 'missing_title',
+        }
+      }
+
+      useNotesStore.getState().addNote('text', {
+        title: command.title,
+        category: 'personal',
+        tags: [],
+        body: command.description || '',
+      })
+
+      return {
+        success: true,
+        message: `Note "${command.title}" has been created.`,
+        messageBn: `"${command.title}" নোটটি তৈরি করা হয়েছে।`,
+        action: 'create_note',
+      }
+    }
+
+    case 'update_note': {
+      if (!command.existingTitle) {
+        return {
+          success: false,
+          message: "Which note would you like to update?",
+          messageBn: 'কোন নোটটি আপডেট করতে চান?',
+          error: 'missing_existing_title',
+        }
+      }
+
+      const notes = useNotesStore.getState().notes
+      const match = notes.find(
+        (n) => n.title.toLowerCase().includes(command.existingTitle!.toLowerCase())
+      )
+      if (!match) {
+        return {
+          success: false,
+          message: `Couldn't find a note matching "${command.existingTitle}".`,
+          messageBn: `"${command.existingTitle}" এর সাথে মিলে এমন কোনো নোট পাওয়া যায়নি।`,
+          error: 'note_not_found',
+        }
+      }
+
+      const updates: Record<string, any> = {}
+      if (command.updatedTitle) updates.title = command.updatedTitle
+      if (command.updatedDescription) updates.body = command.updatedDescription
+
+      useNotesStore.getState().updateNote(match.id, updates)
+
+      return {
+        success: true,
+        message: `Note "${command.existingTitle}" has been updated.`,
+        messageBn: `"${command.existingTitle}" নোটটি আপডেট করা হয়েছে।`,
+        action: 'update_note',
+      }
+    }
+
+    case 'delete_note': {
+      if (!command.existingTitle) {
+        return {
+          success: false,
+          message: "Which note would you like to delete?",
+          messageBn: 'কোন নোটটি ডিলিট করতে চান?',
+          error: 'missing_existing_title',
+        }
+      }
+
+      const notes = useNotesStore.getState().notes
+      const match = notes.find(
+        (n) => n.title.toLowerCase().includes(command.existingTitle!.toLowerCase())
+      )
+      if (!match) {
+        return {
+          success: false,
+          message: `Couldn't find a note matching "${command.existingTitle}".`,
+          messageBn: `"${command.existingTitle}" এর সাথে মিলে এমন কোনো নোট পাওয়া যায়নি।`,
+          error: 'note_not_found',
+        }
+      }
+
+      useNotesStore.getState().deleteNote(match.id)
+
+      return {
+        success: true,
+        message: `Note "${match.title}" has been deleted.`,
+        messageBn: `"${match.title}" নোটটি ডিলিট করা হয়েছে।`,
+        action: 'delete_note',
+      }
+    }
+
+    case 'open_notes': {
+      return {
+        success: true,
+        message: 'Opening notes...',
+        messageBn: 'নোটস খুলছি...',
+        action: 'navigate_notes',
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FOCUS MODE ACTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'start_focus_mode': {
+      return {
+        success: true,
+        message: command.title
+          ? `Focus mode started for "${command.title}". Stay focused!`
+          : 'Focus mode started! Stay focused!',
+        messageBn: command.title
+          ? `"${command.title}" এর জন্য ফোকাস মোড চালু হয়েছে। ফোকাসড থাকুন!`
+          : 'ফোকাস মোড চালু হয়েছে! ফোকাসড থাকুন!',
+        action: 'start_focus_mode',
+      }
+    }
+
+    case 'stop_focus_mode': {
+      return {
+        success: true,
+        message: 'Focus mode stopped. Great work!',
+        messageBn: 'ফোকাস মোড বন্ধ হয়েছে। দারুণ কাজ!',
+        action: 'stop_focus_mode',
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // NAVIGATION ACTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'open_calculator': {
+      return {
+        success: true,
+        message: 'Opening calculator...',
+        messageBn: 'ক্যালকুলেটর খুলছি...',
+        action: 'navigate_calculator',
+      }
+    }
+
+    case 'open_tasks': {
+      return {
+        success: true,
+        message: 'Going to tasks...',
+        messageBn: 'টাস্কসে যাচ্ছি...',
+        action: 'navigate_tasks',
+      }
+    }
+
+    case 'open_dashboard': {
+      return {
+        success: true,
+        message: 'Going to dashboard...',
+        messageBn: 'ড্যাশবোর্ডে যাচ্ছি...',
+        action: 'navigate_dashboard',
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // UNKNOWN ACTION
+    // ═══════════════════════════════════════════════════════════════
+
+    case 'unknown':
+    default: {
+      return {
+        success: false,
+        message: "I didn't quite understand that. Try again with a clear command.",
+        messageBn: 'আমি ঠিক বুঝতে পারিনি। আবার একটু স্পষ্ট করে বলুন।',
+        error: 'unknown_action',
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Find a task by matching the title (case-insensitive, partial match).
+ */
+function findTaskByTitle(tasks: any[], searchTitle: string): any | undefined {
+  const lower = searchTitle.toLowerCase()
+  return tasks.find(
+    (t) => t.title.toLowerCase().includes(lower) && !t.completed
+  ) || tasks.find(
+    (t) => t.title.toLowerCase().includes(lower)
+  )
+}
+
+/**
+ * Resolve date keywords ("today", "tomorrow", "আজ", "আগামীকাল") to ISO date strings.
+ */
+function resolveDateKeyword(keyword: string): string | undefined {
+  const lower = keyword.toLowerCase().trim()
+  const today = new Date()
+  const todayISO = today.toISOString().split('T')[0]
+
+  if (lower === 'today' || lower === 'আজ') return todayISO
+
+  if (lower === 'tomorrow' || lower === 'আগামীকাল') {
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    return tomorrow.toISOString().split('T')[0]
+  }
+
+  if (lower === 'day after tomorrow' || lower === 'পরশু') {
+    const dayAfter = new Date(today)
+    dayAfter.setDate(dayAfter.getDate() + 2)
+    return dayAfter.toISOString().split('T')[0]
+  }
+
+  // If it looks like an ISO date already, return it
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lower)) return lower
+
+  return undefined
 }

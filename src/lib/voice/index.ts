@@ -5,7 +5,9 @@ export type { VoiceAPI } from './useVoice'
 export { VoiceListener } from './listener'
 export { VoiceSynthesizer } from './synthesizer'
 export { parseIntent } from './intent-parser'
-export { executeCommand } from './command-registry'
+export { executeCommand, executeAiCommand } from './command-registry'
+export { processVoiceTranscript } from './ai-intent-processor'
+export { processTranscript, isGroqConfigured, getModelName } from './groq-service'
 export type {
   ParsedIntent,
   CommandResult,
@@ -14,4 +16,6 @@ export type {
   VoiceLanguage,
   IntentType,
   VoiceUIState,
+  AiActionType,
+  AiCommand,
 } from './types'
