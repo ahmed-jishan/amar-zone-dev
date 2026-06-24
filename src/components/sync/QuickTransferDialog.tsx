@@ -425,10 +425,14 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
         money: selectedModules.money ? payload.money : {
           transactions: [], loans: [], budgets: [], savingsGoals: [],
           wallets: [], subscriptions: [], insights: [],
+          categoryLimits: [], recurringTemplates: [], assets: [], netWorthHistory: [],
         },
         namaz: selectedModules.namaz ? payload.namaz : { records: [], settings: payload.namaz.settings },
         settings: selectedModules.settings ? payload.settings : { appSettings: payload.settings.appSettings },
         prefs: selectedModules.prefs ? payload.prefs : payload.prefs,
+        notes: payload.notes,
+        health: payload.health,
+        namazExtras: payload.namazExtras,
       }
 
       setSendStage('generating')

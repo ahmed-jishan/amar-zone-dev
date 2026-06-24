@@ -1,5 +1,6 @@
 // ─── BackupRestorer ───────────────────────────────────────────────────────────
 // Handles restore with emergency snapshots, rollback, and write-back to stores.
+// Updated to handle Notes, Health/BMI, Money extended fields, and Namaz extras.
 
 import type { BackupPayload, RestoreOptions, RestoreResult, EmergencySnapshot, RestorePreview } from './types'
 import { BACKUP_STORAGE_KEYS, BACKUP_META_KEYS } from './types'
@@ -169,8 +170,6 @@ function writePayloadToStorage(payload: BackupPayload, options: RestoreOptions):
   if (options.selectedModules?.tasks !== false) {
     const existing = readRaw(BACKUP_STORAGE_KEYS.tasks)
     if (existing) {
-      const parsed = JSON.parse(existing)
-      const state = (parsed as { state?: unknown }).state ?? parsed
       writeWithState(BACKUP_STORAGE_KEYS.tasks, { tasks: payload.tasks.tasks }, existing)
     } else {
       localStorage.setItem(BACKUP_STORAGE_KEYS.tasks, JSON.stringify({ state: { tasks: payload.tasks.tasks } }))
@@ -220,6 +219,38 @@ function writePayloadToStorage(payload: BackupPayload, options: RestoreOptions):
       localStorage.setItem(BACKUP_STORAGE_KEYS.namazPrefs, JSON.stringify({ state: payload.prefs }))
     }
     keys.push(BACKUP_STORAGE_KEYS.namazPrefs)
+  }
+
+  // NEW: Notes (plain store, not zustand-persisted)
+  if (options.selectedModules?.notes !== false) {
+    localStorage.setItem(BACKUP_STORAGE_KEYS.notes, JSON.stringify(payload.notes.notes))
+    keys.push(BACKUP_STORAGE_KEYS.notes)
+  }
+
+  // NEW: Health / BMI (plain store)
+  if (options.selectedModules?.health !== false) {
+    localStorage.setItem(BACKUP_STORAGE_KEYS.health, JSON.stringify(payload.health.bmiRecords))
+    keys.push(BACKUP_STORAGE_KEYS.health)
+  }
+
+  // NEW: Namaz Extras
+  if (options.selectedModules?.namazExtras !== false) {
+    if (payload.namazExtras.tasbih !== null) {
+      localStorage.setItem(BACKUP_STORAGE_KEYS.namazTasbih, JSON.stringify(payload.namazExtras.tasbih))
+      keys.push(BACKUP_STORAGE_KEYS.namazTasbih)
+    }
+    if (payload.namazExtras.duaState !== null) {
+      localStorage.setItem(BACKUP_STORAGE_KEYS.namazDua, JSON.stringify(payload.namazExtras.duaState))
+      keys.push(BACKUP_STORAGE_KEYS.namazDua)
+    }
+    if (payload.namazExtras.quranState !== null) {
+      localStorage.setItem(BACKUP_STORAGE_KEYS.namazQuran, JSON.stringify(payload.namazExtras.quranState))
+      keys.push(BACKUP_STORAGE_KEYS.namazQuran)
+    }
+    if (payload.namazExtras.notifications !== null) {
+      localStorage.setItem(BACKUP_STORAGE_KEYS.namazNotifications, JSON.stringify(payload.namazExtras.notifications))
+      keys.push(BACKUP_STORAGE_KEYS.namazNotifications)
+    }
   }
 
   return keys
@@ -289,6 +320,14 @@ function verifyRestoredPayload(expected: BackupPayload, actual: BackupPayload, o
     if (actualCounts.namazDays !== expectedCounts.namazDays || actualCounts.namazRecords !== expectedCounts.namazRecords) {
       return { ok: false, message: 'Prayer restore verification failed.' }
     }
+  }
+  // NEW: Verify notes
+  if (options.selectedModules?.notes !== false && actual.notes.notes.length !== expected.notes.notes.length) {
+    return { ok: false, message: 'Notes restore verification failed.' }
+  }
+  // NEW: Verify health
+  if (options.selectedModules?.health !== false && actual.health.bmiRecords.length !== expected.health.bmiRecords.length) {
+    return { ok: false, message: 'Health records restore verification failed.' }
   }
   return { ok: true, message: '' }
 }

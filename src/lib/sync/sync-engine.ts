@@ -156,6 +156,10 @@ export async function performSmartSync(password: string): Promise<SyncResult> {
           wallets: (payload.data.money as any)?.state?.wallets ?? [],
           subscriptions: (payload.data.money as any)?.state?.subscriptions ?? [],
           insights: (payload.data.money as any)?.state?.insights ?? [],
+          categoryLimits: (payload.data.money as any)?.state?.categoryLimits ?? [],
+          recurringTemplates: (payload.data.money as any)?.state?.recurringTemplates ?? [],
+          assets: (payload.data.money as any)?.state?.assets ?? [],
+          netWorthHistory: (payload.data.money as any)?.state?.netWorthHistory ?? [],
         },
         namaz: {
           records: (payload.data.namaz as any)?.state?.records ?? [],
@@ -163,6 +167,9 @@ export async function performSmartSync(password: string): Promise<SyncResult> {
         },
         settings: { appSettings: (payload.data.settings as any)?.state ?? {} },
         prefs: (payload.data.namazPrefs as any)?.state ?? {},
+        notes: { notes: [] },
+        health: { bmiRecords: [] },
+        namazExtras: { tasbih: null, duaState: null, quranState: null, notifications: null },
       }
       hasCloudBackup = true
     }

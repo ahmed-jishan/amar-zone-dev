@@ -64,6 +64,8 @@ export async function downloadBackupFile(envelope: BackupEnvelope, filename?: st
   if (p.money.savingsGoals.length > 0) parts.push(`goal-${p.money.savingsGoals.length}`)
   if (p.money.subscriptions.length > 0) parts.push(`sub-${p.money.subscriptions.length}`)
   if (p.namaz.records.length > 0) parts.push(`namaz-${p.namaz.records.length}`)
+  if (p.notes.notes.length > 0) parts.push(`notes-${p.notes.notes.length}`)
+  if (p.health.bmiRecords.length > 0) parts.push(`health-${p.health.bmiRecords.length}`)
   const countStr = parts.join('-')
   
   await saveTextFile(

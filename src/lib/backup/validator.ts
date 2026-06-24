@@ -1,5 +1,6 @@
 // ─── BackupValidator ─────────────────────────────────────────────────────────
 // Validates backup integrity: schema version, required fields, checksum.
+// Updated with new modules validation.
 
 import type { BackupEnvelope, BackupPayload, ValidationResult, ValidationError } from './types'
 import { BACKUP_SCHEMA_VERSION, BACKUP_SCHEMA_NAME } from './types'
@@ -111,6 +112,30 @@ export function validateBackupData(data: BackupPayload): ValidationResult {
     errors.push({ code: 'MISSING_SETTINGS', message: 'Settings data is missing from backup.' })
   } else if (!data.settings.appSettings || typeof data.settings.appSettings !== 'object') {
     errors.push({ code: 'INVALID_SETTINGS', message: 'App settings are missing or invalid.' })
+  }
+
+  // NEW: Notes
+  if (!data.notes) {
+    errors.push({ code: 'MISSING_NOTES', message: 'Notes data is missing from backup.' })
+  } else if (!Array.isArray(data.notes.notes)) {
+    errors.push({ code: 'INVALID_NOTES', message: 'Notes data is not an array.' })
+  }
+
+  // NEW: Health
+  if (!data.health) {
+    errors.push({ code: 'MISSING_HEALTH', message: 'Health data is missing from backup.' })
+  } else if (!Array.isArray(data.health.bmiRecords)) {
+    errors.push({ code: 'INVALID_HEALTH', message: 'Health records is not an array.' })
+  }
+
+  // NEW: Namaz Extras (optional, no hard validation)
+  if (!data.namazExtras) {
+    warnings.push('Namaz extras data is missing from backup (non-critical).')
+  }
+
+  // NEW: Prefs
+  if (!data.prefs) {
+    errors.push({ code: 'MISSING_PREFS', message: 'Namaz preferences data is missing from backup.' })
   }
 
   return {

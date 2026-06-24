@@ -108,7 +108,9 @@ export default function CloudSyncCard() {
   const totalRecords =
     localCounts.tasks + localCounts.transactions + localCounts.loans +
     localCounts.budgets + localCounts.savingsGoals + localCounts.wallets +
-    localCounts.subscriptions + localCounts.namazDays + localCounts.namazRecords
+    localCounts.subscriptions + localCounts.namazDays + localCounts.namazRecords +
+    localCounts.notes + localCounts.bmiRecords + localCounts.categoryLimits +
+    localCounts.recurringTemplates + localCounts.assets
 
   const formatBytes = () => {
     let total = 0
@@ -259,12 +261,32 @@ export default function CloudSyncCard() {
                     <span className="font-semibold">{localCounts.subscriptions}</span>
                   </div>
                   <div className="st-cloud-breakdown-row">
+                    <span>Category Limits</span>
+                    <span className="font-semibold">{localCounts.categoryLimits}</span>
+                  </div>
+                  <div className="st-cloud-breakdown-row">
+                    <span>Recurring Templates</span>
+                    <span className="font-semibold">{localCounts.recurringTemplates}</span>
+                  </div>
+                  <div className="st-cloud-breakdown-row">
+                    <span>Assets</span>
+                    <span className="font-semibold">{localCounts.assets}</span>
+                  </div>
+                  <div className="st-cloud-breakdown-row">
                     <span>Namaz Logs</span>
                     <span className="font-semibold">{localCounts.namazDays}</span>
                   </div>
                   <div className="st-cloud-breakdown-row">
                     <span>Prayer Days</span>
                     <span className="font-semibold">{localCounts.namazRecords}</span>
+                  </div>
+                  <div className="st-cloud-breakdown-row">
+                    <span>Notes</span>
+                    <span className="font-semibold">{localCounts.notes}</span>
+                  </div>
+                  <div className="st-cloud-breakdown-row">
+                    <span>BMI Records</span>
+                    <span className="font-semibold">{localCounts.bmiRecords}</span>
                   </div>
                   <div className="st-cloud-breakdown-row border-t border-[var(--st-border-strong)] pt-2 mt-1">
                     <span className="font-bold">Financial Total</span>

@@ -1,12 +1,15 @@
 // ─── BackupMerger ─────────────────────────────────────────────────────────────
 // Professional merge engine with ID-based dedup, timestamp conflict resolution,
 // and content-hash deduplication. Never creates duplicates.
+// Updated to handle Notes, Health/BMI, Money extended fields, and Namaz extras.
 
 import type {
   BackupPayload, BackupCounts, BackupDifferences,
 } from './types'
 import { collectBackupPayload, getBackupCounts, getTotalAmount } from './collector'
 import type { Task } from '@/app/(tabs)/tasks/types'
+import type { Note } from '@/features/notes/types'
+import type { BMIRecord } from '@/features/health/types'
 
 // ─── Merge two payloads (incoming backup into current local data) ───
 export function mergeBackup(incoming: BackupPayload, local: BackupPayload): BackupPayload {
@@ -16,6 +19,10 @@ export function mergeBackup(incoming: BackupPayload, local: BackupPayload): Back
     namaz: mergeNamaz(incoming.namaz, local.namaz),
     settings: mergeSettings(incoming.settings, local.settings),
     prefs: mergePrefs(incoming.prefs, local.prefs),
+    // NEW modules
+    notes: mergeNotes(incoming.notes, local.notes),
+    health: mergeHealth(incoming.health, local.health),
+    namazExtras: mergeNamazExtras(incoming.namazExtras, local.namazExtras),
   }
 }
 
@@ -42,6 +49,14 @@ export function computeDifferences(backup: BackupPayload): BackupDifferences {
   const backupGoalIds = new Set(backup.money.savingsGoals.map(g => g.id))
   const newerLocalSavingsGoals = local.money.savingsGoals.filter(g => !backupGoalIds.has(g.id)).length
 
+  // NEW: Notes
+  const backupNoteIds = new Set(backup.notes.notes.map(n => n.id))
+  const newerLocalNotes = local.notes.notes.filter(n => !backupNoteIds.has(n.id)).length
+
+  // NEW: BMI Records
+  const backupBmiIds = new Set(backup.health.bmiRecords.map(r => r.id))
+  const newerLocalBmiRecords = local.health.bmiRecords.filter(r => !backupBmiIds.has(r.id)).length
+
   return {
     newerLocalTransactions,
     newerLocalTasks,
@@ -49,6 +64,9 @@ export function computeDifferences(backup: BackupPayload): BackupDifferences {
     newerLocalSavingsGoals,
     localAmountBdt: getTotalAmount(local),
     backupAmountBdt: getTotalAmount(backup),
+    // NEW
+    newerLocalNotes,
+    newerLocalBmiRecords,
   }
 }
 
@@ -102,6 +120,12 @@ function mergeMoney(
     wallets: mergeById(local.wallets, incoming.wallets, () => ''),
     subscriptions: mergeById(local.subscriptions, incoming.subscriptions, (s) => s.nextBillingDate),
     insights: mergeById(local.insights, incoming.insights, (i) => i.date),
+    // NEW fields
+    categoryLimits: mergeByKey(local.categoryLimits, incoming.categoryLimits, (c) => c.category),
+    recurringTemplates: mergeById(local.recurringTemplates, incoming.recurringTemplates, () => ''),
+    assets: mergeById(local.assets, incoming.assets, () => ''),
+    // NetWorthSnapshot doesn't have an 'id' field - use mergeByKey with date
+    netWorthHistory: mergeByKey(local.netWorthHistory, incoming.netWorthHistory, (n) => n.date),
   }
 }
 
@@ -150,6 +174,63 @@ function mergePrefs(
   local: BackupPayload['prefs'],
 ): BackupPayload['prefs'] {
   return { ...local, ...incoming }
+}
+
+// ─── NEW: Merge Notes ───
+function mergeNotes(
+  incoming: BackupPayload['notes'],
+  local: BackupPayload['notes'],
+): BackupPayload['notes'] {
+  const map = new Map<string, Note>()
+  
+  for (const note of local.notes) {
+    map.set(note.id, note)
+  }
+  for (const note of incoming.notes) {
+    const existing = map.get(note.id)
+    if (!existing) {
+      map.set(note.id, note)
+    } else {
+      // Newest wins by updatedAt timestamp
+      if (note.updatedAt >= existing.updatedAt) {
+        map.set(note.id, note)
+      }
+    }
+  }
+
+  return { notes: Array.from(map.values()) }
+}
+
+// ─── NEW: Merge Health/BMI ───
+function mergeHealth(
+  incoming: BackupPayload['health'],
+  local: BackupPayload['health'],
+): BackupPayload['health'] {
+  const map = new Map<string, BMIRecord>()
+  
+  for (const record of local.bmiRecords) {
+    map.set(record.id, record)
+  }
+  for (const record of incoming.bmiRecords) {
+    if (!map.has(record.id)) {
+      map.set(record.id, record)
+    }
+  }
+
+  return { bmiRecords: Array.from(map.values()).sort((a, b) => b.date - a.date) }
+}
+
+// ─── NEW: Merge Namaz Extras ───
+function mergeNamazExtras(
+  incoming: BackupPayload['namazExtras'],
+  local: BackupPayload['namazExtras'],
+): BackupPayload['namazExtras'] {
+  return {
+    tasbih: incoming.tasbih ?? local.tasbih,
+    duaState: incoming.duaState ?? local.duaState,
+    quranState: incoming.quranState ?? local.quranState,
+    notifications: incoming.notifications ?? local.notifications,
+  }
 }
 
 // ─── Merge by ID with timestamp conflict resolution ───

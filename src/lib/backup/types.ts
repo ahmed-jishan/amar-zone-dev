@@ -1,18 +1,21 @@
-// ─── SelfSync Backup Schema v2 ───────────────────────────────────────────────
+// ─── SelfSync Backup Schema v2.1 ───────────────────────────────────────────────
 // This file defines ALL types for the enterprise backup/restore system.
 // It is the single source of truth for backup schema versions & storage keys.
 
 import type { Task } from '@/app/(tabs)/tasks/types'
 import type {
   Transaction, Loan, MonthlyBudget, SavingsGoal, Wallet, Subscription, FinancialInsight,
+  CategoryLimit, RecurringTemplate, Asset, NetWorthSnapshot,
 } from '@/lib/types'
 import type { PrayerRecord, NamazSettings } from '@/lib/types'
 import type { AppSettings } from '@/features/settings/store/settingsStore'
 import type { LifeMode, QuranReciter } from '@/features/namaz/store/prefsStore'
 import type { Madhab, PrayerLocation } from '@/features/namaz/types/prayer.types'
+import type { Note } from '@/features/notes/types'
+import type { BMIRecord } from '@/features/health/types'
 
 // ─── Version ───
-export const BACKUP_SCHEMA_VERSION = '2.0.0'
+export const BACKUP_SCHEMA_VERSION = '2.1.0'
 export const BACKUP_SCHEMA_NAME = 'selfsync-backup'
 
 // ─── Storage Keys (source of truth) ───
@@ -21,7 +24,14 @@ export const BACKUP_STORAGE_KEYS = {
   tasks: 'selfsync-tasks',
   money: 'selfsync-money-v2',
   namaz: 'selfsync-namaz',
-  namazPrefs: 'namaz_settings',
+  namazPrefs: 'namaz-settings',
+  // NEW: additional stores
+  notes: 'az-notes',
+  health: 'az-health',
+  namazTasbih: 'namaz-tasbih',
+  namazDua: 'namaz-dua-state',
+  namazQuran: 'namaz-quran-state',
+  namazNotifications: 'namaz-notifications',
 } as const
 
 export const BACKUP_META_KEYS = {
@@ -46,6 +56,10 @@ export interface BackupPayload {
   money: BackupMoneyCollection
   settings: BackupSettingsCollection
   prefs: BackupPrefsCollection
+  // NEW modules
+  notes: BackupNoteCollection
+  health: BackupHealthCollection
+  namazExtras: BackupNamazExtrasCollection
 }
 
 // ─── Tasks ───
@@ -59,7 +73,7 @@ export interface BackupNamazCollection {
   settings: NamazSettings
 }
 
-// ─── Money ───
+// ─── Money (extended with Phase 1+2 data) ───
 export interface BackupMoneyCollection {
   transactions: Transaction[]
   loans: Loan[]
@@ -68,6 +82,29 @@ export interface BackupMoneyCollection {
   wallets: Wallet[]
   subscriptions: Subscription[]
   insights: FinancialInsight[]
+  // NEW fields
+  categoryLimits: CategoryLimit[]
+  recurringTemplates: RecurringTemplate[]
+  assets: Asset[]
+  netWorthHistory: NetWorthSnapshot[]
+}
+
+// ─── Notes (NEW) ───
+export interface BackupNoteCollection {
+  notes: Note[]
+}
+
+// ─── Health / BMI (NEW) ───
+export interface BackupHealthCollection {
+  bmiRecords: BMIRecord[]
+}
+
+// ─── Namaz Extras (NEW - tasbih, dua, quran, notifications) ───
+export interface BackupNamazExtrasCollection {
+  tasbih: unknown[] | null
+  duaState: unknown | null
+  quranState: unknown | null
+  notifications: unknown[] | null
 }
 
 // ─── Settings ───
@@ -88,6 +125,15 @@ export interface BackupPrefsCollection {
   lifeMode: LifeMode
   azanEnabled: boolean
   quranReciter: QuranReciter
+  // NEW: additional prefs
+  prayerTimePreferences?: Record<string, {
+    azanMode: string
+    azanOffsetMinutes: number
+    azanFixedTime: string
+    jamatMode: string
+    jamatOffsetMinutes: number
+    jamatFixedTime: string
+  }>
 }
 
 // ─── Restore Options ───
@@ -101,6 +147,9 @@ export interface RestoreOptions {
     money?: boolean
     settings?: boolean
     prefs?: boolean
+    notes?: boolean
+    health?: boolean
+    namazExtras?: boolean
   }
 }
 
@@ -124,6 +173,12 @@ export interface BackupCounts {
   insights: number
   namazRecords: number
   namazDays: number
+  // NEW
+  notes: number
+  bmiRecords: number
+  categoryLimits: number
+  recurringTemplates: number
+  assets: number
 }
 
 export interface BackupDifferences {
@@ -133,6 +188,9 @@ export interface BackupDifferences {
   newerLocalSavingsGoals: number
   localAmountBdt: number
   backupAmountBdt: number
+  // NEW
+  newerLocalNotes: number
+  newerLocalBmiRecords: number
 }
 
 // ─── Snapshot Metadata ───
