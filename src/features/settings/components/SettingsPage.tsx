@@ -61,6 +61,8 @@ const translations = {
     quietEnd: 'শেষ',
     calculatorToggle: 'ফ্লোটিং ক্যালকুলেটর',
     calculatorSub: 'স্ক্রিনে ক্যালকুলেটর আইকন দেখাবে',
+    voiceToggle: 'ভয়েস কমান্ড',
+    voiceSub: 'স্ক্রিনে ভয়েস আইকন দেখাবে',
     security: 'নিরাপত্তা',
     pinLock: 'PIN লক',
     pinActive: 'সক্রিয় আছে ✓',
@@ -169,6 +171,8 @@ const translations = {
     quietEnd: 'End',
     calculatorToggle: 'Floating Calculator',
     calculatorSub: 'Show calculator icon on screen',
+    voiceToggle: 'Voice Commands',
+    voiceSub: 'Show voice mic button on screen',
     security: 'Security',
     pinLock: 'PIN Lock',
     pinActive: 'Active ✓',
@@ -329,6 +333,7 @@ export default function SettingsPage() {
     biometricLockEnabled,
     notificationsEnabled,
     calculatorEnabled,
+    voiceEnabled,
     notificationCategories,
     quietHoursEnabled,
     quietHoursStart,
@@ -863,6 +868,15 @@ export default function SettingsPage() {
             sub={t.calculatorSub}
             value={calculatorEnabled}
             onChange={v => update({ calculatorEnabled: v })}
+          />
+          <div className="st-divider" />
+          <RowSwitch
+            icon={<Smartphone size={14} />}
+            iconType="neutral"
+            label={t.voiceToggle}
+            sub={t.voiceSub}
+            value={voiceEnabled}
+            onChange={v => update({ voiceEnabled: v })}
           />
         </Section>
 

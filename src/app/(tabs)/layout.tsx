@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import CalculatorModal from '@/components/ui/CalculatorModal'
 import NotificationCenter from '@/components/ui/NotificationCenter'
 import AppLockGate from '@/components/security/AppLockGate'
+import VoiceFloatingButton from '@/components/ui/VoiceFloatingButton'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 
 const TABS = [
@@ -72,6 +73,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
       {calculatorEnabled && <CalculatorModal />}
       <NotificationCenter />
       <AppLockGate />
+      <VoiceFloatingButton />
 
       <style>{`
         /* ============================================

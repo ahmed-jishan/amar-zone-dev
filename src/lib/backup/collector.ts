@@ -77,6 +77,7 @@ export function collectBackupPayload(): BackupPayload {
         onboardingComplete: true,
         notificationsEnabled: true,
         calculatorEnabled: true,
+        voiceEnabled: true,
         notificationCategories: { tasks: true, money: true, prayer: true },
         quietHoursEnabled: false,
         quietHoursStart: '22:00',

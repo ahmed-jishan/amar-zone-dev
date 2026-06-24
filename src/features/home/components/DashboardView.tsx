@@ -1,16 +1,21 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { StickyNote, Heart, TrendingUp, Clock } from 'lucide-react'
+import { StickyNote, Heart, TrendingUp, Clock, Sparkles, RefreshCw } from 'lucide-react'
 import { useNotesStore } from '@/features/notes/store/notesStore'
 import { useHealthStore } from '@/features/health/store/healthStore'
 import { useTaskStore } from '@/lib/store/taskStore'
+import { useAI } from '@/lib/ai'
 import { HomeSubTab } from './HomeTabs'
 import LiveTimeHeader from './LiveTimeHeader'
 import NamazPulseCard from './NamazPulseCard'
 import TodayFocusCard from './TodayFocusCard'
 import MoneyGlanceCard from './MoneyGlanceCard'
+import AIWellnessScore from './AIWellnessScore'
+import AIInsightsList from './AIInsightsList'
+import AIFocusCard from './AIFocusCard'
 
 interface DashboardViewProps {
   onNavigate: (tab: HomeSubTab) => void
@@ -40,6 +45,49 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const notes = useNotesStore((s) => s.notes)
   const healthHistory = useHealthStore((s) => s.history)
   const tasks = useTaskStore((s) => s.tasks)
+
+  const router = useRouter()
+
+  const {
+    scores,
+    insights,
+    isComputing,
+    unreadCount,
+    focusSuggestion,
+    overallScore,
+    dismissInsight,
+    markInsightRead,
+    refresh,
+  } = useAI()
+
+  // Handle insight action routing — maps insight routes to tab navigation
+  const handleInsightAction = useCallback((route: string) => {
+    // Extract the base route (strip query params)
+    const baseRoute = route.split('?')[0]
+    // Map routes to tab navigation:
+    // Tasks tab
+    if (baseRoute === '/tasks') {
+      router.push('/tasks')
+      return
+    }
+    // Money tab
+    if (baseRoute === '/money') {
+      router.push('/money')
+      return
+    }
+    // Namaz tab
+    if (baseRoute === '/namaz') {
+      router.push('/namaz')
+      return
+    }
+    // Home sub-tabs (health, notes)
+    if (baseRoute === '/home') {
+      onNavigate('health')
+      return
+    }
+    // Fallback: just navigate to the route directly
+    router.push(baseRoute)
+  }, [router, onNavigate])
 
   const stats = useMemo(() => ({
     totalNotes: notes.length,
@@ -124,6 +172,47 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
         <NamazPulseCard />
         <TodayFocusCard />
         <MoneyGlanceCard />
+      </motion.div>
+
+      {/* ── AI SECTION ───────────────────────────────────────────── */}
+      {/* Wellness Score (only show when scores are computed) */}
+      {scores && overallScore !== null && (
+        <motion.div variants={ITEM}>
+          <AIWellnessScore scores={scores} overallScore={overallScore} />
+        </motion.div>
+      )}
+
+      {/* Focus Suggestion */}
+      {focusSuggestion && (
+        <motion.div variants={ITEM}>
+          <AIFocusCard suggestion={focusSuggestion} overallScore={overallScore} />
+        </motion.div>
+      )}
+
+      {/* AI Insights */}
+      {insights.length > 0 && (
+        <motion.div variants={ITEM}>
+          <AIInsightsList
+            insights={insights}
+            onDismiss={dismissInsight}
+            onMarkRead={markInsightRead}
+            unreadCount={unreadCount}
+          />
+        </motion.div>
+      )}
+
+      {/* Refresh AI Button (shown when computing or as a subtle refresh) */}
+      <motion.div variants={ITEM} className="flex justify-center">
+        <button
+          onClick={refresh}
+          disabled={isComputing}
+          className="flex items-center gap-1.5 text-[10px] text-[var(--hm-muted)] hover:text-[var(--hm-text)] 
+                     transition-colors px-3 py-1.5 rounded-full border border-[var(--hm-border)] 
+                     hover:bg-[var(--hm-soft)] disabled:opacity-50"
+        >
+          <RefreshCw size={12} className={isComputing ? 'animate-spin' : ''} />
+          {isComputing ? 'Analyzing...' : 'Refresh AI'}
+        </button>
       </motion.div>
 
       {/* Quick Actions */}
