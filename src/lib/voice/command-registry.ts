@@ -309,8 +309,53 @@ export function executeCommand(intent: ParsedIntent): CommandResult {
     // ═══════════════════════════════════════════════════════════════
     // NAVIGATION
     // ═══════════════════════════════════════════════════════════════
+    case 'open_quick_transfer': {
+      return {
+        success: true,
+        message: 'Opening Quick Transfer...',
+        messageBn: 'কুইক ট্রান্সফার খুলছি...',
+        action: 'open_quick_transfer',
+      }
+    }
+
+    case 'open_notifications': {
+      return {
+        success: true,
+        message: 'Opening notifications...',
+        messageBn: 'নোটিফিকেশন খুলছি...',
+        action: 'open_notifications',
+      }
+    }
+
+    case 'toggle_notifications': {
+      const enabled = intent.entities.status !== 'off'
+      useSettingsStore.getState().update({ notificationsEnabled: enabled })
+      return {
+        success: true,
+        message: enabled ? 'Notifications have been enabled.' : 'Notifications have been disabled.',
+        messageBn: enabled ? 'নোটিফিকেশন চালু করা হয়েছে।' : 'নোটিফিকেশন বন্ধ করা হয়েছে।',
+        action: enabled ? 'enable_notifications' : 'disable_notifications',
+      }
+    }
+
     case 'navigate': {
       const { target } = intent.entities
+      if (target === 'quick transfer') {
+        return {
+          success: true,
+          message: 'Opening Quick Transfer...',
+          messageBn: 'কুইক ট্রান্সফার খুলছি...',
+          action: 'open_quick_transfer',
+        }
+      }
+      if (target === 'notifications') {
+        return {
+          success: true,
+          message: 'Opening notifications...',
+          messageBn: 'নোটিফিকেশন খুলছি...',
+          action: 'open_notifications',
+        }
+      }
       const route = target ? `/${target}` : '/home'
       return {
         success: true,

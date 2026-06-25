@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import SplashProvider from '@/components/splash/SplashProvider'
+import { storageRepairScript } from '@/lib/startup/storageRepairScript'
 
 
 export const metadata: Metadata = {
@@ -28,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="bn" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: storageRepairScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -36,9 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <SplashProvider>
-          {children}
-        </SplashProvider>
+        {children}
       </body>
     </html>
   )

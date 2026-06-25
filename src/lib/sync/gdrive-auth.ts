@@ -411,8 +411,10 @@ export class GDriveAuth {
     if (!this.nativeInitialized) {
       await GoogleAuth.initialize({
         clientId: WEB_CLIENT_ID,
+        androidClientId: ANDROID_CLIENT_ID,
         serverClientId: WEB_CLIENT_ID,
-        scopes: ['profile', 'email', DRIVE_SCOPE],
+        scopes: ['profile', 'email', DRIVE_SCOPE].join(','),
+        forceCodeForRefreshToken: true,
         grantOfflineAccess: true,
       } as any)
       this.nativeInitialized = true
@@ -465,7 +467,8 @@ export class GDriveAuth {
       if (message.includes('status code 10') || message.includes('DEVELOPER_ERROR')) {
         throw new Error(
           'Google sign-in configuration mismatch. ' +
-          'Use the Web client ID for native sign-in and make sure the Android OAuth client has package com.selfsync.app with this APK SHA-1.'
+          'Add this SHA-1 to the Android OAuth client for com.selfsync.app in Google Cloud Console: ' +
+          '1D:C4:51:9E:BD:2C:8F:EC:25:4C:F8:97:D0:9C:EA:20:AE:8D:7E:7E'
         )
       }
       if (message.includes('no network') || message.includes('timeout') || message.includes('timed out')) {

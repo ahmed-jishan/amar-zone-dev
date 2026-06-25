@@ -10,6 +10,8 @@ import NotificationCenter from '@/components/ui/NotificationCenter'
 import AppLockGate from '@/components/security/AppLockGate'
 import VoiceFloatingButton from '@/components/ui/VoiceFloatingButton'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
+import SafeRender from '@/components/shared/SafeRender'
+import PermissionOnboarding from '@/components/shared/PermissionOnboarding'
 
 const TABS = [
   { href: '/tasks', icon: CheckSquare, label: 'Tasks' },
@@ -83,10 +85,23 @@ export default function TabsShell({
         </nav>
       </div>
 
-      {calculatorEnabled && <CalculatorModal />}
-      <NotificationCenter />
-      <AppLockGate />
-      <VoiceFloatingButton />
+      {calculatorEnabled && (
+        <SafeRender name="CalculatorModal">
+          <CalculatorModal />
+        </SafeRender>
+      )}
+      <SafeRender name="NotificationCenter">
+        <NotificationCenter />
+      </SafeRender>
+      <SafeRender name="AppLockGate">
+        <AppLockGate />
+      </SafeRender>
+      <SafeRender name="VoiceFloatingButton">
+        <VoiceFloatingButton />
+      </SafeRender>
+      <SafeRender name="PermissionOnboarding">
+        <PermissionOnboarding />
+      </SafeRender>
 
       <style>{`
         .bottom-nav {

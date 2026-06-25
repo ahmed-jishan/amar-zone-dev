@@ -47,6 +47,7 @@ type SendStage = 'preparing' | 'encrypting' | 'generating' | 'ready' | 'complete
 type MergeStage = 'merging' | 'finalizing' | 'complete' | 'error'
 type ScanPhase = 'starting' | 'scanning' | 'detected' | 'transferring' | 'done' | 'failed'
 type TransferMode = 'qr' | 'webrtc' | 'file'
+type CameraPermissionState = 'unknown' | 'checking' | 'prompt' | 'granted' | 'denied'
 
 // ─── Constants ───
 const QR_CHUNK_SIZE = 2400
@@ -73,6 +74,11 @@ const tr = (lang: Language) => ({
   qrDesc: lang === 'bn' ? 'একাধিক QR কোড — কোনো নেটওয়ার্ক লাগে না' : 'Multiple QR codes — no network needed',
   webrtcDesc: lang === 'bn' ? '১ বার স্ক্যান — যেকোনো সাইজ, দ্রুত' : 'One scan — any size, super fast',
   fileDesc: lang === 'bn' ? 'JSON ফাইল থেকে ডেটা রিস্টোর' : 'Restore from JSON backup file',
+  qrSendAction: lang === 'bn' ? 'QR তৈরি করুন' : 'Show QR',
+  qrReceiveAction: lang === 'bn' ? 'QR স্ক্যান করে নিন' : 'Receive',
+  fastSendAction: lang === 'bn' ? 'Fast QR তৈরি করুন' : 'Send',
+  fastScanAction: lang === 'bn' ? 'QR স্ক্যান করুন' : 'Scan',
+  receiveScanHint: lang === 'bn' ? 'অন্য ডিভাইসের QR কোড ক্যামেরা দিয়ে স্ক্যান করুন' : 'Scan the QR code from the other device',
   // Common
   passphrase: lang === 'bn' ? 'পাসফ্রেজ' : 'Passphrase',
   passHint: lang === 'bn' ? 'কমপক্ষে ৮ অক্ষর' : 'At least 8 characters',
@@ -99,6 +105,9 @@ const tr = (lang: Language) => ({
   decrypting: lang === 'bn' ? 'ডিক্রিপ্ট হচ্ছে...' : 'Decrypting...',
   dataReady: lang === 'bn' ? 'ডেটা প্রস্তুত!' : 'Data ready!',
   cameraError: lang === 'bn' ? 'ক্যামেরা অ্যাক্সেস ব্যর্থ' : 'Camera access failed',
+  cameraPermissionTitle: lang === 'bn' ? 'ক্যামেরা পারমিশন দরকার' : 'Camera permission needed',
+  cameraPermissionBody: lang === 'bn' ? 'QR স্ক্যান করতে ক্যামেরা অ্যাক্সেস অনুমতি দিন। অনুমতি দিলে স্ক্যানার সাথে সাথে খুলবে।' : 'Allow camera access to scan the QR code. The scanner will open immediately after approval.',
+  cameraDeniedBody: lang === 'bn' ? 'ক্যামেরা পারমিশন বন্ধ আছে। ফোনের App Settings থেকে Camera permission Allow করে আবার চেষ্টা করুন।' : 'Camera permission is blocked. Allow Camera from your phone App Settings, then try again.',
   tryAgain: lang === 'bn' ? 'পুনরায় চেষ্টা করুন' : 'Try Again',
   framesReceived: (r: number, t: number) => lang === 'bn' ? `${r}/${t} ফ্রেম পাওয়া গেছে` : `Received ${r}/${t} frames`,
   // WebRTC
@@ -116,7 +125,10 @@ const tr = (lang: Language) => ({
   webrtcFallback: lang === 'bn' ? 'QR মোডে সুইচ করুন' : 'Switch to QR mode',
   webrtcProgress: (p: WebRTCProgress) => {
     const pct = p.bytesTotal > 0 ? Math.round((p.bytesTransferred / p.bytesTotal) * 100) : 0
-    return lang === 'bn' ? `${pct}% (${(p.bytesTransferred / 1024).toFixed(1)}/${(p.bytesTotal / 1024).toFixed(1)} KB)` : `${pct}% (${(p.bytesTransferred / 1024).toFixed(1)}/${(p.bytesTotal / 1024).toFixed(1)} KB)`
+    const speed = p.speedBytesPerSecond ? ` · ${(p.speedBytesPerSecond / 1024).toFixed(1)} KB/s` : ''
+    const eta = p.etaSeconds && p.etaSeconds > 1 ? ` · ${Math.ceil(p.etaSeconds)}s` : ''
+    const retry = p.retries ? ` · ${p.retries} retry${p.retries > 1 ? 's' : ''}` : ''
+    return `${pct}% (${(p.bytesTransferred / 1024).toFixed(1)}/${(p.bytesTotal / 1024).toFixed(1)} KB)${speed}${eta}${retry}`
   },
   webrtcScanInfo: (name: string) => lang === 'bn' ? `"${name}" কানেক্ট হবে — QR স্ক্যান করুন` : `Connect to "${name}" — scan the QR code`,
   // Preview
@@ -190,11 +202,14 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   const [scanStatus, setScanStatus] = useState<{ total: number; received: number } | null>(null)
   const [scannedPayload, setScannedPayload] = useState<string | null>(null)
   const [detectedFlash, setDetectedFlash] = useState(false)
+  const [cameraPermission, setCameraPermission] = useState<CameraPermissionState>('unknown')
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const scannerRef = useRef<BrowserQRCodeReader | null>(null)
   const scannerControlsRef = useRef<IScannerControls | null>(null)
   const scannedChunksRef = useRef(new Map<string, { total: number; parts: Map<number, string> }>())
   const cameraStartedRef = useRef(false)
+  const receiveDataRef = useRef<(raw: string) => Promise<void>>(async () => undefined)
+  const webRTCPeerIdRef = useRef<(peerId: string) => Promise<void>>(async () => undefined)
 
   // ── WebRTC ──
   const [webrtcState, setWebrtcState] = useState<WebRTCTransferState>('idle')
@@ -282,12 +297,25 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('Camera not available on this device.')
     }
+    setCameraPermission('checking')
+    await ensureCameraPermission((state) => setCameraPermission(state))
     const video = await waitForVideoElement(videoRef)
     const mod = await import('@zxing/browser')
     const reader = new mod.BrowserQRCodeReader()
     scannerRef.current = reader
 
     const controls = await startQrDecodeWithRetry(reader, video, (text) => {
+      const handshake = safeParseWebRTCHandshake(text)
+      if (handshake) {
+        try { navigator.vibrate?.([40, 30, 40]) } catch { /* noop */ }
+        setDetectedFlash(true)
+        setTimeout(() => setDetectedFlash(false), 400)
+        setScanPhase('detected')
+        stopScanner()
+        void webRTCPeerIdRef.current(handshake.peerId)
+        return
+      }
+
       const parsed = safeParseChunk(text)
       if (!parsed) return
 
@@ -310,13 +338,14 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
         setScannedPayload(ordered)
         setScanPhase('transferring')
         stopScanner()
-        void handleReceiveData(ordered)
+        void receiveDataRef.current(ordered)
       }
     })
 
     scannerControlsRef.current = controls
     await waitForVideoPlayback(video)
     cameraStartedRef.current = true
+    setCameraPermission('granted')
     setScanPhase('scanning')
   }, [])
 
@@ -327,6 +356,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       setError('')
       setScannedPayload(null)
       setScanStatus(null)
+      setCameraPermission('unknown')
       scannedChunksRef.current.clear()
       cameraStartedRef.current = false
       startCamera().catch((err) => {
@@ -397,6 +427,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       peerId: webrtcQRPayload.peerId,
       deviceName: webrtcQRPayload.deviceName,
       appVersion: webrtcQRPayload.appVersion,
+      protocolVersion: webrtcQRPayload.protocolVersion,
     })
     QRCode.toDataURL(
       qrContent,
@@ -573,6 +604,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
 
   // ── WEBRTC RECEIVE ──
   const handleWebRTCPeerId = async (peerId: string) => {
+    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
     setError('')
     setStep('receive-webrtc')
     setWebrtcState('creating-peer')
@@ -625,6 +657,11 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       if (!error) setError(e instanceof Error ? e.message : 'WebRTC receive failed')
     }
   }
+
+  useEffect(() => {
+    receiveDataRef.current = handleReceiveData
+    webRTCPeerIdRef.current = handleWebRTCPeerId
+  })
 
   // ── RESTORE ──
   const handleRestoreAction = async (strategy: RestoreStrategy) => {
@@ -701,9 +738,32 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   }, [originalSize, compressedSize, qrChunks.length, strings])
 
   const handleWebRTCReceiveScan = async () => {
+    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
     setError('')
     setStep('receive-scan')
     // After QR scan with webrtc type, handleWebRTCPeerId will be called
+  }
+
+  const beginQRSend = () => {
+    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+    setError('')
+    setStep('send-prepare')
+  }
+
+  const beginQRReceive = () => {
+    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+    setError('')
+    setStep('receive-scan')
+  }
+
+  const beginFastSend = () => {
+    if (passphrase.trim().length < 8) { setError(strings.passHint); return }
+    setError('')
+    if (typeof window === 'undefined' || !navigator.onLine) {
+      setError(lang === 'bn' ? 'ইন্টারনেট কানেকশন প্রয়োজন' : 'Internet connection required for Fast Transfer')
+      return
+    }
+    void handleWebRTCSend()
   }
 
   return (
@@ -752,45 +812,57 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
               </div>
             </div>
 
-            {/* Tab 1: QR Transfer */}
-            <button
-              onClick={() => {
-                if (passphrase.trim().length < 8) { setError(strings.passHint); return }
-                setError('')
-                setStep('send-prepare')
-              }}
-              className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-border-strong)] p-3.5 text-left hover:bg-[var(--st-surface-hover)] transition-all active:scale-[0.99]"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--st-accent-bg)] text-[var(--st-accent)] shrink-0"><QrCode size={18} /></div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.qrTransfer}</div>
-                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.qrDesc}</div>
+            {/* QR Transfer */}
+            <div className="rounded-2xl border border-[var(--st-border-strong)] p-3.5 transition-all hover:bg-[var(--st-surface-hover)]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--st-accent-bg)] text-[var(--st-accent)] shrink-0"><QrCode size={18} /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-[var(--st-text-1)]">{strings.qrTransfer}</div>
+                  <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.qrDesc}</div>
+                </div>
               </div>
-              <ArrowLeft size={16} className="text-[var(--st-text-3)] shrink-0 rotate-180" />
-            </button>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={beginQRSend}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--st-accent)] px-3 text-xs font-bold text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                  <QrCode size={14} /> {strings.qrSendAction}
+                </button>
+                <button
+                  onClick={beginQRReceive}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--st-accent-border)] bg-[var(--st-accent-bg)] px-3 text-xs font-bold text-[var(--st-accent)] transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                  <ScanLine size={14} /> {strings.qrReceiveAction}
+                </button>
+              </div>
+            </div>
 
-            {/* Tab 2: WebRTC Fast Transfer */}
-            <button
-              onClick={() => {
-                if (passphrase.trim().length < 8) { setError(strings.passHint); return }
-                setError('')
-                if (typeof window === 'undefined' || !navigator.onLine) {
-                  setError(lang === 'bn' ? 'ইন্টারনেট কানেকশন প্রয়োজন' : 'Internet connection required for Fast Transfer')
-                  return
-                }
-                setStep('send-webrtc')
-              }}
-              className="w-full flex items-center gap-3 rounded-2xl border border-[var(--st-accent-border)] bg-[var(--st-accent-bg)] p-3.5 text-left hover:brightness-110 transition-all active:scale-[0.99]"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shrink-0">
-                <Signal size={18} />
+            {/* WebRTC Fast Transfer */}
+            <div className="rounded-2xl border border-[var(--st-accent-border)] bg-[var(--st-accent-bg)] p-3.5 transition-all hover:brightness-105">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shrink-0">
+                  <Signal size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-[var(--st-accent)]">{strings.webrtcTransfer}</div>
+                  <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.webrtcDesc}</div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-[var(--st-accent)]">{strings.webrtcTransfer}</div>
-                <div className="text-xs text-[var(--st-text-3)] mt-0.5">{strings.webrtcDesc}</div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={beginFastSend}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-3 text-xs font-bold text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                  <Radio size={14} /> {strings.fastSendAction}
+                </button>
+                <button
+                  onClick={handleWebRTCReceiveScan}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-400/30 bg-white/10 px-3 text-xs font-bold text-[var(--st-accent)] transition-all hover:bg-white/15 active:scale-[0.98]"
+                >
+                  <Camera size={14} /> {strings.fastScanAction}
+                </button>
               </div>
-              <ArrowLeft size={16} className="text-[var(--st-text-3)] shrink-0 rotate-180" />
-            </button>
+            </div>
 
             {/* Tab 3: File Restore */}
             <button
@@ -1163,7 +1235,11 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
                     <Camera size={22} className="animate-pulse" />
                   </div>
                   <p className="text-sm text-white/90 font-semibold">{strings.cameraStarting}</p>
-                  <p className="text-xs text-white/60 mt-1">{strings.pointCamera}</p>
+                  <p className="text-xs text-white/60 mt-1 text-center px-5">
+                    {cameraPermission === 'checking' || cameraPermission === 'prompt'
+                      ? strings.cameraPermissionBody
+                      : strings.pointCamera}
+                  </p>
                 </div>
               )}
 
@@ -1172,7 +1248,10 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/20 text-red-400 mb-3">
                     <CameraOff size={22} />
                   </div>
-                  <p className="text-sm text-red-400 font-semibold">{strings.cameraError}</p>
+                  <p className="text-sm text-red-400 font-semibold">{cameraPermission === 'denied' ? strings.cameraPermissionTitle : strings.cameraError}</p>
+                  <p className="mt-1 max-w-[280px] px-4 text-center text-xs leading-relaxed text-white/65">
+                    {cameraPermission === 'denied' ? strings.cameraDeniedBody : (error || strings.cameraPermissionBody)}
+                  </p>
                   <button
                     onClick={() => {
                       stopScanner()
@@ -1485,6 +1564,21 @@ function safeParseChunk(text: string): { id: string; index: number; total: numbe
   } catch { return null }
 }
 
+function safeParseWebRTCHandshake(text: string): { peerId: string; deviceName?: string; appVersion?: string; protocolVersion?: number } | null {
+  try {
+    const parsed = JSON.parse(text) as { type?: string; peerId?: string; deviceName?: string; appVersion?: string; protocolVersion?: number }
+    if (parsed.type !== 'webrtc-handshake' || typeof parsed.peerId !== 'string') return null
+    if (parsed.peerId.length < 8 || parsed.peerId.length > 128) return null
+    if (parsed.protocolVersion && parsed.protocolVersion > 2) return null
+    return {
+      peerId: parsed.peerId,
+      deviceName: parsed.deviceName,
+      appVersion: parsed.appVersion,
+      protocolVersion: parsed.protocolVersion,
+    }
+  } catch { return null }
+}
+
 function waitForVideoElement(ref: RefObject<HTMLVideoElement>, timeoutMs = 1500): Promise<HTMLVideoElement> {
   const started = Date.now()
   return new Promise((resolve, reject) => {
@@ -1568,4 +1662,39 @@ function cameraErrorMessage(error: unknown) {
     return 'Camera is busy in another app. Close other camera apps and retry.'
   }
   return error instanceof Error ? error.message : 'Camera access failed. Please retry.'
+}
+
+async function ensureCameraPermission(onState: (state: CameraPermissionState) => void): Promise<void> {
+  try {
+    const permissions = navigator.permissions as Permissions | undefined
+    const query = permissions?.query?.bind(permissions)
+    if (query) {
+      try {
+        const status = await query({ name: 'camera' as PermissionName })
+        if (status.state === 'granted') {
+          onState('granted')
+          return
+        }
+        if (status.state === 'denied') {
+          onState('denied')
+          throw new DOMException('Camera permission denied.', 'NotAllowedError')
+        }
+        onState('prompt')
+      } catch {
+        onState('prompt')
+      }
+    } else {
+      onState('prompt')
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false,
+    })
+    stream.getTracks().forEach((track) => track.stop())
+    onState('granted')
+  } catch (error) {
+    onState('denied')
+    throw error
+  }
 }

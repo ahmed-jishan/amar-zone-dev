@@ -1,31 +1,66 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState, useTransition } from 'react'
+import { motion } from 'framer-motion'
 import HomeTabs, { HomeSubTab } from '@/features/home/components/HomeTabs'
 import DashboardView from '@/features/home/components/DashboardView'
 import NotesList from '@/features/notes/components/NotesList'
 import BMICalculator from '@/features/health/components/BMICalculator'
 import { ZakatWizard } from '@/features/zakat'
+import SafeRender from '@/components/shared/SafeRender'
 import '@/features/home/home.css'
+
+const HOME_TABS: HomeSubTab[] = ['dashboard', 'notes', 'health', 'zakat']
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<HomeSubTab>('dashboard')
+  const [mountedTabs, setMountedTabs] = useState<Set<HomeSubTab>>(() => new Set<HomeSubTab>(['dashboard']))
+  const [, startTransition] = useTransition()
 
   const handleNavigate = (tab: HomeSubTab) => {
-    setActiveTab(tab)
+    setMountedTabs((prev) => new Set(prev).add(tab))
+    startTransition(() => setActiveTab(tab))
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
+  useEffect(() => {
+    const preload = () => {
+      setMountedTabs(new Set(HOME_TABS))
+    }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(preload, { timeout: 1600 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+
+    const timeoutId = globalThis.setTimeout(preload, 900)
+    return () => globalThis.clearTimeout(timeoutId)
+  }, [])
+
+  const renderContent = (tab: HomeSubTab) => {
+    switch (tab) {
       case 'dashboard':
-        return <DashboardView onNavigate={handleNavigate} />
+        return (
+          <SafeRender name="DashboardView">
+            <DashboardView onNavigate={handleNavigate} />
+          </SafeRender>
+        )
       case 'notes':
-        return <NotesList />
+        return (
+          <SafeRender name="NotesList">
+            <NotesList />
+          </SafeRender>
+        )
       case 'health':
-        return <BMICalculator />
+        return (
+          <SafeRender name="BMICalculator">
+            <BMICalculator />
+          </SafeRender>
+        )
       case 'zakat':
-        return <ZakatWizard />
+        return (
+          <SafeRender name="ZakatWizard">
+            <ZakatWizard />
+          </SafeRender>
+        )
       default:
         return null
     }
@@ -44,21 +79,27 @@ export default function HomePage() {
 
         {/* Segmented Tabs */}
         <div className="mb-5">
-          <HomeTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <HomeTabs activeTab={activeTab} onTabChange={handleNavigate} />
         </div>
 
         {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.2 }}
-          >
-            {renderContent()}
-          </motion.div>
-        </AnimatePresence>
+        <div className="hm-tab-panels">
+          {HOME_TABS.map((tab) => {
+            const isActive = activeTab === tab
+            if (!mountedTabs.has(tab) && !isActive) return null
+            return (
+              <motion.div
+                key={tab}
+                className={`hm-tab-panel ${isActive ? 'hm-tab-panel--active' : 'hm-tab-panel--hidden'}`}
+                initial={false}
+                animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {renderContent(tab)}
+              </motion.div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

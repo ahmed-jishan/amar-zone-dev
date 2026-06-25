@@ -8,6 +8,7 @@ import { computePrayerTimeConfig } from '../utils/azanJamatConfig';
 import type { ConfigurablePrayerName } from '../store/prefsStore';
 import { isNativeNotificationPlatform, requestAppNotificationPermission, scheduleAppNotification } from '@/lib/native/notifications';
 import { cancelNativeAzan, isNativeAzanSupported, scheduleNativeAzan } from '@/lib/native/azan';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
 const AZAN_AUDIO_URL = 'https://www.islamcan.com/audio/adhan/azan1.mp3';
 let currentAzanAudio: HTMLAudioElement | null = null;
@@ -49,6 +50,11 @@ function playAzan(label: string): void {
 export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   const azanEnabled = usePrefsStore((state) => state.azanEnabled);
   const prayerTimePreferences = usePrefsStore((state) => state.prayerTimePreferences);
+  const notificationsEnabled = useSettingsStore((state) => state.notificationsEnabled);
+  const prayerNotificationsEnabled = useSettingsStore((state) => state.notificationCategories.prayer);
+  const quietHoursEnabled = useSettingsStore((state) => state.quietHoursEnabled);
+  const quietHoursStart = useSettingsStore((state) => state.quietHoursStart);
+  const quietHoursEnd = useSettingsStore((state) => state.quietHoursEnd);
   const [now, setNow] = useState(new Date());
   const firedRef = useRef<Set<string>>(new Set());
 
@@ -58,7 +64,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   }, []);
 
   useEffect(() => {
-    if (!azanEnabled || !prayerTimes) return;
+    if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes) return;
 
     const timers = AZAN_PRAYER_ORDER.map((prayer) => {
       const entry = prayerTimes.timings[prayer];
@@ -69,7 +75,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       const delay = target.getTime() - Date.now();
       const key = `${prayerTimes.date}:${prayer}:${azanTimeStr}`;
 
-      if (delay <= 0 || firedRef.current.has(key)) return null;
+      if (delay <= 0 || firedRef.current.has(key) || isWithinQuietHours(target, quietHoursEnabled, quietHoursStart, quietHoursEnd)) return null;
 
       if (isNativeNotificationPlatform()) {
         void (async () => {
@@ -81,6 +87,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
             body: `Azan time at ${azanTimeStr}. Use mobile media controls to pause or resume.`,
             at: target,
             channelId: 'selfsync_azan',
+            category: 'prayer',
           });
         })();
       }
@@ -104,10 +111,10 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         if (timer) window.clearTimeout(timer);
       });
     };
-  }, [azanEnabled, prayerTimes, prayerTimePreferences]);
+  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   useEffect(() => {
-    if (!azanEnabled || !prayerTimes || !isNativeAzanSupported()) return;
+    if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes || !isNativeAzanSupported()) return;
     const items = AZAN_PRAYER_ORDER.map((prayer) => {
       const entry = prayerTimes.timings[prayer];
       // Use user's configured azan time
@@ -119,13 +126,13 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         label: entry.label,
         time: target.getTime(),
       };
-    }).filter((item) => item.time > Date.now());
+    }).filter((item) => item.time > Date.now() && !isWithinQuietHours(new Date(item.time), quietHoursEnabled, quietHoursStart, quietHoursEnd));
 
     void scheduleNativeAzan(items, AZAN_AUDIO_URL).catch((error) => console.warn('Native azan schedule failed:', error));
     return () => {
       void cancelNativeAzan(items.map((item) => item.id)).catch((error) => console.warn('Native azan cancel failed:', error));
     };
-  }, [azanEnabled, prayerTimes, prayerTimePreferences]);
+  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   // Custom getNextAzan that uses user's configured azan times
   const nextAzan = useMemo(() => {
@@ -154,4 +161,19 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
     nextAzan,
     remaining: formatRemaining(nextAzan?.target, now),
   };
+}
+
+function isWithinQuietHours(date: Date, enabled: boolean, startValue: string, endValue: string): boolean {
+  if (!enabled) return false;
+  const [startH, startM] = startValue.split(':').map((value) => Number(value));
+  const [endH, endM] = endValue.split(':').map((value) => Number(value));
+  if (Number.isNaN(startH) || Number.isNaN(startM) || Number.isNaN(endH) || Number.isNaN(endM)) return false;
+
+  const start = new Date(date);
+  start.setHours(startH, startM, 0, 0);
+  const end = new Date(date);
+  end.setHours(endH, endM, 0, 0);
+  if (start.getTime() === end.getTime()) return true;
+  if (start < end) return date >= start && date <= end;
+  return date >= start || date <= end;
 }

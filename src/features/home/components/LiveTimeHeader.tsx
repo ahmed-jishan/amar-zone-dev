@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 
-// ─── Bangladesh Time Helpers ───
 const BD_TIMEZONE = 'Asia/Dhaka'
 const LOCALE = 'en-BD'
 
@@ -35,79 +34,64 @@ function formatDate(date: Date): { dayName: string; day: string; month: string; 
 }
 
 function getGreeting(hour: number): { text: string; emoji: string } {
-  if (hour < 5) return { text: 'Late Night', emoji: '🌙' }
-  if (hour < 12) return { text: 'Good Morning', emoji: '🌅' }
-  if (hour < 17) return { text: 'Good Afternoon', emoji: '☀️' }
-  if (hour < 20) return { text: 'Good Evening', emoji: '🌆' }
-  return { text: 'Good Night', emoji: '🌃' }
+  if (hour < 5) return { text: 'Late Night', emoji: '\u{1F319}' }
+  if (hour < 12) return { text: 'Good Morning', emoji: '\u{1F305}' }
+  if (hour < 17) return { text: 'Good Afternoon', emoji: '\u2600\uFE0F' }
+  if (hour < 20) return { text: 'Good Evening', emoji: '\u{1F306}' }
+  return { text: 'Good Night', emoji: '\u{1F303}' }
 }
 
-// ─── 3D Flip Digit Component ───
 function FlipDigit({ digit, prevDigit, label }: { digit: string; prevDigit: string; label: string }) {
   const isFlipping = digit !== prevDigit
 
   return (
     <div className="flip-card-container">
       <div style={{ width: 36, height: 56 }} className="relative">
-        <AnimatePresence mode="popLayout">
-          {isFlipping ? (
-            // Flipping animation: old digit rotates out, new digit rotates in
-            <motion.div
-              key={`flip-${digit}-${Date.now()}`}
-              className="flip-card"
-              initial={{ rotateX: 0 }}
-              animate={{ rotateX: -180 }}
-              exit={{ rotateX: -180 }}
-              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-              style={{ transformOrigin: 'center center' }}
-            >
-              {/* Top half — shows old digit before flip */}
-              <div className="flip-card-face flip-card-face-top">
-                <span className="premium-digit">{prevDigit}</span>
-              </div>
-              {/* Bottom half — shows old digit before flip */}
-              <div className="flip-card-face flip-card-face-bottom">
-                <span className="premium-digit">{prevDigit}</span>
-              </div>
-              {/* Back top — shows new digit after flip (180deg) */}
-              <div className="flip-card-face flip-card-face-back flip-card-face-top">
-                <span className="premium-digit">{digit}</span>
-              </div>
-              {/* Back bottom — shows new digit after flip (180deg) */}
-              <div className="flip-card-face flip-card-face-back flip-card-face-bottom">
-                <span className="premium-digit">{digit}</span>
-              </div>
-            </motion.div>
-          ) : (
-            // Static display
-            <motion.div
-              key={digit}
-              className="flip-card"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            >
-              <div className="flip-card-face flip-card-face-top">
-                <span className="premium-digit">{digit}</span>
-              </div>
-              <div className="flip-card-face flip-card-face-bottom">
-                <span className="premium-digit">{digit}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="flip-card">
+          <div className="flip-card-face flip-card-face-top">
+            <span className="premium-digit">{digit}</span>
+          </div>
+          <div className="flip-card-face flip-card-face-bottom">
+            <span className="premium-digit">{digit}</span>
+          </div>
+          <AnimatePresence>
+            {isFlipping && (
+              <>
+                <motion.div
+                  key={`old-${prevDigit}-${digit}`}
+                  className="flip-flap flip-flap-top"
+                  initial={{ rotateX: 0, opacity: 1 }}
+                  animate={{ rotateX: -86, opacity: 0.68 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                >
+                  <span className="premium-digit">{prevDigit}</span>
+                </motion.div>
+                <motion.div
+                  key={`new-${prevDigit}-${digit}`}
+                  className="flip-flap flip-flap-bottom"
+                  initial={{ rotateX: 86, opacity: 0.68 }}
+                  animate={{ rotateX: 0, opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <span className="premium-digit">{digit}</span>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
       {label && <span className="clock-label">{label}</span>}
     </div>
   )
 }
 
-// ─── Colon Component with Soft Glow ───
 function GlowingColon() {
   return (
     <motion.div
       className="premium-colon"
-      animate={{ opacity: [1, 0.3, 1] }}
+      animate={{ opacity: [1, 0.42, 1] }}
       transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
     >
       <div className="premium-colon-dot" />
@@ -115,7 +99,6 @@ function GlowingColon() {
   )
 }
 
-// ─── Bangladesh Flag SVG ───
 function BangladeshFlag() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20">
@@ -125,134 +108,90 @@ function BangladeshFlag() {
   )
 }
 
-// ─── Main Component ───
 export default function LiveTimeHeader() {
   const [now, setNow] = useState<Date>(getBDNow)
   const [mounted, setMounted] = useState(false)
-
-  const prevSecondRef = useRef<string>('00')
-  const prevMinuteRef = useRef<string>('00')
-  const prevHourRef = useRef<string>('00')
+  const previousRef = useRef(formatTime(getBDNow()))
 
   useEffect(() => {
     setMounted(true)
-    const msToNextSec = 1000 - new Date().getMilliseconds()
+    let interval: ReturnType<typeof setInterval> | undefined
     const timeout = setTimeout(() => {
-      const bdNow = getBDNow()
-      setNow(bdNow)
-      const t = formatTime(bdNow)
-      prevHourRef.current = t.hours
-      prevMinuteRef.current = t.minutes
-      prevSecondRef.current = t.seconds
-
-
-      const interval = setInterval(() => {
-        const next = getBDNow()
-        setNow(next)
-      }, 1000)
-      ;(window as any).__clockInterval = interval
-    }, msToNextSec)
+      setNow(getBDNow())
+      interval = setInterval(() => setNow(getBDNow()), 1000)
+    }, 1000 - new Date().getMilliseconds())
 
     return () => {
       clearTimeout(timeout)
-      if ((window as any).__clockInterval) {
-        clearInterval((window as any).__clockInterval)
-      }
+      if (interval) clearInterval(interval)
     }
   }, [])
 
-  // Track previous values for flip detection
-  const prevTickRef = useRef<{ s: string; m: string; h: string }>({ s: '00', m: '00', h: '00' })
+  const previous = previousRef.current
+  const time = useMemo(() => formatTime(now), [now])
 
-  const time = useMemo(() => {
-    const t = formatTime(now)
-    // Update prev references for flip animation
-    prevTickRef.current = {
-      s: prevSecondRef.current,
-      m: prevMinuteRef.current,
-      h: prevHourRef.current,
-    }
-    // Update current refs
-    prevSecondRef.current = t.seconds
-    prevMinuteRef.current = t.minutes
-    prevHourRef.current = t.hours
-    return t
-  }, [now])
+  useEffect(() => {
+    previousRef.current = time
+  }, [time])
 
   const date = useMemo(() => formatDate(now), [now])
   const greeting = useMemo(() => getGreeting(now.getHours()), [now])
   if (!mounted) return null
 
-  const prev = prevTickRef.current
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
       className="live-time-header"
     >
-      {/* Greeting */}
       <motion.div
-        initial={{ opacity: 0, x: -10 }}
+        initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.1, duration: 0.4 }}
+        transition={{ delay: 0.08, duration: 0.32 }}
         className="greeting-row"
       >
         <motion.span
           className="greeting-emoji"
           key={greeting.emoji}
-          initial={{ scale: 0, rotate: -30 }}
+          initial={{ scale: 0.9, rotate: -8 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
         >
           {greeting.emoji}
         </motion.span>
         <span className="greeting-text">{greeting.text}</span>
       </motion.div>
 
-      {/* Digital Clock with 3D Flip */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.15, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ delay: 0.12, duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
         className="clock-row"
       >
-        {/* Hours */}
-        <FlipDigit digit={time.hours.charAt(0)} prevDigit={prev.h.charAt(0)} label="" />
-        <FlipDigit digit={time.hours.charAt(1)} prevDigit={prev.h.charAt(1)} label="" />
-
-        {/* Colon */}
+        <FlipDigit digit={time.hours.charAt(0)} prevDigit={previous.hours.charAt(0)} label="" />
+        <FlipDigit digit={time.hours.charAt(1)} prevDigit={previous.hours.charAt(1)} label="" />
         <GlowingColon />
-
-        {/* Minutes */}
-        <FlipDigit digit={time.minutes.charAt(0)} prevDigit={prev.m.charAt(0)} label="" />
-        <FlipDigit digit={time.minutes.charAt(1)} prevDigit={prev.m.charAt(1)} label="" />
-
-        {/* Colon */}
+        <FlipDigit digit={time.minutes.charAt(0)} prevDigit={previous.minutes.charAt(0)} label="" />
+        <FlipDigit digit={time.minutes.charAt(1)} prevDigit={previous.minutes.charAt(1)} label="" />
         <GlowingColon />
-
-        {/* Seconds */}
-        <FlipDigit digit={time.seconds.charAt(0)} prevDigit={prev.s.charAt(0)} label="" />
-        <FlipDigit digit={time.seconds.charAt(1)} prevDigit={prev.s.charAt(1)} label="" />
-
-        {/* AM/PM Pill */}
+        <FlipDigit digit={time.seconds.charAt(0)} prevDigit={previous.seconds.charAt(0)} label="" />
+        <FlipDigit digit={time.seconds.charAt(1)} prevDigit={previous.seconds.charAt(1)} label="" />
         <motion.span
           className="premium-ampm"
           key={time.ampm}
-          initial={{ opacity: 0, x: -5, scale: 0.9 }}
+          initial={{ opacity: 0, x: -4, scale: 0.95 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
-          transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 20 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 20 }}
         >
           {time.ampm}
         </motion.span>
       </motion.div>
 
-      {/* Date */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.4 }}
+        transition={{ delay: 0.18, duration: 0.32 }}
         className="date-row"
       >
         <span className="date-dayname">{date.dayName}</span>

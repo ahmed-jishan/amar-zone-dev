@@ -26,6 +26,9 @@ export type IntentType =
   | 'check_bmi'
   // Navigation
   | 'navigate'
+  | 'open_quick_transfer'
+  | 'open_notifications'
+  | 'toggle_notifications'
   // System
   | 'greeting'
   | 'help'

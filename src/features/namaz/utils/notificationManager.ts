@@ -44,6 +44,7 @@ export async function schedulePrayerReminder(
     body: minutesBefore > 0 ? `${minutesBefore} minutes remaining` : 'Prayer time has started',
     tag: id,
     at: new Date(fireAt),
+    category: 'prayer',
   });
 
   if (!scheduled) return null;

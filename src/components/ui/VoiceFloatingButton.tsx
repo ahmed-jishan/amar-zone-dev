@@ -364,6 +364,20 @@ export default function VoiceFloatingButton() {
   const haptics = useHaptics()
   const voice = useVoice()
   const [isOpen, setIsOpen] = useState(false)
+  const [buttonOffset, setButtonOffset] = useState(() => {
+    if (typeof window === 'undefined') return { x: 0, y: 0 }
+    try {
+      const saved = window.localStorage.getItem('selfsync-voice-button-offset')
+      if (!saved) return { x: 0, y: 0 }
+      const parsed = JSON.parse(saved) as { x?: number; y?: number }
+      return {
+        x: typeof parsed.x === 'number' ? parsed.x : 0,
+        y: typeof parsed.y === 'number' ? parsed.y : 0,
+      }
+    } catch {
+      return { x: 0, y: 0 }
+    }
+  })
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const prevStateRef = useRef(voice.state)
   const lastHapticTimeRef = useRef(0)
@@ -484,11 +498,24 @@ export default function VoiceFloatingButton() {
       {/* Floating Button */}
       <motion.button
         initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
+        animate={{ scale: 1, opacity: 1, x: buttonOffset.x, y: buttonOffset.y }}
+        drag
+        dragMomentum={false}
+        dragElastic={0.08}
+        onDragEnd={(_, info) => {
+          const next = {
+            x: Math.max(-260, Math.min(24, buttonOffset.x + info.offset.x)),
+            y: Math.max(-80, Math.min(360, buttonOffset.y + info.offset.y)),
+          }
+          setButtonOffset(next)
+          try {
+            window.localStorage.setItem('selfsync-voice-button-offset', JSON.stringify(next))
+          } catch { /* noop */ }
+        }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={handleOpen}
-        className="fixed right-4 z-40 w-11 h-11 rounded-full
+        className="fixed right-4 z-[10020] w-12 h-12 rounded-full
                    shadow-lg flex items-center justify-center
                    border border-white/20 backdrop-blur-xl
                    bg-gradient-to-br from-indigo-600/90 to-violet-600/90
@@ -496,7 +523,8 @@ export default function VoiceFloatingButton() {
                    transition-all duration-300
                    top-20 sm:top-24"
         style={{
-          boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
+          boxShadow: '0 8px 28px rgba(99,102,241,0.32)',
+          touchAction: 'none',
         }}
         aria-label="Open voice assistant"
       >

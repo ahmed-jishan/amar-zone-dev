@@ -25,7 +25,7 @@ import { hashPin } from '@/features/settings/utils/security'
 import CloudSyncCard from '@/components/settings/CloudSyncCard'
 import BackupManagerDialog from '@/components/settings/BackupManagerDialog'
 import QuickTransferDialog from '@/components/sync/QuickTransferDialog'
-import { requestAppNotificationPermission } from '@/lib/native/notifications'
+import { cancelAllAppNotifications, requestAppNotificationPermission } from '@/lib/native/notifications'
 
 const PRIVACY_URL = "https://ahmed-jishan.github.io/selfsync-privacy/";
 
@@ -300,6 +300,30 @@ function getStorageSizeBytes(): number {
   return total / 1024
 }
 
+async function requestMicrophonePermission(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return false
+
+  try {
+    const permissions = navigator.permissions as Permissions | undefined
+    const query = permissions?.query?.bind(permissions)
+    if (query) {
+      try {
+        const status = await query({ name: 'microphone' as PermissionName })
+        if (status.state === 'granted') return true
+        if (status.state === 'denied') return false
+      } catch {
+        // Android WebView support varies; getUserMedia below still opens the native prompt.
+      }
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach((track) => track.stop())
+    return true
+  } catch {
+    return false
+  }
+}
+
 function getGreeting(language: Language): string {
   const hour = new Date().getHours()
   const t = translations[language]
@@ -378,6 +402,12 @@ export default function SettingsPage() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const [showSearch, setShowSearch] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const openQuickTransfer = () => setShowQuickTransfer(true)
+    window.addEventListener('selfsync-open-quick-transfer', openQuickTransfer)
+    return () => window.removeEventListener('selfsync-open-quick-transfer', openQuickTransfer)
+  }, [])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -536,6 +566,7 @@ export default function SettingsPage() {
   const handlePrayerReminderToggle = async (next: boolean) => {
     if (!next) {
       setReminderPrefs(false)
+      update({ notificationCategories: { ...notificationCategories, prayer: false } })
       return
     }
     const permission = await requestAppNotificationPermission()
@@ -543,7 +574,54 @@ export default function SettingsPage() {
       showToast(t.toastNotifBlocked)
       return
     }
+    if (!notificationsEnabled) update({ notificationsEnabled: true })
+    update({ notificationCategories: { ...notificationCategories, prayer: true } })
     setReminderPrefs(true)
+  }
+
+  const handleNotificationsToggle = async (next: boolean) => {
+    if (!next) {
+      update({ notificationsEnabled: false })
+      setReminderPrefs(false)
+      await cancelAllAppNotifications().catch(() => undefined)
+      return
+    }
+
+    const permission = await requestAppNotificationPermission()
+    if (permission !== 'granted') {
+      update({ notificationsEnabled: false })
+      showToast(t.toastNotifBlocked)
+      return
+    }
+    update({ notificationsEnabled: true })
+  }
+
+  const handleNotificationCategoryToggle = async (category: keyof typeof notificationCategories, next: boolean) => {
+    const categories = { ...notificationCategories, [category]: next }
+    update({ notificationCategories: categories })
+    if (!next) {
+      await cancelAllAppNotifications().catch(() => undefined)
+    } else if (!notificationsEnabled) {
+      await handleNotificationsToggle(true)
+    }
+  }
+
+  const handleVoiceToggle = async (next: boolean) => {
+    if (!next) {
+      update({ voiceEnabled: false })
+      showToast(language === 'bn' ? 'ভয়েস কমান্ড বন্ধ হয়েছে' : 'Voice commands disabled')
+      return
+    }
+
+    const granted = await requestMicrophonePermission()
+    if (!granted) {
+      update({ voiceEnabled: false })
+      showToast(language === 'bn' ? 'মাইক্রোফোন পারমিশন দরকার' : 'Microphone permission needed')
+      return
+    }
+
+    update({ voiceEnabled: true })
+    showToast(language === 'bn' ? 'ভয়েস কমান্ড চালু হয়েছে' : 'Voice commands enabled')
   }
 
   // Compute storage
@@ -653,7 +731,7 @@ export default function SettingsPage() {
           </button>
           <button
             className={`st-quick-dock-pill ${notificationsEnabled ? 'st-quick-dock-pill--active' : ''}`}
-            onClick={() => update({ notificationsEnabled: !notificationsEnabled })}
+            onClick={() => { void handleNotificationsToggle(!notificationsEnabled) }}
           >
             <Bell size={14} />
             {t.quickNotifications}
@@ -810,7 +888,7 @@ export default function SettingsPage() {
             label={t.appNotifications}
             sub={t.appNotificationsSub}
             value={notificationsEnabled}
-            onChange={v => update({ notificationsEnabled: v })}
+            onChange={handleNotificationsToggle}
           />
           <div className="st-divider" />
           <RowSwitch
@@ -819,7 +897,7 @@ export default function SettingsPage() {
             label={t.taskAlerts}
             sub={t.taskAlertsSub}
             value={notificationCategories.tasks}
-            onChange={v => update({ notificationCategories: { ...notificationCategories, tasks: v } })}
+            onChange={v => handleNotificationCategoryToggle('tasks', v)}
           />
           <div className="st-divider" />
           <RowSwitch
@@ -828,7 +906,7 @@ export default function SettingsPage() {
             label={t.moneyAlerts}
             sub={t.moneyAlertsSub}
             value={notificationCategories.money}
-            onChange={v => update({ notificationCategories: { ...notificationCategories, money: v } })}
+            onChange={v => handleNotificationCategoryToggle('money', v)}
           />
           <div className="st-divider" />
           <RowSwitch
@@ -882,7 +960,7 @@ export default function SettingsPage() {
             label={t.voiceToggle}
             sub={t.voiceSub}
             value={voiceEnabled}
-            onChange={v => update({ voiceEnabled: v })}
+            onChange={handleVoiceToggle}
           />
         </Section>
 

@@ -8,6 +8,7 @@ import { useNotesStore } from '@/features/notes/store/notesStore'
 import { useHealthStore } from '@/features/health/store/healthStore'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useAI } from '@/lib/ai'
+import SafeRender from '@/components/shared/SafeRender'
 import type { Note } from '@/features/notes/types'
 import type { BMIRecord } from '@/features/health/types'
 import type { Task } from '@/app/(tabs)/tasks/types'
@@ -42,6 +43,28 @@ function isTask(value: unknown): value is Task {
 
 function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
   return Array.isArray(value) ? value.filter(guard) : []
+}
+
+function safeTimestamp(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return Date.now()
+}
+
+function safeIso(value: unknown): string {
+  return new Date(safeTimestamp(value)).toISOString()
+}
+
+function safeLocaleDate(value: unknown): string {
+  return new Date(safeTimestamp(value)).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 const CONTAINER = {
@@ -115,7 +138,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const stats = useMemo(() => ({
     totalNotes: notes.length,
     pinnedNotes: notes.filter((n) => n.pinned).length,
-    recentNotes: notes.filter((n) => Date.now() - n.createdAt < 86400000 * 7).length,
+    recentNotes: notes.filter((n) => Date.now() - safeTimestamp(n.createdAt) < 86400000 * 7).length,
     bmiRecords: healthHistory.length,
     latestBMI: healthHistory[0] ?? null,
     tasksCompletedToday: tasks.filter((t) => {
@@ -133,7 +156,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
         id: `note-${note.id}`,
         icon: note.type === 'text' ? '📄' : note.type === 'link' ? '🔗' : '🔒',
         title: note.title,
-        date: new Date(note.createdAt).toISOString(),
+        date: safeIso(note.createdAt),
         type: 'note',
       })
     })
@@ -141,19 +164,19 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     // Recent completed tasks
     tasks
       .filter((t) => t.completed)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .sort((a, b) => safeTimestamp(b.updatedAt) - safeTimestamp(a.updatedAt))
       .slice(0, 2)
       .forEach((task) => {
         items.push({
           id: `task-${task.id}`,
           icon: '✅',
           title: task.title,
-          date: task.updatedAt,
+          date: safeIso(task.updatedAt),
           type: 'task',
         })
       })
 
-    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4)
+    return items.sort((a, b) => safeTimestamp(b.date) - safeTimestamp(a.date)).slice(0, 4)
   }, [notes, tasks])
 
   const quickActions = [
@@ -187,40 +210,54 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     <motion.div className="space-y-4" variants={CONTAINER} initial="hidden" animate="show">
       {/* Live Time Header — animated clock + date */}
       <motion.div variants={ITEM}>
-        <LiveTimeHeader />
+        <SafeRender name="LiveTimeHeader">
+          <LiveTimeHeader />
+        </SafeRender>
       </motion.div>
 
       {/* Premium Cards Grid */}
       <motion.div variants={ITEM} className="space-y-3.5">
-        <NamazPulseCard />
-        <TodayFocusCard />
-        <MoneyGlanceCard />
+        <SafeRender name="NamazPulseCard">
+          <NamazPulseCard />
+        </SafeRender>
+        <SafeRender name="TodayFocusCard">
+          <TodayFocusCard />
+        </SafeRender>
+        <SafeRender name="MoneyGlanceCard">
+          <MoneyGlanceCard />
+        </SafeRender>
       </motion.div>
 
       {/* ── AI SECTION ───────────────────────────────────────────── */}
       {/* Wellness Score (only show when scores are computed) */}
       {scores && overallScore !== null && (
         <motion.div variants={ITEM}>
-          <AIWellnessScore scores={scores} overallScore={overallScore} />
+          <SafeRender name="AIWellnessScore">
+            <AIWellnessScore scores={scores} overallScore={overallScore} />
+          </SafeRender>
         </motion.div>
       )}
 
       {/* Focus Suggestion */}
       {focusSuggestion && (
         <motion.div variants={ITEM}>
-          <AIFocusCard suggestion={focusSuggestion} overallScore={overallScore} />
+          <SafeRender name="AIFocusCard">
+            <AIFocusCard suggestion={focusSuggestion} overallScore={overallScore} />
+          </SafeRender>
         </motion.div>
       )}
 
       {/* AI Insights */}
       {insights.length > 0 && (
         <motion.div variants={ITEM}>
-          <AIInsightsList
-            insights={insights}
-            onDismiss={dismissInsight}
-            onMarkRead={markInsightRead}
-            unreadCount={unreadCount}
-          />
+          <SafeRender name="AIInsightsList">
+            <AIInsightsList
+              insights={insights}
+              onDismiss={dismissInsight}
+              onMarkRead={markInsightRead}
+              unreadCount={unreadCount}
+            />
+          </SafeRender>
         </motion.div>
       )}
 
@@ -333,12 +370,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                   {item.title}
                 </div>
                 <div className="text-xs text-[var(--hm-muted)]">
-                  {item.type === 'note' ? '📝 Note' : '✅ Task'} · {new Date(item.date).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {item.type === 'note' ? '📝 Note' : '✅ Task'} · {safeLocaleDate(item.date)}
                 </div>
               </div>
             </motion.div>

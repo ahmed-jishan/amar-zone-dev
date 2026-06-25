@@ -40,6 +40,7 @@ const config: CapacitorConfig = {
       androidClientId: googleAndroidClientId,
       serverClientId: googleWebClientId,
       scopes: ['profile', 'email', 'https://www.googleapis.com/auth/drive.appdata'],
+      forceCodeForRefreshToken: true,
     },
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',

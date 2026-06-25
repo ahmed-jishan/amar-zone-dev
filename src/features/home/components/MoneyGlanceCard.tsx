@@ -57,6 +57,9 @@ function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
   return Array.isArray(value) ? value.filter(guard) : []
 }
 
+const EMPTY_SUMMARY = { income: 0, expense: 0, balance: 0 }
+const EMPTY_PULSE = { todaySpent: 0, dailyLimit: 0, percentUsed: 0, status: 'green' as const }
+
 export default function MoneyGlanceCard() {
   const router = useRouter()
   const transactions = useMoneyStore((s) => asArray(s.transactions, isTransaction))
@@ -69,13 +72,27 @@ export default function MoneyGlanceCard() {
     const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0)
     const today = getTodayISO()
     const month = getMonthISO()
-    const pulse = getSpendingPulse()
-    const summary = getMonthSummary(month)
+    const pulse = (() => {
+      try {
+        return getSpendingPulse()
+      } catch (error) {
+        console.warn('[SelfSync] Money pulse recovered:', error)
+        return EMPTY_PULSE
+      }
+    })()
+    const summary = (() => {
+      try {
+        return getMonthSummary(month)
+      } catch (error) {
+        console.warn('[SelfSync] Month summary recovered:', error)
+        return EMPTY_SUMMARY
+      }
+    })()
     const budget = budgets.find((b) => b.month === month)
     const budgetProgress = budget ? Math.min((summary.expense / (budget.salary || 1)) * 100, 100) : 0
     const recentTxn = transactions
       .filter((t) => t.status === 'completed')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] ?? null
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0] ?? null
 
     const pulseConfig = {
       green: { color: '#10b981', label: 'On track', bg: 'rgba(16,185,129,0.1)' },

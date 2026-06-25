@@ -754,12 +754,10 @@ function RippleButton({
   };
 
   return (
-    <motion.button
+    <button
       ref={btnRef}
       onClick={handleClick}
       disabled={disabled}
-      whileTap={{ scale: 0.95 }}
-      transition={{ duration: 0.08 }}
       className={cn(
         "relative overflow-hidden select-none",
         "active:scale-95",
@@ -769,7 +767,7 @@ function RippleButton({
       )}
     >
       {children}
-    </motion.button>
+    </button>
   );
 }
 
@@ -866,6 +864,16 @@ function HistoryPanel({
               <div className="p-5 border-b border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={onClose}
+                      className="p-2 rounded-lg hover:bg-white/10 text-white/70 transition-colors"
+                      title="Close history"
+                      aria-label="Close history"
+                    >
+                      <X className="w-5 h-5" />
+                    </motion.button>
                     <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
                       <History className="w-5 h-5 text-indigo-400" />
                     </div>
@@ -886,14 +894,6 @@ function HistoryPanel({
                         <Trash2 className="w-4 h-4" />
                       </motion.button>
                     )}
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={onClose}
-                      className="p-2 rounded-lg hover:bg-white/10 text-white/60 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </motion.button>
                   </div>
                 </div>
 
@@ -1022,25 +1022,24 @@ function HistoryPanel({
 
 // ─── Main Calculator Component ───────────────────────────────────────────────
 export default function CalculatorModal() {
-  const store = useCalculatorStore();
-  const {
-    isOpen,
-    isMinimized,
-    isScientific,
-    isBinary,
-    position,
-    memory,
-    addHistory,
-    setPosition,
-    minimize,
-    maximize,
-    toggleScientific,
-    toggleBinary,
-    memoryAdd,
-    memorySubtract,
-    memoryClear,
-    setMemory,
-  } = store;
+  const isOpen = useCalculatorStore((s) => s.isOpen);
+  const isMinimized = useCalculatorStore((s) => s.isMinimized);
+  const isScientific = useCalculatorStore((s) => s.isScientific);
+  const isBinary = useCalculatorStore((s) => s.isBinary);
+  const position = useCalculatorStore((s) => s.position);
+  const memory = useCalculatorStore((s) => s.memory);
+  const open = useCalculatorStore((s) => s.open);
+  const close = useCalculatorStore((s) => s.close);
+  const addHistory = useCalculatorStore((s) => s.addHistory);
+  const setPosition = useCalculatorStore((s) => s.setPosition);
+  const minimize = useCalculatorStore((s) => s.minimize);
+  const maximize = useCalculatorStore((s) => s.maximize);
+  const toggleScientific = useCalculatorStore((s) => s.toggleScientific);
+  const toggleBinary = useCalculatorStore((s) => s.toggleBinary);
+  const memoryAdd = useCalculatorStore((s) => s.memoryAdd);
+  const memorySubtract = useCalculatorStore((s) => s.memorySubtract);
+  const memoryClear = useCalculatorStore((s) => s.memoryClear);
+  const setMemory = useCalculatorStore((s) => s.setMemory);
 
   const [display, setDisplay] = useState("0");
   const [expression, setExpression] = useState("");
@@ -1200,7 +1199,7 @@ export default function CalculatorModal() {
 
       if (isBinary) {
         if (key === "Escape") {
-          store.close();
+          close();
           return;
         }
         if (key === "Enter" || key === "=") {
@@ -1233,7 +1232,7 @@ export default function CalculatorModal() {
       }
 
       if (key === "Escape") {
-        store.close();
+        close();
         return;
       }
 
@@ -1292,7 +1291,7 @@ export default function CalculatorModal() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isMinimized, display, expression, isBinary, binaryBase]);
+  }, [isOpen, isMinimized, display, expression, isBinary, binaryBase, close]);
 
   // Save position on drag end
   const handleDragEnd = useCallback(
@@ -1790,7 +1789,7 @@ export default function CalculatorModal() {
           animate={{ scale: 1, opacity: 1 }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => store.open()}
+          onClick={open}
           className="fixed bottom-6 right-6 z-[10010] w-14 h-14 rounded-2xl bg-indigo-500 text-white shadow-xl shadow-indigo-500/30 flex items-center justify-center backdrop-blur-xl border border-indigo-400/20 pointer-events-auto"
           style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
         >
@@ -1908,7 +1907,7 @@ export default function CalculatorModal() {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => store.close()}
+                    onClick={close}
                     className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
                     title="Close"
                   >

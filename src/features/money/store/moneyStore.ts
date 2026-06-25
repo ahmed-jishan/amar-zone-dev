@@ -14,6 +14,10 @@ type MoneyUndoAction =
   | { type: 'updateLoan'; id: string; previous: Partial<Loan> }
   | { type: 'bulkDeleteTxn'; transactions: Transaction[] }
 
+const asArray = <T,>(value: T[] | unknown): T[] => Array.isArray(value) ? value : []
+const safeNumber = (value: unknown, fallback = 0) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
 interface MoneyState {
   transactions: Transaction[]
   loans: Loan[]
@@ -211,17 +215,17 @@ export const useMoneyStore = create<MoneyState>()(
         }),
 
       getMonthSummary: (month) => {
-        const txns = get().transactions.filter((t) => t.date.startsWith(month) && t.status === 'completed')
-        const income = txns.filter((t) => t.type === 'income').reduce((a, t) => a + t.amount, 0)
-        const expense = txns.filter((t) => t.type === 'expense').reduce((a, t) => a + t.amount, 0)
+        const txns = asArray<Transaction>(get().transactions).filter((t) => typeof t.date === 'string' && t.date.startsWith(month) && t.status === 'completed')
+        const income = txns.filter((t) => t.type === 'income').reduce((a, t) => a + safeNumber(t.amount), 0)
+        const expense = txns.filter((t) => t.type === 'expense').reduce((a, t) => a + safeNumber(t.amount), 0)
         return { income, expense, balance: income - expense }
       },
 
       getCategoryBreakdown: (month) => {
-        const txns = get().transactions.filter((t) => t.date.startsWith(month) && t.type === 'expense')
+        const txns = asArray<Transaction>(get().transactions).filter((t) => typeof t.date === 'string' && t.date.startsWith(month) && t.type === 'expense')
         const breakdown: Record<string, number> = {}
         txns.forEach((t) => {
-          breakdown[t.category] = (breakdown[t.category] || 0) + t.amount
+          breakdown[t.category] = (breakdown[t.category] || 0) + safeNumber(t.amount)
         })
         return breakdown
       },
@@ -533,14 +537,14 @@ export const useMoneyStore = create<MoneyState>()(
       getSpendingPulse: () => {
         const s = get()
         const today = todayISO()
-        const todaySpent = s.transactions
+        const todaySpent = asArray<Transaction>(s.transactions)
           .filter((t) => t.type === 'expense' && t.date === today && t.status === 'completed')
-          .reduce((sum, t) => sum + t.amount, 0)
+          .reduce((sum, t) => sum + safeNumber(t.amount), 0)
         const month = today.slice(0, 7)
         const budget = s.getBudgetForMonth(month)
         const daysInMonth = new Date(parseInt(month.slice(0, 4)), parseInt(month.slice(5, 7)), 0).getDate()
         const dayOfMonth = new Date().getDate()
-        const dailyBudget = budget ? budget.salary / daysInMonth : 0
+        const dailyBudget = budget ? safeNumber(budget.salary) / daysInMonth : 0
         const percentUsed = dailyBudget > 0 ? (todaySpent / dailyBudget) * 100 : 0
         const status: 'green' | 'amber' | 'red' = percentUsed < 70 ? 'green' : percentUsed < 100 ? 'amber' : 'red'
         return { todaySpent, dailyBudget, percentUsed, status }

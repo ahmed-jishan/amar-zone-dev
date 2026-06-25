@@ -72,7 +72,7 @@ const PRIORITIES_BN = ['উচ্চ', 'মধ্যম', 'নিম্ন', '�
 const CATEGORIES = ['food', 'transport', 'shopping', 'health', 'education', 'entertainment', 'utilities', 'rent', 'other']
 const CATEGORIES_BN = ['খাবার', 'পরিবহন', 'শপিং', 'স্বাস্থ্য', 'শিক্ষা', 'বিনোদন', 'ইউটিলিটি', 'ভাড়া', 'অন্যান্য']
 
-const NAV_TARGETS = ['tasks', 'namaz', 'prayer', 'money', 'finance', 'home', 'settings', 'analytics']
+const NAV_TARGETS = ['tasks', 'namaz', 'prayer', 'money', 'finance', 'home', 'settings', 'analytics', 'quick transfer', 'notifications']
 const NAV_TARGETS_BN = ['টাস্ক', 'নামাজ', 'মানি', 'হোম', 'সেটিংস', 'অ্যানালিটিক্স']
 
 const DESTRUCTIVE_PATTERNS = [
@@ -160,6 +160,26 @@ export function parseIntent(text: string): ParsedIntent {
 
 function parseEnglish(normalized: string, original: string): ParsedIntent {
   const entities: VoiceEntity = {}
+
+  if (/(open|show|start)\s+(quick\s*)?transfer/i.test(normalized)) {
+    return { intent: 'open_quick_transfer', entities: {}, confidence: 0.95, raw: original, language: 'en', isDestructive: false }
+  }
+
+  if (/(open|show)\s+notifications?/i.test(normalized)) {
+    return { intent: 'open_notifications', entities: {}, confidence: 0.95, raw: original, language: 'en', isDestructive: false }
+  }
+
+  const notificationToggle = normalized.match(/turn\s+(on|off)\s+notifications?/i)
+  if (notificationToggle) {
+    return {
+      intent: 'toggle_notifications',
+      entities: { status: notificationToggle[1] },
+      confidence: 0.95,
+      raw: original,
+      language: 'en',
+      isDestructive: false,
+    }
+  }
 
   // ── Namaz: log prayer ──
   // "log fajr as prayed", "mark dhuhr missed", "fajr prayed", "today fajr done"
@@ -344,6 +364,20 @@ function parseEnglish(normalized: string, original: string): ParsedIntent {
 
 function parseBangla(normalized: string, original: string): ParsedIntent {
   const entities: VoiceEntity = {}
+
+  if (/(quick\s*transfer|à¦•à§à¦‡à¦•\s*à¦Ÿà§à¦°à¦¾à¦¨à§à¦¸à¦«à¦¾à¦°).*(à¦–à§‹à¦²|open|à¦šà¦¾à¦²à§)/i.test(normalized)) {
+    return { intent: 'open_quick_transfer', entities: {}, confidence: 0.95, raw: original, language: 'bn', isDestructive: false }
+  }
+
+  if (/(notification|à¦¨à§‹à¦Ÿà¦¿à¦«à¦¿à¦•à§‡à¦¶à¦¨).*(à¦–à§‹à¦²|à¦¦à§‡à¦–à¦¾à¦“|open)/i.test(normalized)) {
+    return { intent: 'open_notifications', entities: {}, confidence: 0.95, raw: original, language: 'bn', isDestructive: false }
+  }
+
+  const bnNotificationToggle = normalized.match(/(notification|à¦¨à§‹à¦Ÿà¦¿à¦«à¦¿à¦•à§‡à¦¶à¦¨).*(à¦šà¦¾à¦²à§|à¦¬à¦¨à§à¦§|on|off)/i)
+  if (bnNotificationToggle) {
+    const value = /à¦¬à¦¨à§à¦§|off/i.test(bnNotificationToggle[2]) ? 'off' : 'on'
+    return { intent: 'toggle_notifications', entities: { status: value }, confidence: 0.95, raw: original, language: 'bn', isDestructive: false }
+  }
 
   // ── Namaz: log prayer (Bangla) ──
   // "ফজর পড়েছি", "যোহর পড়িনি", "মাগরিব কাজা"

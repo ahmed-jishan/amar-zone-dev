@@ -1,7 +1,8 @@
 node_modules/
 .next/
 out/
-android/
+android/*
+!android/app/debug.keystore
 ios/
 .env*.local
 *.tsbuildinfo

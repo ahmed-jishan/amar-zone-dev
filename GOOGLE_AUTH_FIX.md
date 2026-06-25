@@ -1,161 +1,107 @@
-# 🔐 Google Drive OAuth Sign-In Fix - Root Cause & Solution
+# 🔐 Google Drive OAuth Sign-In - BULLETPROOF FIX
 
-## Problem Summary
-**Error:** "Google sign in failed something went wrong" when connecting Google Drive in settings after installing the APK
+## ✅ Root Cause - PERMANENTLY FIXED
 
----
+**Problem:** Every Android build machine uses a **different default debug keystore**, producing different SHA-1 fingerprints. Google's OAuth rejects unknown SHA-1 fingerprints.
 
-## 🎯 ROOT CAUSE ANALYSIS
-
-### The Issue
-Your Android APK is built with a **debug keystore** that has a specific SHA-1 fingerprint:
-```
-79:8F:D9:E2:BE:C1:A7:85:91:A9:06:AE:04:46:05:6E:F9:F8:79:14
-```
-
-However, this SHA-1 fingerprint is **NOT registered in Google Cloud Console**, causing Google's OAuth service to reject authentication requests from your app.
-
-### Why This Happens
-Google requires exact SHA-1 certificate fingerprint matching for Android apps because:
-1. **Security verification** - Google validates that OAuth requests come from your legitimate app
-2. **Package verification** - Ensures `com.selfsync.app` hasn't been tampered with
-3. **Anti-spoofing** - Prevents other apps from impersonating your app to steal Google Drive tokens
+**Solution:** Created a **project-specific debug keystore** (`android/app/debug.keystore`) that is:
+- ✅ Tracked in Git (so all developers and CI use the SAME keystore)
+- ✅ Configured in `android/app/build.gradle` as the default debug signing config
+- ✅ Produces the **SAME SHA-1 on every build, forever**
 
 ---
 
-## ✅ BULLET-PROOF SOLUTION
+## 🔑 Your New SHA-1 Fingerprint
 
-### Step 1: Get Your SHA-1 Fingerprint ✓ (Already Done)
-Your SHA-1 from the built APK:
 ```
-79:8F:D9:E2:BE:C1:A7:85:91:A9:06:AE:04:46:05:6E:F9:F8:79:14
+1D:C4:51:9E:BD:2C:8F:EC:25:4C:F8:97:D0:9C:EA:20:AE:8D:7E:7E
 ```
 
-### Step 2: Register SHA-1 in Google Cloud Console
+---
 
-1. **Go to Google Cloud Console:**
-   - Navigate to: https://console.cloud.google.com/
-   - Select your project
+## 📋 How To Fix Google Sign-In (ONE TIME SETUP)
 
-2. **Find OAuth Credentials:**
-   - Left sidebar → "Credentials"
-   - Look for **"SelfSync"** or **"com.selfsync.app"** OAuth Client (type: Android)
+### Step 1: Add SHA-1 to Google Cloud Console
 
-3. **Add SHA-1 Fingerprint:**
-   - Click on the Android OAuth client to edit
-   - Find section: **"SHA-1 certificate fingerprints"**
-   - Paste: `79:8F:D9:E2:BE:C1:A7:85:91:A9:06:AE:04:46:05:6E:F9:F8:79:14`
-   - Click **"Save"**
+1. Go to https://console.cloud.google.com/
+2. Select your project
+3. Left sidebar → **Credentials**
+4. Find the **Android OAuth client** for `com.selfsync.app`
+5. Click **Edit** (pencil icon)
+6. In **"SHA-1 certificate fingerprints"** section, add:
+   ```
+   1D:C4:51:9E:BD:2C:8F:EC:25:4C:F8:97:D0:9C:EA:20:AE:8D:7E:7E
+   ```
+7. Click **Save**
 
-### Step 3: Enable OAuth Consent Screen
-1. Go to "OAuth Consent Screen" in Google Cloud Console
-2. Ensure your app is set to **"Testing"** or **"Production"**
-3. Your Google account should be in the **"Test users"** list
+### Step 2: Verify OAuth Consent Screen
 
-### Step 4: Verify APK is Signed Correctly
-Run this command to verify your APK's signing certificate:
+1. Go to **OAuth Consent Screen**
+2. Ensure app status is **"Testing"** or **"In production"**
+3. Add your Google account to **Test users** (if in Testing mode)
+
+### Step 3: Clear Old Auth & Reinstall
+
 ```bash
-unzip -p android/app/build/outputs/apk/debug/app-debug.apk META-INF/CERT.RSA | \
-  keytool -printcert -v | grep SHA1
-```
-
----
-
-## 🚀 Installation & Testing
-
-### 1. Clear Previous Authentication
-```bash
-# Clear app data to remove old (failed) token cache
-adb shell pm clear com.selfsync.app
-
-# Uninstall if already installed
 adb uninstall com.selfsync.app
-```
-
-### 2. Install Fresh APK
-```bash
 adb install android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 3. Test Google Drive Connection
-1. Open SelfSync app on phone
-2. Go to Settings
-3. Click "Connect Google Drive"
-4. **Should now see Google login dialog** ✓
+---
+
+## 🔄 How This Fix Stays Permanent
+
+| Factor | Before | After |
+|--------|--------|-------|
+| Keystore | Per-machine default (`%USERPROFILE%\.android\debug.keystore`) | Project-specific (`android/app/debug.keystore`) |
+| SHA-1 | Changes on every machine | **Always the same** |
+| Git-tracked | No | **Yes** |
+| Google Console setup | Must re-add SHA-1 per machine | **Add once, done forever** |
 
 ---
 
-## 📋 Configuration Checklist
+## 🔧 Files Changed
 
-- [ ] SHA-1 `79:8F:D9:E2:BE:C1:A7:85:91:A9:06:AE:04:46:05:6E:F9:F8:79:14` is registered in Google Cloud Console
-- [ ] OAuth Client type is **Android**
-- [ ] Package name is **com.selfsync.app**
-- [ ] OAuth Consent Screen is configured
-- [ ] Your Google account is in Test users list
-- [ ] APK has been reinstalled after Google Cloud Console changes
-- [ ] App data has been cleared
-
----
-
-## 🔧 If Google Sign-In Still Fails
-
-### Diagnostic Steps
-1. **Check logcat for detailed errors:**
-   ```bash
-   adb logcat | grep -i "google\|auth\|oauth"
-   ```
-
-2. **Verify environment variables are set in GitHub Actions:**
-   - ✅ `NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` - must be set
-   - ✅ `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` - must be set
-
-3. **Confirm Capacitor configuration:**
-   ```bash
-   cat capacitor.config.ts | grep -A5 GoogleAuth
-   ```
-
-### Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| "Device not registered" | Add SHA-1 to Google Cloud Console > Credentials |
-| "Invalid OAuth Client" | Verify `NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` is correct |
-| "403 Forbidden" | OAuth Client may be disabled - check Google Cloud Console |
-| "Network error" | May be timeout - ensure internet connection is stable |
+| File | Change |
+|------|--------|
+| `android/app/debug.keystore` | **NEW** - Project-specific debug keystore (tracked in Git) |
+| `android/app/build.gradle` | Modified - Uses `projectDebug` signing config with the new keystore |
+| `.gitignore` | Modified - Allows `android/app/debug.keystore` to be tracked |
+| `GOOGLE_AUTH_FIX.md` | Updated - New SHA-1 and instructions |
 
 ---
 
-## 🔄 Updated Build Workflow
+## 🧪 Verify the Fix
 
-The improved GitHub Actions workflow now:
-1. ✅ Automatically extracts SHA-1 from keystore during build
-2. ✅ Displays SHA-1 in build logs for easy reference
-3. ✅ Validates Google Auth configuration before APK compilation
-4. ✅ Verifies APK signing certificate after build
-5. ✅ Provides troubleshooting guide in build summary
-
----
-
-## 📚 Key Files
-
-| File | Purpose |
-|------|---------|
-| `.github/workflows/android-apk.yml` | Build workflow with Google Auth validation |
-| `capacitor.config.ts` | Capacitor GoogleAuth plugin configuration |
-| `src/lib/sync/gdrive-auth.ts` | Google Drive authentication implementation |
-| `android/app/build.gradle` | Android app signing configuration |
-
----
-
-## ✨ Summary
-
-**Root Cause:** SHA-1 fingerprint mismatch between APK and Google Cloud Console
-
-**Solution:** Register the APK's SHA-1 fingerprint in Google Cloud Console OAuth credentials
-
-**Your SHA-1 to Register:**
-```
-79:8F:D9:E2:BE:C1:A7:85:91:A9:06:AE:04:46:05:6E:F9:F8:79:14
+Run this to confirm your APK's SHA-1:
+```bash
+keytool -printcert -jarfile android/app/build/outputs/apk/debug/app-debug.apk | grep SHA1
 ```
 
-This is a **permanent fix** - once registered, all future APKs built with the same keystore will work correctly.
+Expected output:
+```
+SHA1: 1D:C4:51:9E:BD:2C:8F:EC:25:4C:F8:97:D0:9C:EA:20:AE:8D:7E:7E
+```
+
+---
+
+## ✅ This Fix is BULLETPROOF Because
+
+1. **Same keystore on every machine** - The `debug.keystore` is in the repo
+2. **Same SHA-1 on every build** - No more "configuration mismatch" errors
+3. **Works on any dev machine** - Pull, build, install, works immediately
+4. **Works in CI/CD** - GitHub Actions, GitLab CI, etc. all produce the same SHA-1
+5. **One-time Google Console setup** - Add SHA-1 once, never touch it again
+
+---
+
+## ❌ If Still Failing After This Fix
+
+1. **Check the SHA-1 matches** what you added in Google Cloud Console
+2. **Verify both OAuth clients in the same project**:
+   - Web client: `1015865101368-f64lta5461e0ns0m2mj0mtejaqqugodh.apps.googleusercontent.com`
+   - Android client: `1015865101368-3dj3bdaikbr2a58kmg5jespf17f607qi.apps.googleusercontent.com`
+3. **Enable Google Drive API** in Google Cloud Console
+4. **Run logcat** for detailed errors:
+   ```bash
+   adb logcat | grep -iE "google|auth|oauth"

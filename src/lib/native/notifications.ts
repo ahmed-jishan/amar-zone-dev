@@ -2,6 +2,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
 export type AppNotificationPermission = NotificationPermission;
 
@@ -92,7 +93,10 @@ export async function scheduleAppNotification(params: {
   body: string;
   at: Date;
   channelId?: string;
+  category?: 'tasks' | 'money' | 'prayer';
 }): Promise<boolean> {
+  if (shouldSuppressNotification(params)) return false;
+
   const permission = await requestAppNotificationPermission();
   if (permission !== 'granted') return false;
 
@@ -127,4 +131,36 @@ export async function cancelAllAppNotifications(): Promise<void> {
   if (pending.notifications.length > 0) {
     await LocalNotifications.cancel({ notifications: pending.notifications.map((item) => ({ id: item.id })) });
   }
+}
+
+function shouldSuppressNotification(params: { tag: string; at: Date; channelId?: string; category?: 'tasks' | 'money' | 'prayer' }) {
+  const settings = useSettingsStore.getState();
+  if (!settings.notificationsEnabled) return true;
+
+  const category = params.category ?? inferNotificationCategory(params.tag, params.channelId);
+  if (category && settings.notificationCategories[category] === false) return true;
+  if (!settings.quietHoursEnabled) return false;
+
+  return isWithinQuietHours(params.at, settings.quietHoursStart, settings.quietHoursEnd);
+}
+
+function inferNotificationCategory(tag: string, channelId?: string): 'tasks' | 'money' | 'prayer' | undefined {
+  if (channelId === 'selfsync_azan' || tag.includes('azan') || tag.includes('prayer')) return 'prayer';
+  if (tag.startsWith('task-')) return 'tasks';
+  if (tag.startsWith('loan-') || tag.startsWith('budget-') || tag.startsWith('goal-') || tag.startsWith('subscription-') || tag.startsWith('recurring-')) return 'money';
+  return undefined;
+}
+
+function isWithinQuietHours(date: Date, startValue: string, endValue: string) {
+  const [startH, startM] = startValue.split(':').map((v) => Number(v));
+  const [endH, endM] = endValue.split(':').map((v) => Number(v));
+  if (Number.isNaN(startH) || Number.isNaN(startM) || Number.isNaN(endH) || Number.isNaN(endM)) return false;
+
+  const start = new Date(date);
+  start.setHours(startH, startM, 0, 0);
+  const end = new Date(date);
+  end.setHours(endH, endM, 0, 0);
+  if (start.getTime() === end.getTime()) return true;
+  if (start < end) return date >= start && date <= end;
+  return date >= start || date <= end;
 }

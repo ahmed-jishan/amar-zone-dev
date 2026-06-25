@@ -8,6 +8,8 @@ import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { formatCurrency, getCurrentMonth } from '@/features/money/utils'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { useTaskStore } from '@/lib/store/taskStore'
+import type { Loan, MonthlyBudget, SavingsGoal, Subscription, Transaction } from '@/lib/types'
+import type { Task } from '@/app/(tabs)/tasks/types'
 import {
   cancelAllAppNotifications,
   ensureNotificationChannels,
@@ -35,8 +37,55 @@ const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(),
 
 const daysUntil = (dateString?: string) => {
   if (!dateString) return Number.POSITIVE_INFINITY
-  return Math.ceil((startOfDay(new Date(dateString)).getTime() - startOfDay(new Date()).getTime()) / DAY_MS)
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return Number.POSITIVE_INFINITY
+  return Math.ceil((startOfDay(date).getTime() - startOfDay(new Date()).getTime()) / DAY_MS)
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object'
+
+const isTask = (value: unknown): value is Task =>
+  isRecord(value) &&
+  typeof value.id === 'string' &&
+  typeof value.title === 'string' &&
+  typeof value.completed === 'boolean' &&
+  Array.isArray(value.reminders)
+
+const isTransaction = (value: unknown): value is Transaction =>
+  isRecord(value) &&
+  typeof value.id === 'string' &&
+  typeof value.amount === 'number' &&
+  typeof value.type === 'string' &&
+  typeof value.category === 'string'
+
+const isLoan = (value: unknown): value is Loan =>
+  isRecord(value) &&
+  typeof value.id === 'string' &&
+  typeof value.personName === 'string' &&
+  typeof value.currentBalance === 'number'
+
+const isMonthlyBudget = (value: unknown): value is MonthlyBudget =>
+  isRecord(value) &&
+  typeof value.month === 'string' &&
+  isRecord(value.budgets)
+
+const isSavingsGoal = (value: unknown): value is SavingsGoal =>
+  isRecord(value) &&
+  typeof value.id === 'string' &&
+  typeof value.title === 'string' &&
+  typeof value.targetAmount === 'number' &&
+  typeof value.currentAmount === 'number'
+
+const isSubscription = (value: unknown): value is Subscription =>
+  isRecord(value) &&
+  typeof value.id === 'string' &&
+  typeof value.name === 'string' &&
+  typeof value.amount === 'number' &&
+  typeof value.status === 'string' &&
+  typeof value.nextBillingDate === 'string'
+
+const asArray = <T,>(value: unknown, guard: (item: unknown) => item is T): T[] =>
+  Array.isArray(value) ? value.filter(guard) : []
 
 const readFiredAlerts = (): Record<string, string> => {
   if (typeof window === 'undefined') return {}
@@ -54,13 +103,13 @@ const markAlertFired = (id: string) => {
 }
 
 export default function NotificationCenter() {
-  const tasks = useTaskStore((s) => s.tasks)
+  const tasks = useTaskStore((s) => asArray(s.tasks, isTask))
   const markReminderTriggered = useTaskStore((s) => s.markReminderTriggered)
-  const transactions = useMoneyStore((s) => s.transactions)
-  const loans = useMoneyStore((s) => s.loans)
-  const budgets = useMoneyStore((s) => s.budgets)
-  const savingsGoals = useMoneyStore((s) => s.savingsGoals)
-  const subscriptions = useMoneyStore((s) => s.subscriptions)
+  const transactions = useMoneyStore((s) => asArray(s.transactions, isTransaction))
+  const loans = useMoneyStore((s) => asArray(s.loans, isLoan))
+  const budgets = useMoneyStore((s) => asArray(s.budgets, isMonthlyBudget))
+  const savingsGoals = useMoneyStore((s) => asArray(s.savingsGoals, isSavingsGoal))
+  const subscriptions = useMoneyStore((s) => asArray(s.subscriptions, isSubscription))
   const getCategoryBreakdown = useMoneyStore((s) => s.getCategoryBreakdown)
   const {
     currency_symbol,
@@ -83,11 +132,24 @@ export default function NotificationCenter() {
     loadPermission()
   }, [])
 
+  useEffect(() => {
+    const openNotifications = () => setOpen(true)
+    window.addEventListener('selfsync-open-notifications', openNotifications)
+    return () => window.removeEventListener('selfsync-open-notifications', openNotifications)
+  }, [])
+
   const alerts = useMemo<AppAlert[]>(() => {
     const now = Date.now()
     const month = getCurrentMonth()
     const currentBudget = budgets.find((budget) => budget.month === month)
-    const categorySpend = getCategoryBreakdown(month)
+    const categorySpend = (() => {
+      try {
+        return getCategoryBreakdown(month)
+      } catch (error) {
+        console.warn('[SelfSync] Category breakdown recovered:', error)
+        return {} as Record<string, number>
+      }
+    })()
     const tasksEnabled = notificationCategories.tasks
     const moneyEnabled = notificationCategories.money
     const taskAlerts = tasks
@@ -313,7 +375,7 @@ export default function NotificationCenter() {
             {!notificationsEnabled && (
               <button
                 type="button"
-                onClick={() => update({ notificationsEnabled: true })}
+                onClick={requestPermission}
                 className="flex w-full items-center justify-between rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-3 text-left text-sm font-semibold text-amber-300"
               >
                 App notifications are off

@@ -163,6 +163,7 @@
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1);
   box-shadow: var(--hm-shadow-soft);
+  transform: translateZ(0);
 }
 
 .hm-action-btn:hover {
@@ -377,6 +378,7 @@
   transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
 }
 
 .hm-glass-card::before {
@@ -483,6 +485,7 @@
   flex-direction: column;
   align-items: center;
   margin: 0 1px;
+  contain: layout paint;
 }
 
 .flip-card {
@@ -496,6 +499,8 @@
     0 2px 8px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
   overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .flip-card::after {
@@ -523,6 +528,41 @@
   -webkit-backface-visibility: hidden;
   overflow: hidden;
   border-radius: 10px;
+}
+
+.flip-flap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--hm-surface-strong);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  z-index: 6;
+}
+
+.flip-flap-top {
+  top: 0;
+  align-items: flex-start;
+  transform-origin: bottom center;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.08);
+}
+
+.flip-flap-bottom {
+  bottom: 0;
+  align-items: flex-end;
+  transform-origin: top center;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  box-shadow: 0 -8px 14px rgba(0, 0, 0, 0.06);
 }
 
 .flip-card-face-top {
@@ -575,6 +615,14 @@
   padding: 0 2px;
 }
 
+.flip-flap-top .premium-digit {
+  transform: translateY(0);
+}
+
+.flip-flap-bottom .premium-digit {
+  transform: translateY(-28px);
+}
+
 /* ─── Colon — Clean Minimal ─── */
 .premium-colon {
   font-family: 'SF Pro Display', 'Inter Display', 'Plus Jakarta Sans', monospace;
@@ -588,6 +636,81 @@
   justify-content: center;
   width: 14px;
   opacity: 0.7;
+}
+
+.flip-card,
+.flip-flap {
+  transform-style: flat;
+}
+
+.premium-digit {
+  width: 36px;
+  min-width: 36px;
+  height: 56px;
+  padding: 0;
+  line-height: 56px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.flip-card-face .premium-digit {
+  transform: translateY(0);
+}
+
+.flip-flap-bottom .premium-digit {
+  transform: translateY(-28px);
+}
+
+.hm-tab-panels {
+  position: relative;
+}
+
+.hm-tab-panel {
+  width: 100%;
+  opacity: 0;
+  transform: translate3d(0, 8px, 0);
+  pointer-events: none;
+  transition:
+    opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hm-tab-panel--active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  pointer-events: auto;
+}
+
+.hm-tab-panel--hidden {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .hm-glass-card,
+  .hm-action-btn,
+  .next-task-card,
+  .next-prayer-banner {
+    transition-duration: 140ms;
+  }
+
+  .hm-glass-card {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--hm-shadow-soft);
+  }
+
+  .hm-glass-card:hover,
+  .hm-action-btn:hover {
+    transform: none;
+  }
+
+  .flip-card-container {
+    perspective: 420px;
+  }
+
+  .greeting-emoji {
+    animation: none;
+  }
 }
 
 .premium-colon-dot {

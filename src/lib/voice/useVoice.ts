@@ -39,6 +39,7 @@ const ROUTE_MAP: Record<string, string> = {
   'navigate_money': '/money',
   'navigate_namaz': '/namaz',
   'navigate_settings': '/settings',
+  'open_quick_transfer': '/settings',
   'navigate_products': '/products',
   'navigate_offers': '/offers',
   'navigate_checkout': '/checkout',
@@ -91,6 +92,17 @@ export function useVoice(): VoiceAPI {
   // ─── Navigation Helper ──────────────────────────────────────────────────
   const navigateTo = useCallback((action: string) => {
     const router = routerRef.current
+    if (action === 'open_quick_transfer') {
+      router.push('/settings')
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('selfsync-open-quick-transfer'))
+      }, 250)
+      return
+    }
+    if (action === 'open_notifications') {
+      window.dispatchEvent(new CustomEvent('selfsync-open-notifications'))
+      return
+    }
     const route = ROUTE_MAP[action] || '/'
     try {
       router.push(route)

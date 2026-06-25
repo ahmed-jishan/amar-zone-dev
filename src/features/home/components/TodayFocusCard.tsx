@@ -33,12 +33,18 @@ function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
   return Array.isArray(value) ? value.filter(guard) : []
 }
 
+function safeDateMs(value: unknown): number {
+  if (typeof value !== 'string') return Number.POSITIVE_INFINITY
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY
+}
+
 function getTodayTasks(tasks: Task[]): Task[] {
   const today = new Date().toISOString().split('T')[0]
   return tasks.filter(
     (t) =>
       t.status !== 'archived' &&
-      (t.dueDate === today || t.status === 'today' || t.createdAt.startsWith(today))
+      (t.dueDate === today || t.status === 'today' || (typeof t.createdAt === 'string' && t.createdAt.startsWith(today)))
   )
 }
 
@@ -49,7 +55,7 @@ function getNextPriorityTask(tasks: Task[]): Task | null {
     .sort((a, b) => {
       const pDiff = (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99)
       if (pDiff !== 0) return pDiff
-      if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      if (a.dueDate && b.dueDate) return safeDateMs(a.dueDate) - safeDateMs(b.dueDate)
       if (a.dueDate) return -1
       if (b.dueDate) return 1
       return 0
@@ -69,7 +75,7 @@ export default function TodayFocusCard() {
     const nextTask = getNextPriorityTask(tasks)
     const totalActive = tasks.filter((t) => !t.completed && t.status !== 'archived').length
     const overdueCount = tasks.filter(
-      (t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'archived'
+      (t) => !t.completed && t.dueDate && safeDateMs(t.dueDate) < Date.now() && t.status !== 'archived'
     ).length
     return { total, completed, progress, nextTask, totalActive, overdueCount }
   }, [tasks, focusedTask])
@@ -149,7 +155,7 @@ export default function TodayFocusCard() {
           <div className="next-task-title">{stats.nextTask.title}</div>
           {stats.nextTask.dueDate && (
             <div className="next-task-due">
-              Due {new Date(stats.nextTask.dueDate).toLocaleDateString('en-BD', {
+              Due {new Date(safeDateMs(stats.nextTask.dueDate)).toLocaleDateString('en-BD', {
                 month: 'short',
                 day: 'numeric',
               })}

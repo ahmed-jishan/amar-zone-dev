@@ -1186,6 +1186,8 @@ body {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   isolation: isolate;
+  touch-action: manipulation;
+  transform: translateZ(0);
 }
 .ripple-btn::after {
   content: '';
@@ -1208,4 +1210,14 @@ body {
 .ripple-btn:active::after {
   opacity: 0.25;
   transition: opacity 0s;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .ripple-btn::after {
+    background: radial-gradient(circle 64px at var(--rx, 50%) var(--ry, 50%), rgba(255,255,255,0.16) 0%, transparent 100%);
+  }
+
+  .ripple-btn.ripple-anim::after {
+    animation-duration: 0.32s;
+  }
 }
