@@ -364,21 +364,45 @@ export default function VoiceFloatingButton() {
   const haptics = useHaptics()
   const voice = useVoice()
   const [isOpen, setIsOpen] = useState(false)
-  const [buttonOffset, setButtonOffset] = useState(() => {
-    if (typeof window === 'undefined') return { x: 0, y: 0 }
+  const [mounted, setMounted] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [buttonOffset, setButtonOffset] = useState({ x: 0, y: 0 })
+
+  // Hydration guard — prevents SSR/CSR mismatch by suppressing render until client mount.
+  useEffect(() => {
+    const getIsMobile = () => window.matchMedia('(max-width: 640px)').matches
+    const syncViewport = () => {
+      const nextIsMobile = getIsMobile()
+      setIsMobileViewport(nextIsMobile)
+      if (nextIsMobile) {
+        setButtonOffset({ x: 0, y: 0 })
+      }
+    }
+
+    setMounted(true)
+    syncViewport()
+
+    // Restore saved drag offset from localStorage on desktop only.
     try {
       const saved = window.localStorage.getItem('selfsync-voice-button-offset')
-      if (!saved) return { x: 0, y: 0 }
-      const parsed = JSON.parse(saved) as { x?: number; y?: number }
-      return {
-        x: typeof parsed.x === 'number' ? parsed.x : 0,
-        y: typeof parsed.y === 'number' ? parsed.y : 0,
+      if (saved && !getIsMobile()) {
+        const parsed = JSON.parse(saved) as { x?: number; y?: number }
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          setButtonOffset({
+            x: Math.max(-260, Math.min(24, parsed.x)),
+            y: Math.max(-80, Math.min(20, parsed.y)),
+          })
+        }
       }
-    } catch {
-      return { x: 0, y: 0 }
+    } catch { /* noop */ }
+
+    window.addEventListener('resize', syncViewport)
+    window.addEventListener('orientationchange', syncViewport)
+    return () => {
+      window.removeEventListener('resize', syncViewport)
+      window.removeEventListener('orientationchange', syncViewport)
     }
-  })
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  }, [])
   const prevStateRef = useRef(voice.state)
   const lastHapticTimeRef = useRef(0)
 
@@ -491,21 +515,35 @@ export default function VoiceFloatingButton() {
     }
   }
 
+  // ─── SSR HYDRATION GUARD ──────────────────────────────────────────────
+  // Always render null during SSR to prevent hydration mismatch.
+  // The button only renders after client mount + hydration is complete.
+  // Once mounted, the voice floating icon is ALWAYS visible — no toggle needed.
+  if (!mounted) return null
   if (!voice.isVoiceEnabled) return null
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button — top-right, below notification icon */}
       <motion.button
+        key="voice-floating-btn"
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1, x: buttonOffset.x, y: buttonOffset.y }}
         drag
         dragMomentum={false}
         dragElastic={0.08}
         onDragEnd={(_, info) => {
+          if (isMobileViewport) {
+            setButtonOffset({ x: 0, y: 0 })
+            try {
+              window.localStorage.removeItem('selfsync-voice-button-offset')
+            } catch { /* noop */ }
+            return
+          }
+
           const next = {
             x: Math.max(-260, Math.min(24, buttonOffset.x + info.offset.x)),
-            y: Math.max(-80, Math.min(360, buttonOffset.y + info.offset.y)),
+            y: Math.max(-80, Math.min(20, buttonOffset.y + info.offset.y)),
           }
           setButtonOffset(next)
           try {
@@ -515,14 +553,22 @@ export default function VoiceFloatingButton() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={handleOpen}
-        className="fixed right-4 z-[10020] w-12 h-12 rounded-full
+        className="fixed z-[10020] w-12 h-12 rounded-full
                    shadow-lg flex items-center justify-center
                    border border-white/20 backdrop-blur-xl
                    bg-gradient-to-br from-indigo-600/90 to-violet-600/90
                    hover:from-indigo-500 hover:to-violet-500
-                   transition-all duration-300
-                   top-20 sm:top-24"
+                   transition-all duration-300"
         style={{
+          // TOP-RIGHT: Below notification bell icon (fixed right-4 top-4, 48px)
+          // Notification is at top-4 (16px), 48px tall, so this goes at top-[72px] with 8px gap
+          top: isMobileViewport
+            ? 'auto'
+            : 'max(8px, calc(env(safe-area-inset-top, 0px) + 16px + 48px + 8px))',
+          bottom: isMobileViewport
+            ? 'calc(env(safe-area-inset-bottom, 0px) + 104px)'
+            : 'auto',
+          right: 'max(8px, calc(env(safe-area-inset-right, 0px) + 16px))',
           boxShadow: '0 8px 28px rgba(99,102,241,0.32)',
           touchAction: 'none',
         }}

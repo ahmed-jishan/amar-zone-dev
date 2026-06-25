@@ -40,9 +40,16 @@ export default function TabsShell({
   if (!mounted) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-          {children}
-        </main>
+        <main
+          aria-hidden="true"
+          suppressHydrationWarning
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
+            background: 'transparent',
+          }}
+        />
       </div>
     )
   }
