@@ -73,9 +73,9 @@ type TransferMessage =
   | TransferAbortMessage
 
 const CHUNK_SIZE = 48_000
-const ACK_TIMEOUT_MS = 2500
-const MAX_RETRIES = 5
-const TRANSFER_TIMEOUT_MS = 45_000
+const ACK_TIMEOUT_MS = 5000
+const MAX_RETRIES = 8
+const TRANSFER_TIMEOUT_MS = 120_000
 const PROTOCOL_VERSION = 2
 
 export function createSenderPeer(
@@ -85,7 +85,18 @@ export function createSenderPeer(
   return new Promise((resolve, reject) => {
     onStateChange('creating-peer')
 
-    const peer = new Peer('', { debug: 0 })
+    const peer = new Peer('', {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+        ],
+      },
+    })
 
     let connectionResolve: (conn: DataConnection) => void = () => undefined
     const whenConnected = new Promise<DataConnection>((resolveConnection) => {
@@ -333,9 +344,25 @@ export function createReceiverConnection(
   return new Promise((resolve, reject) => {
     onStateChange('creating-peer')
 
-    const peer = new Peer('', { debug: 0 })
+    const peer = new Peer('', {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+        ],
+      },
+    })
 
-    peer.on('open', () => {
+    let attemptCount = 0
+    const MAX_ATTEMPTS = 3
+    const INITIAL_TIMEOUT_MS = 30_000
+
+    function attemptConnect() {
+      attemptCount++
       onStateChange('connecting')
 
       const conn = peer.connect(peerId, {
@@ -344,22 +371,41 @@ export function createReceiverConnection(
       })
 
       const timeout = setTimeout(() => {
-        onStateChange('failed')
-        reject(new Error('Connection timed out. Make sure both devices are online, then retry.'))
-      }, 15000)
+        conn.off('open', onOpen)
+        conn.off('error', onConnError)
+        if (attemptCount < MAX_ATTEMPTS) {
+          onStateChange('connecting')
+          setTimeout(attemptConnect, 1000 * attemptCount)
+        } else {
+          onStateChange('failed')
+          reject(new Error('Connection timed out. Make sure both devices are on the same network and try again.'))
+        }
+      }, INITIAL_TIMEOUT_MS * attemptCount)
 
-      conn.on('open', () => {
+      function onOpen() {
         clearTimeout(timeout)
         onStateChange('connected')
         resolve(conn)
-      })
+      }
 
-      conn.on('error', (err) => {
+      function onConnError(err: Error) {
         clearTimeout(timeout)
-        onError(err.message || 'Connection failed')
-        onStateChange('failed')
-        reject(err)
-      })
+        if (attemptCount < MAX_ATTEMPTS) {
+          onStateChange('connecting')
+          setTimeout(attemptConnect, 1000 * attemptCount)
+        } else {
+          onError(err.message || 'Connection failed after multiple attempts')
+          onStateChange('failed')
+          reject(err)
+        }
+      }
+
+      conn.on('open', onOpen)
+      conn.on('error', onConnError)
+    }
+
+    peer.on('open', () => {
+      attemptConnect()
     })
 
     peer.on('error', (err) => {
@@ -393,7 +439,7 @@ function waitForAck(index: number, pendingAcks: Map<number, () => void>): Promis
   })
 }
 
-function waitForConnectionOpen(conn: DataConnection, timeoutMs = 10000): Promise<void> {
+function waitForConnectionOpen(conn: DataConnection, timeoutMs = 30000): Promise<void> {
   if (conn.open) return Promise.resolve()
 
   return new Promise((resolve, reject) => {

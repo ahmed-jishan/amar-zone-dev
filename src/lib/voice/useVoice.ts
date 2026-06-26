@@ -79,9 +79,70 @@ export function useVoice(): VoiceAPI {
   // Transcript tracking - MUST update ref immediately for VAD/transcript callbacks
   const latestTranscriptRef = useRef('')
   const currentAudioStreamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const meterFrameRef = useRef<number | null>(null)
 
   const isVoiceEnabled = useSettingsStore((s) => s.voiceEnabled)
   const language = useSettingsStore((s) => s.language) as VoiceLanguage
+
+  const stopAudioMeter = useCallback(() => {
+    if (meterFrameRef.current !== null) {
+      cancelAnimationFrame(meterFrameRef.current)
+      meterFrameRef.current = null
+    }
+
+    analyserRef.current = null
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => undefined)
+      audioContextRef.current = null
+    }
+
+    setAudioLevel(0)
+  }, [])
+
+  const startAudioMeter = useCallback((stream: MediaStream) => {
+    if (typeof window === 'undefined') return
+
+    stopAudioMeter()
+
+    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContextCtor) return
+
+    try {
+      const audioContext = new AudioContextCtor()
+      const source = audioContext.createMediaStreamSource(stream)
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 512
+      analyser.smoothingTimeConstant = 0.72
+      source.connect(analyser)
+
+      const samples = new Uint8Array(analyser.fftSize)
+      audioContextRef.current = audioContext
+      analyserRef.current = analyser
+
+      const tick = () => {
+        if (!analyserRef.current || !mountedRef.current) return
+
+        analyserRef.current.getByteTimeDomainData(samples)
+        let sum = 0
+        for (let i = 0; i < samples.length; i++) {
+          const value = (samples[i] - 128) / 128
+          sum += value * value
+        }
+
+        const rms = Math.sqrt(sum / samples.length)
+        const normalized = Math.min(1, Math.max(0, rms * 5.5))
+        setAudioLevel((previous) => previous * 0.52 + normalized * 0.48)
+        meterFrameRef.current = requestAnimationFrame(tick)
+      }
+
+      meterFrameRef.current = requestAnimationFrame(tick)
+    } catch {
+      stopAudioMeter()
+    }
+  }, [stopAudioMeter])
 
   // Check if Groq is configured
   const [isAiEnabled] = useState(() => {
@@ -219,13 +280,14 @@ export function useVoice(): VoiceAPI {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         currentAudioStreamRef.current = stream
       }
+      startAudioMeter(currentAudioStreamRef.current)
     } catch {
       // Audio level visualization not available - still works without it
     }
 
     // Start speech recognition
     listenerRef.current.start()
-  }, [isVoiceEnabled])
+  }, [isVoiceEnabled, startAudioMeter])
 
   // ─── Stop Listening ─────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
@@ -239,12 +301,13 @@ export function useVoice(): VoiceAPI {
       currentAudioStreamRef.current.getTracks().forEach(t => t.stop())
       currentAudioStreamRef.current = null
     }
+    stopAudioMeter()
     
     isProcessingRef.current = false
     setState('idle')
     setHasDetectedSpeech(false)
     setAudioLevel(0)
-  }, [])
+  }, [stopAudioMeter])
 
   // ─── Toggle ─────────────────────────────────────────────────────────────
   const toggleListening = useCallback(() => {
@@ -340,6 +403,7 @@ export function useVoice(): VoiceAPI {
         currentAudioStreamRef.current.getTracks().forEach(t => t.stop())
         currentAudioStreamRef.current = null
       }
+      stopAudioMeter()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount - services don't need to be recreated

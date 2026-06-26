@@ -3,9 +3,9 @@
 export type TransactionType = 'income' | 'expense'
 export type ExpenseCategory =
   | 'food' | 'transport' | 'utilities' | 'health'
-  | 'education' | 'entertainment' | 'shopping' | 'rent' | 'other'
+  | 'education' | 'entertainment' | 'shopping' | 'rent' | 'transfer' | 'adjustment' | 'other'
 
-export type IncomeCategory = 'salary' | 'freelance' | 'investment' | 'gift' | 'other-income'
+export type IncomeCategory = 'salary' | 'freelance' | 'investment' | 'gift' | 'transfer' | 'adjustment' | 'other-income'
 
 export type TransactionStatus = 'completed' | 'pending' | 'cancelled'
 
@@ -52,6 +52,7 @@ export interface Loan {
   interestRate?: number // annual %
   entries: LoanEntry[]
   reminderEnabled: boolean
+  walletId?: string // ✅ Track which wallet the loan money is in
 }
 
 export interface MonthlyBudget {
@@ -69,6 +70,7 @@ export interface SavingsGoal {
   createdAt: string
   category?: string
   color?: string
+  walletId?: string // ✅ Track which wallet contributions come from
 }
 
 export interface Wallet {

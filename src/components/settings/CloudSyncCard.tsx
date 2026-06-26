@@ -56,8 +56,14 @@ export default function CloudSyncCard() {
 
   const disconnect = async () => {
     setConnecting(true)
+    setError('')
     try {
+      settings.disconnectGDrive()
+      setStatus('offline')
       await gdriveAuth.disconnect()
+    } catch (err) {
+      console.warn('Google Drive disconnect cleanup failed:', err)
+      setError('Google Drive was disconnected on this device. Some Google session cleanup may finish after reconnect.')
       settings.disconnectGDrive()
       setStatus('offline')
     } finally {

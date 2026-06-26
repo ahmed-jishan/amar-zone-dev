@@ -14,6 +14,8 @@ export const CATEGORY_META: Record<string, {
   shopping: { icon: '🛍️', color: '#f97316', bg: '#f9731615', labelEn: 'Shopping', labelBn: 'কেনাকাটা' },
   rent: { icon: '🏠', color: '#06b6d4', bg: '#06b6d415', labelEn: 'Rent', labelBn: 'ভাড়া' },
   other: { icon: '📦', color: '#6b7280', bg: '#6b728015', labelEn: 'Other', labelBn: 'অন্যান্য' },
+  transfer: { icon: '🔄', color: '#6366f1', bg: '#6366f115', labelEn: 'Transfer', labelBn: 'স্থানান্তর' },
+  adjustment: { icon: '⚖️', color: '#f59e0b', bg: '#f59e0b15', labelEn: 'Adjustment', labelBn: 'সমন্বয়' },
   salary: { icon: '💰', color: '#22c55e', bg: '#22c55e15', labelEn: 'Salary', labelBn: 'বেতন' },
   freelance: { icon: '💻', color: '#6366f1', bg: '#6366f115', labelEn: 'Freelance', labelBn: 'ফ্রিল্যান্স' },
   investment: { icon: '📈', color: '#10b981', bg: '#10b98115', labelEn: 'Investment', labelBn: 'বিনিয়োগ' },
@@ -23,11 +25,11 @@ export const CATEGORY_META: Record<string, {
 
 export const EXPENSE_CATEGORIES = [
   'food', 'transport', 'utilities', 'health',
-  'education', 'entertainment', 'shopping', 'rent', 'other',
+  'education', 'entertainment', 'shopping', 'rent', 'transfer', 'adjustment', 'other',
 ] as const
 
 export const INCOME_CATEGORIES = [
-  'salary', 'freelance', 'investment', 'gift', 'other-income',
+  'salary', 'freelance', 'investment', 'gift', 'transfer', 'adjustment', 'other-income',
 ] as const
 
 export const WALLET_TYPES = [

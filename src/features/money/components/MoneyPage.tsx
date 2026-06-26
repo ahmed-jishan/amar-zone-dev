@@ -37,6 +37,7 @@ import SpendingPulse from './SpendingPulse'
 import QuickTransactionWidget from './QuickTransactionWidget'
 import CategoryLimits from './CategoryLimits'
 import RecurringManager from './RecurringManager'
+import NetWorthCard from './NetWorthCard'
 import MoneySkeleton from './SkeletonLoader'
 
 type TabKey = 'overview' | 'transactions' | 'budget' | 'bills' | 'goals' | 'loans' | 'analytics'
@@ -480,7 +481,16 @@ export default function MoneyPage() {
           </div>
         </div>
 
-        {/* ── PRIORITY 4: Wallets ── */}
+        {/* ── PRIORITY 4: Premium Net Worth / Savings / Loans Summary ── */}
+        <NetWorthCard
+          wallets={wallets}
+          savingsGoals={savingsGoals}
+          loans={loans}
+          assets={store.assets}
+          currencySymbol={currency_symbol}
+        />
+
+        {/* ── PRIORITY 5: Wallets ── */}
         <WalletStrip
           wallets={wallets}
           selectedWalletId={store.selectedWalletId}
@@ -489,7 +499,7 @@ export default function MoneyPage() {
           onOpenTools={() => setShowWalletTools(true)}
         />
 
-        {/* ── PRIORITY 5: Daily Brief + Spending Pulse ── */}
+        {/* ── PRIORITY 6: Daily Brief + Spending Pulse ── */}
         <DailyBrief
           tasks={tasks}
           transactions={transactions}

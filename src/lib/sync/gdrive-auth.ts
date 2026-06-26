@@ -107,23 +107,16 @@ export class GDriveAuth {
 
   async disconnect(): Promise<void> {
     const token = this.readToken()
-    if (this.isNativeAndroid()) {
-      try {
-        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
-        if (typeof GoogleAuth.signOut === 'function') await GoogleAuth.signOut()
-      } catch (error) {
-        console.warn('Native Google sign-out failed:', error)
-      }
-    }
-    if (token?.accessToken && typeof window !== 'undefined') {
+
+    this.clearStoredAuth()
+
+    if (!this.isNativeAndroid() && token?.accessToken && typeof window !== 'undefined') {
       try {
         window.google?.accounts?.oauth2?.revoke(token.accessToken, () => undefined)
       } catch (error) {
         console.warn('Token revoke failed:', error)
       }
     }
-    localStorage.removeItem(TOKEN_KEY)
-    this.tokenClient = null
   }
 
   isConnected(): boolean {
@@ -420,14 +413,6 @@ export class GDriveAuth {
       this.nativeInitialized = true
     }
 
-    if (!silent && typeof GoogleAuth.signOut === 'function') {
-      try {
-        await GoogleAuth.signOut()
-      } catch {
-        // Fresh sign-in should still continue even if no prior session exists.
-      }
-    }
-
     // Handle silent refresh if requested
     if (silent && typeof GoogleAuth.refresh === 'function') {
       try {
@@ -701,6 +686,17 @@ export class GDriveAuth {
     } catch (error) {
       console.warn('Error clearing backup file id from storage:', error)
     }
+  }
+
+  private clearStoredAuth(): void {
+    try {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(BACKUP_FILE_ID_KEY)
+    } catch (error) {
+      console.warn('Error clearing Google Drive auth state:', error)
+    }
+    this.tokenClient = null
+    this.nativeInitialized = false
   }
 
   private saveToken(token: TokenState): void {

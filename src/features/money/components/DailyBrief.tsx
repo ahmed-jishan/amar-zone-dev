@@ -3,7 +3,7 @@
 import type { Loan, MonthlyBudget, Subscription, Transaction } from '@/lib/types'
 import type { Task } from '@/app/(tabs)/tasks/types'
 import { formatCurrency, todayISO } from '../utils'
-import { useMoneyStore } from '../store/moneyStore'
+import { selectDailySpending, selectMonthlyExpense } from '../selectors'
 import SpendingPulse from './SpendingPulse'
 
 interface Props {
@@ -19,15 +19,10 @@ interface Props {
 
 export default function DailyBrief({ tasks, transactions, budget, subscriptions, loans, month, currencySymbol, onOpenTasks }: Props) {
   const today = todayISO()
-  const pulse = useMoneyStore((s) => s.getSpendingPulse())
   const todayTasks = tasks.filter((task) => !task.completed && task.status !== 'archived' && (task.status === 'today' || task.dueDate === today))
   const topTask = todayTasks.sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))[0]
-  const todaySpend = transactions
-    .filter((txn) => txn.type === 'expense' && txn.date === today && txn.status === 'completed')
-    .reduce((sum, txn) => sum + txn.amount, 0)
-  const monthSpend = transactions
-    .filter((txn) => txn.type === 'expense' && txn.date.startsWith(month) && txn.status === 'completed')
-    .reduce((sum, txn) => sum + txn.amount, 0)
+  const todaySpend = selectDailySpending(transactions, today)
+  const monthSpend = selectMonthlyExpense(transactions, month)
   const budgetRemaining = budget ? budget.salary - monthSpend : null
   const upcomingBill = subscriptions
     .filter((subscription) => subscription.status === 'active' && subscription.nextBillingDate >= today)

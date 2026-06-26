@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Modal } from '@/components/shared/Modal'
 import { useSettingsStore, type Language } from '@/features/settings/store/settingsStore'
+import { rehydrateAllStores } from '@/lib/sync/post-sync-rehydration'
 import {
   buildBackupEnvelope,
   readBackupFile,
@@ -506,44 +507,66 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   }
 
   // ── QR RECEIVE DATA ──
+  const stageReceivedEnvelope = (receivedEnvelope: BackupEnvelope) => {
+    setEnvelope(receivedEnvelope)
+    setBackupCounts(getBackupCounts(receivedEnvelope.data))
+    setLocalCountsData(getLocalCounts())
+    setDifferences(computeDifferences(receivedEnvelope.data))
+  }
+
+  const readReceivedEnvelope = async (raw: string): Promise<BackupEnvelope | null> => {
+    const encrypted = parseEncryptedBackup(raw)
+    const decrypted = await decryptBackup(passphrase, encrypted)
+    const backupText = encrypted.compressed
+      ? decompressText(decrypted as unknown as string)
+      : decrypted as unknown as string
+    const parsed = deserializeBackup(backupText)
+
+    if (!parsed) {
+      setError(strings.corrupted)
+      return null
+    }
+
+    const validation = await validateFullBackup(parsed)
+    if (!validation.valid) {
+      setError(validation.errors.map((item) => item.message).join('\n'))
+      return null
+    }
+
+    return parsed
+  }
+
+  const restoreReceivedEnvelope = async (receivedEnvelope: BackupEnvelope, strategy: RestoreStrategy) => {
+    setStep('receive-merging')
+    setMergeStage('merging')
+    try {
+      const payload = strategy === 'merge'
+        ? mergeBackup(receivedEnvelope.data, collectBackupPayload())
+        : receivedEnvelope.data
+      const result = await restoreBackup(payload, { strategy })
+      if (result.success) {
+        rehydrateAllStores()
+        setMessage(strings.doneMsg)
+        setMergeStage('finalizing')
+        setTimeout(() => { setMergeStage('complete'); setStep('receive-done') }, 500)
+      } else {
+        setError(result.rolledBack ? strings.rollbackOk : (result.error || 'Restore failed'))
+        setMergeStage('error')
+      }
+    } catch {
+      setError('Restore failed')
+      setMergeStage('error')
+    }
+  }
+
   const handleReceiveData = async (raw: string) => {
     try {
-      const encrypted = parseEncryptedBackup(raw)
       await new Promise(r => setTimeout(r, 200))
-      const decrypted = await decryptBackup(passphrase, encrypted)
-
-      if (encrypted.compressed) {
-        const decompressed = decompressText(decrypted as unknown as string)
-        const parsed = deserializeBackup(decompressed)
-        if (!parsed) { setError(strings.corrupted); setScanPhase('failed'); return }
-        const validation = await validateFullBackup(parsed)
-        if (!validation.valid) {
-          setError(validation.errors.map((item) => item.message).join('\n'))
-          setScanPhase('failed')
-          return
-        }
-        setEnvelope(parsed)
-        setBackupCounts(getBackupCounts(parsed.data))
-        setLocalCountsData(getLocalCounts())
-        setDifferences(computeDifferences(parsed.data))
-        setScanPhase('done')
-        setStep('receive-preview')
-      } else {
-        const parsed = deserializeBackup(decrypted as unknown as string)
-        if (!parsed) { setError(strings.corrupted); setScanPhase('failed'); return }
-        const validation = await validateFullBackup(parsed)
-        if (!validation.valid) {
-          setError(validation.errors.map((item) => item.message).join('\n'))
-          setScanPhase('failed')
-          return
-        }
-        setEnvelope(parsed)
-        setBackupCounts(getBackupCounts(parsed.data))
-        setLocalCountsData(getLocalCounts())
-        setDifferences(computeDifferences(parsed.data))
-        setScanPhase('done')
-        setStep('receive-preview')
-      }
+      const parsed = await readReceivedEnvelope(raw)
+      if (!parsed) { setScanPhase('failed'); return }
+      stageReceivedEnvelope(parsed)
+      setScanPhase('done')
+      await restoreReceivedEnvelope(parsed, 'merge')
     } catch {
       setScanPhase('failed')
       setError(strings.invalidPass)
@@ -621,39 +644,13 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
         (state) => setWebrtcState(state),
       )
 
-      // Data received, now decrypt
-      const encrypted = parseEncryptedBackup(data)
-      const decrypted = await decryptBackup(passphrase, encrypted)
-
-      if (encrypted.compressed) {
-        const decompressed = decompressText(decrypted as unknown as string)
-        const parsed = deserializeBackup(decompressed)
-        if (!parsed) { setError(strings.corrupted); return }
-        const validation = await validateFullBackup(parsed)
-        if (!validation.valid) {
-          setError(validation.errors.map((item) => item.message).join('\n'))
-          return
-        }
-        setEnvelope(parsed)
-        setBackupCounts(getBackupCounts(parsed.data))
-        setLocalCountsData(getLocalCounts())
-        setDifferences(computeDifferences(parsed.data))
-        setStep('receive-preview')
-      } else {
-        const parsed = deserializeBackup(decrypted as unknown as string)
-        if (!parsed) { setError(strings.corrupted); return }
-        const validation = await validateFullBackup(parsed)
-        if (!validation.valid) {
-          setError(validation.errors.map((item) => item.message).join('\n'))
-          return
-        }
-        setEnvelope(parsed)
-        setBackupCounts(getBackupCounts(parsed.data))
-        setLocalCountsData(getLocalCounts())
-        setDifferences(computeDifferences(parsed.data))
-        setStep('receive-preview')
-      }
+      // Data received, now decrypt, validate, and merge into this device.
+      const parsed = await readReceivedEnvelope(data)
+      if (!parsed) { setWebrtcState('failed'); return }
+      stageReceivedEnvelope(parsed)
+      await restoreReceivedEnvelope(parsed, 'merge')
     } catch (e) {
+      setWebrtcState('failed')
       if (!error) setError(e instanceof Error ? e.message : 'WebRTC receive failed')
     }
   }
@@ -666,27 +663,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   // ── RESTORE ──
   const handleRestoreAction = async (strategy: RestoreStrategy) => {
     if (!envelope) return
-    setStep('receive-merging')
-    setMergeStage('merging')
-    try {
-      let payload = envelope.data
-      if (strategy === 'merge') {
-        const local = collectBackupPayload()
-        payload = mergeBackup(envelope.data, local)
-      }
-      const result = await restoreBackup(payload, { strategy })
-      if (result.success) {
-        setMessage(strings.doneMsg)
-        setMergeStage('finalizing')
-        setTimeout(() => { setMergeStage('complete'); setStep('receive-done') }, 500)
-      } else {
-        setError(result.rolledBack ? strings.rollbackOk : (result.error || 'Restore failed'))
-        setMergeStage('error')
-      }
-    } catch {
-      setError('Restore failed')
-      setMergeStage('error')
-    }
+    await restoreReceivedEnvelope(envelope, strategy)
   }
 
   // ── FILE RESTORE ──
@@ -1485,9 +1462,17 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
             )}
 
             <div className="space-y-2">
-              <button onClick={() => handleRestoreAction('merge')} className="w-full text-left rounded-2xl border border-[var(--st-accent-border)] bg-[var(--st-accent-bg)] p-4 hover:bg-[var(--st-accent-bg-hover)] transition-colors">
-                <div className="font-bold text-sm text-[var(--st-accent)]">{strings.merge}</div>
-                <div className="text-xs text-[var(--st-text-3)] mt-1">{strings.mergeDesc}</div>
+              <button onClick={() => handleRestoreAction('merge')} className="w-full text-left rounded-2xl border border-[var(--st-accent-border)] bg-[var(--st-accent-bg)] p-4 hover:bg-[var(--st-accent-bg-hover)] transition-colors group">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-sm text-[var(--st-accent)]">{strings.merge}</div>
+                    <div className="text-xs text-[var(--st-text-3)] mt-1">{strings.mergeDesc}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--st-accent)] bg-[var(--st-accent)]/10 px-2.5 py-1 rounded-full group-hover:brightness-110 transition-all">
+                    <CheckCircle2 size={10} />
+                    {lang === 'bn' ? 'স্বয়ংক্রিয়' : 'Auto'}
+                  </div>
+                </div>
               </button>
               <button onClick={() => handleRestoreAction('replace')} className="w-full text-left rounded-2xl border border-[var(--st-danger-border)] bg-[var(--st-danger-bg)] p-4 hover:opacity-80 transition-colors">
                 <div className="font-bold text-sm text-[var(--st-danger)]">{strings.replace}</div>

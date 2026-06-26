@@ -503,10 +503,20 @@ export default function SettingsPage() {
   }
 
   const handleClearData = () => {
-    const keys = ['money_transactions', 'money_loans', 'selfsync-tasks', 'selfsync-namaz', 'selfsync-money-v2']
+    // Full reset: remove all app data including wallets, reset to brand new state
+    const keys = [
+      'selfsync-tasks',
+      'selfsync-namaz',
+      'selfsync-money-v2',
+      'money_transactions',
+      'money_loans',
+      NAMAZ_STORAGE_KEYS.settings,
+    ]
     keys.forEach(k => localStorage.removeItem(k))
     showToast(t.toastDataCleared)
     setShowClearModal(false)
+    // Force a full page reload to reset all Zustand stores to defaults
+    setTimeout(() => window.location.reload(), 600)
   }
 
   const dataSummary = useMemo(() => {
