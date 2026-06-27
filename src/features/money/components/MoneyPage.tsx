@@ -13,6 +13,13 @@ import { useMoneyHaptics } from '../hooks/useMoneyHaptics'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 import { useSwipeNavigation } from '@/features/namaz/hooks/useSwipeNavigation'
 import '../money.css'
+
+// Premium components
+import WealthHub from './premium/WealthHub'
+import ActivityFeed from './premium/ActivityFeed'
+import SmartMorningDashboard from './premium/SmartMorningDashboard'
+
+// Existing components
 import AddGoalModal from './AddGoalModal'
 import AddLoanModal from './AddLoanModal'
 import AddSubscriptionModal from './AddSubscriptionModal'
@@ -21,7 +28,6 @@ import AnalyticsTab from './AnalyticsTab'
 import BudgetTab from './BudgetTab'
 import BudgetCoach from './BudgetCoach'
 import CashflowForecast from './CashflowForecast'
-import DailyBrief from './DailyBrief'
 import EditLoanModal from './EditLoanModal'
 import GoalsTab from './GoalsTab'
 import LoanEntryModal from './LoanEntryModal'
@@ -174,6 +180,14 @@ export default function MoneyPage() {
   const totalLoanTaken = activeLoans.filter((l) => l.direction === 'taken').reduce((a, l) => a + l.currentBalance, 0)
   const totalBalance = wallets.reduce((a, w) => a + w.balance, 0)
 
+  // Net worth calculation
+  const netWorth = useMemo(() => {
+    const totalSavings = savingsGoals.reduce((a, g) => a + g.currentAmount, 0)
+    const totalAssets = store.assets.reduce((a: number, as: any) => a + as.value, 0)
+    const totalLoansNet = activeLoans.reduce((a, l) => a + (l.direction === 'given' ? l.currentBalance : -l.currentBalance), 0)
+    return totalBalance + totalSavings + totalAssets + totalLoansNet
+  }, [totalBalance, savingsGoals, activeLoans, store.assets])
+
   // Animated balance
   const animatedBalance = useAnimatedNumber(totalBalance, 600)
 
@@ -199,6 +213,17 @@ export default function MoneyPage() {
     const totalSavings = savingsGoals.reduce((a, g) => a + g.currentAmount, 0)
     return getHealthScore(summary.income, summary.expense, totalSavings)
   }, [summary, savingsGoals])
+
+  // Budget alert data for ActivityFeed
+  const currentBudgetAlert = useMemo(() => {
+    if (!currentBudget) return null
+    // Get the first budget entry from the monthly budget
+    const budgetEntries = Object.entries(currentBudget.budgets || {}) as [string, number][]
+    if (budgetEntries.length === 0) return null
+    const [cat, limit] = budgetEntries[0]
+    const spent = (spendingByCategory as Record<string, number>)[cat] || 0
+    return { category: cat, limit, spent }
+  }, [currentBudget, spendingByCategory])
 
   // Content scroll ref for pill bar
   const contentRef = useRef<HTMLDivElement>(null)
@@ -354,164 +379,49 @@ export default function MoneyPage() {
       <Snackbar snackbar={snackbar} onDismiss={dismissSnackbar} />
 
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32" ref={contentRef}>
-        {/* ── PRIORITY 1: Hero - Total Balance ── */}
+        {/* ── PREMIUM: Wealth Hub (replaces Hero + Stats + Net Worth + Wallets) ── */}
         <div className="pt-5 pb-4 mon-animate-spring-in">
-          <div className="mon-hero">
-            <div className="hero-glow" />
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[1.5px]" style={{ color: 'var(--mon-gold)' }}>
-                    {t.totalBalance}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { setBalanceVisible((value) => !value); haptics.tap() }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[var(--mon-text-2)] transition active:scale-95"
-                    aria-label={balanceVisible ? 'Hide balance' : 'Show balance'}
-                  >
-                    {balanceVisible ? <Eye size={16} /> : <EyeOff size={16} />}
-                  </button>
-                </div>
-                <div className="mt-2 flex items-baseline gap-1.5">
-                  <span className="text-[20px] font-semibold" style={{ color: 'var(--mon-text-3)' }}>{currency_symbol}</span>
-                  <span className="tabular-nums text-[40px] font-black leading-none transition-all duration-300" style={{ color: 'var(--mon-text-1)' }}>
-                    {balanceVisible ? animatedBalance.toLocaleString('en-BD') : '••••••'}
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]" style={{ color: 'var(--mon-text-3)' }}>
-                  <span>{getMonthName(month)}</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-500">
-                    <TrendingUp size={13} /> {formatCurrency(summary.income, currency_symbol)}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 text-red-500">
-                    <TrendingDown size={13} /> {formatCurrency(summary.expense, currency_symbol)}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setAddTxnType('expense'); setShowAddTxn(true); haptics.tap() }}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 active:scale-90"
-                style={{
-                  background: 'linear-gradient(135deg, var(--mon-gold), var(--mon-gold-2))',
-                  color: '#080c14',
-                  boxShadow: '0 12px 32px var(--mon-gold-glow)',
-                }}
-                aria-label="Add transaction"
-              >
-                <ArrowDownLeft size={20} strokeWidth={2.5} />
-              </button>
-            </div>
-          </div>
+          <WealthHub
+            totalBalance={totalBalance}
+            animatedBalance={animatedBalance}
+            currencySymbol={currency_symbol}
+            balanceVisible={balanceVisible}
+            onToggleBalance={() => { setBalanceVisible(v => !v); haptics.tap() }}
+            summary={summary}
+            monthName={getMonthName(month)}
+            healthScore={healthScore}
+            wallets={wallets}
+            selectedWalletId={store.selectedWalletId}
+            savingsGoals={savingsGoals}
+            loans={loans}
+            assets={(store.assets as any[]).map((a: any) => ({ id: a.id, label: a.name || a.label, value: a.value }))}
+            onSelectWallet={store.setSelectedWallet}
+            onOpenWalletTools={() => setShowWalletTools(true)}
+            onAddTransaction={(type) => { setAddTxnType(type); setShowAddTxn(true) }}
+            netWorth={netWorth}
+          />
         </div>
 
-        {/* ── PRIORITY 2: Quick Actions ── */}
-        <div className="mb-5 mon-stagger grid grid-cols-3 gap-2.5">
-          <button
-            type="button"
-            onClick={() => { setAddTxnType('expense'); setShowAddTxn(true); haptics.tap() }}
-            className="mon-card flex flex-col items-center gap-1.5 p-3.5 text-[12px] font-bold transition active:scale-[0.98]"
-            style={{ background: 'var(--mon-expense-bg)', color: 'var(--mon-expense)', border: '1px solid var(--mon-border)' }}
-          >
-            <ArrowDownLeft size={18} />
-            Add Expense
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAddTxnType('income'); setShowAddTxn(true); haptics.tap() }}
-            className="mon-card flex flex-col items-center gap-1.5 p-3.5 text-[12px] font-bold transition active:scale-[0.98]"
-            style={{ background: 'var(--mon-income-bg)', color: 'var(--mon-income)', border: '1px solid var(--mon-border)' }}
-          >
-            <ArrowUpRight size={18} />
-            Add Income
-          </button>
-          <button
-            type="button"
-            onClick={() => { setShowWalletTools(true); haptics.tap() }}
-            className="mon-card flex flex-col items-center gap-1.5 p-3.5 text-[12px] font-bold transition active:scale-[0.98]"
-            style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)', border: '1px solid var(--mon-border)' }}
-          >
-            <Wallet size={18} />
-            Wallets
-          </button>
+        {/* ── PREMIUM: Activity Feed (replaces Daily Brief + overview sections) ── */}
+        <div className="mb-5">
+          <ActivityFeed
+            transactions={transactions}
+            subscriptions={store.subscriptions}
+            insights={insights}
+            savingsGoals={savingsGoals}
+            loans={loans}
+            budgets={budgets}
+            currentBudget={currentBudgetAlert}
+            month={month}
+            currencySymbol={currency_symbol}
+            onDismissInsight={store.dismissInsight}
+            onSetTab={(tab: string) => handleTabChange(tab as TabKey)}
+            onDeleteTxn={handleDeleteTransaction}
+            language={language}
+          />
         </div>
 
-        {/* ── PRIORITY 3: Stats Row ── */}
-        <div className="mon-card p-4 mb-5 mon-animate-slide-up">
-          <div className="flex items-center gap-0">
-            <div className="flex items-center gap-2.5 flex-1 px-1">
-              <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-income-bg)', color: 'var(--mon-income)' }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M7 17l9.2-9.2M17 17V7H7" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.income}</p>
-                <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(summary.income, currency_symbol)}</p>
-              </div>
-            </div>
-            <div className="w-px h-8" style={{ background: 'var(--mon-border)' }} />
-            <div className="flex items-center gap-2.5 flex-1 px-1">
-              <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-expense-bg)', color: 'var(--mon-expense)' }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M17 7l-9.2 9.2M7 7v10h10" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.expense}</p>
-                <p className="text-[15px] font-bold" style={{ color: 'var(--mon-text-1)' }}>{formatCurrency(summary.expense, currency_symbol)}</p>
-              </div>
-            </div>
-            <div className="w-px h-8" style={{ background: 'var(--mon-border)' }} />
-            <div className="flex items-center gap-2.5 flex-1 px-1">
-              <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center" style={{ background: 'var(--mon-gold-bg)', color: 'var(--mon-gold)' }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-3)' }}>{t.balance}</p>
-                <p className="text-[15px] font-bold" style={{ color: summary.balance >= 0 ? 'var(--mon-income)' : 'var(--mon-expense)' }}>
-                  {formatCurrency(summary.balance, currency_symbol)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── PRIORITY 4: Premium Net Worth / Savings / Loans Summary ── */}
-        <NetWorthCard
-          wallets={wallets}
-          savingsGoals={savingsGoals}
-          loans={loans}
-          assets={store.assets}
-          currencySymbol={currency_symbol}
-        />
-
-        {/* ── PRIORITY 5: Wallets ── */}
-        <WalletStrip
-          wallets={wallets}
-          selectedWalletId={store.selectedWalletId}
-          currencySymbol={currency_symbol}
-          onSelect={store.setSelectedWallet}
-          onOpenTools={() => setShowWalletTools(true)}
-        />
-
-        {/* ── PRIORITY 6: Daily Brief + Spending Pulse ── */}
-        <DailyBrief
-          tasks={tasks}
-          transactions={transactions}
-          budget={currentBudget}
-          subscriptions={store.subscriptions}
-          loans={loans}
-          month={month}
-          currencySymbol={currency_symbol}
-          onOpenTasks={() => router.push('/tasks')}
-        />
-
-        {/* ── PRIORITY 6: Premium Features Section (Overview only) ── */}
+        {/* ── PREMIUM: Spending Pulse + Recurring Manager (only on overview) ── */}
         {tab === 'overview' && (
           <div className="mb-5 space-y-4">
             <SpendingPulse currencySymbol={currency_symbol} />
@@ -519,6 +429,20 @@ export default function MoneyPage() {
             <CategoryLimits currencySymbol={currency_symbol} />
           </div>
         )}
+
+        {/* ── PREMIUM: Smart Morning Dashboard ── */}
+        <SmartMorningDashboard
+          tasks={tasks}
+          transactions={transactions}
+          budget={currentBudget}
+          subscriptions={store.subscriptions}
+          loans={loans}
+          wallets={wallets}
+          month={month}
+          currencySymbol={currency_symbol}
+          onOpenTasks={() => router.push('/tasks')}
+          onAddTransaction={(type) => { setAddTxnType(type); setShowAddTxn(true) }}
+        />
 
         {/* ── PILL TAB BAR ── */}
         <div className={`mon-pill-wrapper ${pillScrolled ? 'scrolled' : ''}`}>
@@ -651,7 +575,7 @@ export default function MoneyPage() {
           anchorRect={subscriptionModalAnchor}
         />
       )}
-      {showWalletTools && <WalletToolsModal wallets={wallets} selectedWalletId={store.selectedWalletId} onClose={() => setShowWalletTools(false)} onTransfer={store.transferWalletBalance} onReconcile={store.reconcileWalletBalance} onAddWallet={store.addWallet} currencySymbol={currency_symbol} />}
+      {showWalletTools && <WalletToolsModal wallets={wallets} selectedWalletId={store.selectedWalletId} onClose={() => setShowWalletTools(false)} onTransfer={store.transferWalletBalance} onReconcile={store.reconcileWalletBalance} onAddWallet={store.addWallet} onDeleteWallet={store.deleteWallet} currencySymbol={currency_symbol} />}
       {showHistoryModal && selectedLoan && <LoanHistoryModal loan={selectedLoan} onClose={() => setShowHistoryModal(false)} translations={t} currencySymbol={currency_symbol} />}
       {showPaymentModal && <LoanEntryModal loan={showPaymentModal.loan} type={showPaymentModal.type} onClose={() => setShowPaymentModal(null)} onSubmit={store.addLoanEntry} translations={t} currencySymbol={currency_symbol} />}
       {showEditModal && <EditLoanModal loan={showEditModal} onClose={() => setShowEditModal(null)} onSave={store.updateLoan} translations={t} />}

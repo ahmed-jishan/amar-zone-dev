@@ -18,7 +18,7 @@ interface Stats {
 interface Props {
   stats: Stats;
   onToggleDashboard: () => void;
-  showDashboard: boolean;
+  showDashboard?: boolean;
   nextTaskTitle?: string;
   onStartNext?: () => void;
   onPlanToday?: () => void;

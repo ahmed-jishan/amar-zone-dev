@@ -1,27 +1,28 @@
 import { useMemo } from 'react';
 import { Task } from '../types';
-
-const isOverdue = (task: Task): boolean => {
-  if (task.completed) return false;
-  if (task.status === 'overdue') return true;
-  if (task.dueDate) {
-    return new Date(task.dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
-  }
-  return false;
-};
+import { isToday, isOverdue, isInProgress, isActive } from '../utils/taskFilters';
 
 export const useTaskAnalytics = (tasks: Task[]) => {
   return useMemo(() => {
-    const activeTasks = tasks.filter((t) => t.status !== 'archived');
+    const activeTasks = tasks.filter(isActive);
     const total = activeTasks.length;
-    const completed = activeTasks.filter((t) => t.completed).length;
+    const completed = tasks.filter((t) => t.completed && t.status !== 'archived').length;
     const pending = total - completed;
     const completionRate = total === 0 ? 0 : Math.round((completed / total) * 100);
-    const overdue = activeTasks.filter(isOverdue).length;
-    const today = activeTasks.filter((t) => t.status === 'today').length;
-    const inProgress = activeTasks.filter((t) => t.status === 'in-progress').length;
-    const totalTime = activeTasks.reduce((acc, t) => acc + (t.actualTime || 0), 0);
+    const overdueCount = tasks.filter(isOverdue).length;
+    const todayCount = tasks.filter(isToday).length;
+    const inProgressCount = tasks.filter(isInProgress).length;
+    const totalTime = tasks.reduce((acc, t) => acc + (t.actualTime || 0), 0);
 
-    return { total, completed, pending, completionRate, overdue, today, inProgress, totalTime };
+    return {
+      total,
+      completed,
+      pending,
+      completionRate,
+      overdue: overdueCount,
+      today: todayCount,
+      inProgress: inProgressCount,
+      totalTime,
+    };
   }, [tasks]);
 };

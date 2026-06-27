@@ -258,12 +258,32 @@ export function receiveBackupViaWebRTC(
     let expectedChecksum = ''
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     const startedAt = performance.now()
+    let transferCompleted = false
 
-    const fail = (message: string) => {
+    const cleanupListeners = () => {
       if (timeoutId) clearTimeout(timeoutId)
       conn.off('data', handler)
+      conn.off('error', errorHandler)
+      conn.off('close', closeHandler)
+    }
+
+    const fail = (message: string) => {
+      if (transferCompleted) return // Prevent fail after successful completion
+      cleanupListeners()
       onStateChange('failed')
       reject(new Error(message))
+    }
+
+    const errorHandler = (err: Error) => {
+      fail(err.message || 'WebRTC error')
+    }
+
+    const closeHandler = () => {
+      // Connection closed. If transfer was already complete, ignore.
+      // If not, this is an unexpected close.
+      if (!transferCompleted) {
+        fail('Connection closed before transfer completed.')
+      }
     }
 
     const resetTimeout = () => {
@@ -313,12 +333,18 @@ export function receiveBackupViaWebRTC(
         onProgress(buildProgress(chunks.size, totalChunks, receivedBytes, totalBytes || receivedBytes, startedAt, 0))
 
         if (chunks.size === totalChunks) {
-          if (timeoutId) clearTimeout(timeoutId)
-          conn.off('data', handler)
+          transferCompleted = true
+          cleanupListeners()
           const result = await reassembleChunks(chunks, totalChunks, expectedChecksum)
           onStateChange('complete')
           resolve(result)
         }
+        return
+      }
+
+      if (msg.type === 'transfer-complete' && msg.sessionId === sessionId) {
+        // Sender confirms transfer is done. If we haven't completed yet, wait - the last chunk might be processing.
+        // If already completed, this is just a confirmation we can safely ignore.
         return
       }
 
@@ -328,9 +354,8 @@ export function receiveBackupViaWebRTC(
     }
 
     conn.on('data', handler)
-    conn.on('error', (err) => {
-      fail(err.message || 'WebRTC error')
-    })
+    conn.on('error', errorHandler)
+    conn.on('close', closeHandler)
 
     resetTimeout()
   })

@@ -63,6 +63,10 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
     return () => window.clearInterval(interval);
   }, []);
 
+  // === WEB/BROWSER TIMER: ALWAYS schedule in-app audio playback ===
+  // This handles foreground playback on ALL platforms (Web + Native)
+  // On native Android, this runs alongside the native AlarmManager scheduling
+  // to ensure audio plays even if Android defers/suppresses the native alarm.
   useEffect(() => {
     if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes) return;
 
@@ -77,6 +81,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
 
       if (delay <= 0 || firedRef.current.has(key) || isWithinQuietHours(target, quietHoursEnabled, quietHoursStart, quietHoursEnd)) return null;
 
+      // Schedule notification (always, on all platforms)
       if (isNativeNotificationPlatform()) {
         void (async () => {
           const permission = await requestAppNotificationPermission();
@@ -92,8 +97,9 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         })();
       }
 
-      if (isNativeAzanSupported()) return null;
-
+      // Schedule in-app audio playback via setTimeout (ALWAYS, regardless of native support)
+      // This ensures audio plays when the app is in the foreground or background (with page active)
+      // Native Android AlarmManager is a SEPARATE fallback for cold-start scenarios.
       return window.setTimeout(() => {
         firedRef.current.add(key);
         playAzan(entry.label);
@@ -113,11 +119,14 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
     };
   }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
+  // === NATIVE ANDROID SCHEDULING (separate, parallel path) ===
+  // This uses Android AlarmManager to wake the device and play audio
+  // even if the app process is killed by the OS.
   useEffect(() => {
     if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes || !isNativeAzanSupported()) return;
+
     const items = AZAN_PRAYER_ORDER.map((prayer) => {
       const entry = prayerTimes.timings[prayer];
-      // Use user's configured azan time
       const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
       const azanTimeStr = config.azanTime;
       const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
@@ -129,6 +138,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
     }).filter((item) => item.time > Date.now() && !isWithinQuietHours(new Date(item.time), quietHoursEnabled, quietHoursStart, quietHoursEnd));
 
     void scheduleNativeAzan(items, AZAN_AUDIO_URL).catch((error) => console.warn('Native azan schedule failed:', error));
+
     return () => {
       void cancelNativeAzan(items.map((item) => item.id)).catch((error) => console.warn('Native azan cancel failed:', error));
     };

@@ -12,10 +12,11 @@ interface Props {
   onTransfer: (fromWalletId: string, toWalletId: string, amount: number) => void
   onReconcile: (walletId: string, balance: number, note?: string) => void
   onAddWallet: (wallet: Omit<Wallet, 'id'>) => void
+  onDeleteWallet: (walletId: string) => void
   currencySymbol: string
 }
 
-export default function WalletToolsModal({ wallets, selectedWalletId, onClose, onTransfer, onReconcile, onAddWallet, currencySymbol }: Props) {
+export default function WalletToolsModal({ wallets, selectedWalletId, onClose, onTransfer, onReconcile, onAddWallet, onDeleteWallet, currencySymbol }: Props) {
   const [mounted, setMounted] = useState(false)
   const defaultFrom = selectedWalletId || wallets[0]?.id || ''
   const defaultTo = wallets.find((wallet) => wallet.id !== defaultFrom)?.id || wallets[0]?.id || ''
@@ -29,6 +30,7 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
   const [newWalletName, setNewWalletName] = useState('')
   const [newWalletType, setNewWalletType] = useState<Wallet['type']>('mobile')
   const [newWalletBalance, setNewWalletBalance] = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const selectedWallet = useMemo(() => wallets.find((wallet) => wallet.id === fromWalletId), [wallets, fromWalletId])
   const destinationWallets = wallets.filter((wallet) => wallet.id !== fromWalletId)
@@ -115,15 +117,66 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-[16px] font-bold" style={{ color: 'var(--mon-text-1)' }}>
-            {confirmStep === 'confirm' ? 'Confirm' : 'Wallet Tools'}
-          </h3>
+          <div className="flex items-center gap-2">
+            {deleteConfirmId ? (
+              <button type="button" onClick={() => setDeleteConfirmId(null)}
+                className="text-[12px] font-semibold" style={{ color: 'var(--mon-text-3)' }}
+              >
+                ← Back
+              </button>
+            ) : null}
+            <h3 className="text-[16px] font-bold" style={{ color: 'var(--mon-text-1)' }}>
+              {deleteConfirmId ? 'Delete Wallet' : confirmStep === 'confirm' ? 'Confirm' : 'Wallet Tools'}
+            </h3>
+          </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-[var(--mon-text-3)] hover:bg-[var(--mon-surface-hover)] hover:text-[var(--mon-text-1)]">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
-        {confirmStep === 'confirm' ? (
+        {deleteConfirmId ? (
+          /* ── Delete Wallet Confirmation ── */
+          <div>
+            <div className="mb-4 rounded-[var(--mon-radius-xl)] p-4" style={{ background: 'var(--mon-expense-bg)', border: '1px solid var(--mon-expense-glow)' }}>
+              <div className="text-center mb-3">
+                <span className="text-3xl block mb-2">⚠️</span>
+                <p className="text-[15px] font-bold" style={{ color: 'var(--mon-expense)' }}>Delete Wallet?</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[14px] font-semibold mb-1" style={{ color: 'var(--mon-text-1)' }}>
+                  {wallets.find(w => w.id === deleteConfirmId)?.icon} {wallets.find(w => w.id === deleteConfirmId)?.name}
+                </p>
+                <p className="text-[12px]" style={{ color: 'var(--mon-text-3)' }}>
+                  Balance: {currencySymbol}{wallets.find(w => w.id === deleteConfirmId)?.balance.toLocaleString('en-BD')}
+                </p>
+              </div>
+            </div>
+            {wallets.length > 1 ? (
+              <p className="text-[12px] text-center mb-4" style={{ color: 'var(--mon-text-3)' }}>
+                This action cannot be undone. Transactions linked to this wallet will remain in your history.
+              </p>
+            ) : (
+              <p className="text-[12px] text-center mb-4" style={{ color: 'var(--mon-rose)' }}>
+                You must have at least one wallet. Add a new wallet before deleting this one.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-2.5 rounded-[var(--mon-radius-xl)] text-[14px] font-bold transition-all active:scale-[0.98]"
+                style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', color: 'var(--mon-text-2)' }}
+              >
+                Cancel
+              </button>
+              <button type="button" onClick={() => { onDeleteWallet(deleteConfirmId); onClose() }}
+                disabled={wallets.length <= 1}
+                className="flex-1 py-2.5 rounded-[var(--mon-radius-xl)] text-[14px] font-bold text-white transition-all active:scale-[0.98] disabled:opacity-40"
+                style={{ background: 'var(--mon-expense)', boxShadow: '0 4px 14px var(--mon-expense-glow)' }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ) : confirmStep === 'confirm' ? (
           /* ── Confirmation Step ── */
           <div className="space-y-4">
             {mode === 'transfer' ? (
@@ -238,6 +291,34 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
         ) : (
           /* ── Form Step ── */
           <>
+            {/* ── Wallet Management: List wallets with edit/delete ── */}
+            <div className="mb-4 rounded-[var(--mon-radius-xl)] p-3" style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)' }}>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--mon-text-4)' }}>
+                Your Wallets ({wallets.length})
+              </p>
+              <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto">
+                {wallets.map(w => (
+                  <div key={w.id} className="flex items-center justify-between rounded-[var(--mon-radius-md)] px-2 py-1.5"
+                    style={{ background: w.id === selectedWalletId ? 'var(--mon-gold-bg)' : 'var(--mon-surface-1)' }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm">{w.icon}</span>
+                      <span className="text-[13px] font-medium truncate" style={{ color: 'var(--mon-text-1)' }}>{w.name}</span>
+                      <span className="text-[11px]" style={{ color: 'var(--mon-text-3)' }}>{currencySymbol}{w.balance.toLocaleString('en-BD')}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmId(w.id)}
+                      className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold transition-all active:scale-[0.95]"
+                      style={{ color: 'var(--mon-expense)', background: 'var(--mon-expense-bg)' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="mb-4 grid grid-cols-2 gap-1 rounded-[var(--mon-radius-lg)] p-1" style={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)' }}>
               {(['transfer', 'reconcile'] as const).map((item) => (
                 <button key={item} type="button" onClick={() => setMode(item)}

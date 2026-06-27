@@ -114,7 +114,7 @@ function TaskSectionComponent({
               task={task}
               index={idx}
               isDragging={draggingId === task.id}
-              dragHandleProps={onDragStart ? {} : undefined}
+              dragHandleProps={onDragStart ? { className: 'drag-handle' } as React.HTMLAttributes<HTMLDivElement> : undefined}
               onToggle={onToggle ?? (() => {})}
               onFocus={onFocus}
               onOpenDetails={onOpenDetails}

@@ -31,6 +31,14 @@ function FocusCardComponent({ activeTask, isRunning, seconds, onPause, onResume,
   const [isCompact, setIsCompact] = useState(false);
   const haptics = useHaptics();
 
+  // Reset internal state when activeTask changes (user started focus on a different task)
+  useEffect(() => {
+    setMode('focus');
+    setIsBreak(false);
+    setCompletedPomodoros(0);
+    setIsCompact(false);
+  }, [activeTask?.id]);
+
   const displaySeconds = mode === 'pomodoro' && !isBreak ? pomodoroTime - (seconds % pomodoroTime) : seconds;
   const progress = mode === 'pomodoro' && !isBreak
     ? ((pomodoroTime - displaySeconds) / pomodoroTime) * 100

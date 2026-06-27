@@ -1,121 +1,27 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X } from 'lucide-react';
 import TaskHeader from './components/TaskList/TaskHeader';
 import QuickAdd from './components/QuickAdd/QuickAdd';
 import TaskFilters from './components/TaskFilters/TaskFilters';
 import FocusCard from './components/FocusCard/FocusCard';
-import TodayPlan from './components/TodayPlan/TodayPlan';
-import WeeklyReview from './components/WeeklyReview/WeeklyReview';
+import SmartPlanSection from './components/SmartPlanSection/SmartPlanSection';
 import TaskList from './components/TaskList/TaskList';
 import TaskDetailsModal from './components/TaskDetailsModal/TaskDetailsModal';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import ContextMenu from './components/ContextMenu/ContextMenu';
-import Dashboard from './components/Dashboard/Dashboard';
-import ProductivityHeatmap from './components/ProductivityHeatmap/ProductivityHeatmap';
+import DashboardSheet from './components/DashboardSheet/DashboardSheet';
 import Timeline from './components/Timeline/Timeline';
 import ArchivedTasks from './components/Archived/ArchivedTasks';
 import TaskBoard from './components/TaskBoard/TaskBoard';
+import OnboardingOverlay from './components/OnboardingOverlay/OnboardingOverlay';
 import { useTaskFocus } from './hooks/useTaskFocus';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { useTaskAnalytics } from './hooks/useTaskAnalytics';
-import { Task, ViewMode, SortMode } from './types';
+import { Task } from './types';
 import { useTaskStore } from '@/lib/store/taskStore';
 import './tasks.css';
-
-// ─── Premium Success Burst Component ───
-function SuccessBurst({ visible, onComplete }: { visible: boolean; onComplete: () => void }) {
-  useEffect(() => {
-    if (!visible) return;
-    const timer = setTimeout(onComplete, 700);
-    return () => clearTimeout(timer);
-  }, [visible, onComplete]);
-
-  if (!visible) return null;
-
-  const particles = Array.from({ length: 8 }, (_, i) => {
-    const angle = (i / 8) * Math.PI * 2;
-    const dist = 40 + Math.random() * 30;
-    return {
-      id: i,
-      dx: Math.cos(angle) * dist,
-      dy: Math.sin(angle) * dist,
-      color: ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#14b8a6', '#8b5cf6', '#ec4899', '#38bdf8'][i],
-    };
-  });
-
-  return (
-    <div className="az-success-burst" aria-hidden>
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          className="az-success-burst-particle"
-          style={{
-            background: p.color,
-            '--dx': `${p.dx}px`,
-            '--dy': `${p.dy}px`,
-          } as React.CSSProperties}
-        />
-      ))}
-      <div className="az-success-check">
-        <Check size={22} strokeWidth={3} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Premium Snackbar Toast ───
-interface SnackbarState {
-  message: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  visible: boolean;
-  exiting: boolean;
-}
-
-function Snackbar({
-  snackbar,
-  onDismiss,
-}: {
-  snackbar: SnackbarState;
-  onDismiss: () => void;
-}) {
-  useEffect(() => {
-    if (!snackbar.visible) return;
-    const timer = setTimeout(onDismiss, 4000);
-    return () => clearTimeout(timer);
-  }, [snackbar.visible, onDismiss]);
-
-  if (!snackbar.visible) return null;
-
-  return (
-    <div className={`az-snackbar ${snackbar.exiting ? 'exiting' : ''}`}>
-      <span className="flex-1 text-[13px] font-semibold text-[var(--az-text-1)]">
-        {snackbar.message}
-      </span>
-      {snackbar.actionLabel && (
-        <button
-          className="px-3 py-1.5 rounded-[var(--az-radius-md)] text-[12px] font-bold text-[var(--az-accent)] bg-[var(--az-accent-bg)] border border-[var(--az-accent-border)] cursor-pointer whitespace-nowrap transition-all hover:bg-[var(--az-accent-bg-hover)]"
-          onClick={() => {
-            snackbar.onAction?.();
-            onDismiss();
-          }}
-        >
-          {snackbar.actionLabel}
-        </button>
-      )}
-      <button
-        className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--az-text-3)] hover:text-[var(--az-text-1)] hover:bg-[var(--az-surface-2)] transition-all cursor-pointer bg-none border-none"
-        onClick={onDismiss}
-        aria-label="Dismiss"
-      >
-        <X size={14} />
-      </button>
-    </div>
-  );
-}
 
 export default function TasksPage() {
   const tasks = useTaskStore((s) => s.tasks);
@@ -130,6 +36,8 @@ export default function TasksPage() {
   const [detailsTask, setDetailsTask] = useState<Task | null>(null);
   const [contextMenu, setContextMenu] = useState<{ task: Task | null; x: number; y: number } | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [filtersSticky, setFiltersSticky] = useState(false);
+  const filtersRef = useRef<HTMLDivElement>(null);
 
   const { activeTask, isRunning, seconds, startFocus, pauseFocus, resumeFocus, stopFocus } = useTaskFocus();
   const { filter, setFilter, filteredTasks } = useTaskFilters(tasks);
@@ -166,10 +74,11 @@ export default function TasksPage() {
 
     // Sort
     switch (sortMode) {
-      case 'priority':
+      case 'priority': {
         const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
         result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
         break;
+      }
       case 'dueDate':
         result.sort((a, b) => {
           if (!a.dueDate && !b.dueDate) return 0;
@@ -181,10 +90,11 @@ export default function TasksPage() {
       case 'created':
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
-      case 'energy':
+      case 'energy': {
         const energyOrder = { high: 0, medium: 1, low: 2 };
         result.sort((a, b) => (energyOrder[a.energyLevel || 'low'] - energyOrder[b.energyLevel || 'low']));
         break;
+      }
       case 'title':
         result.sort((a, b) => a.title.localeCompare(b.title));
         break;
@@ -209,55 +119,131 @@ export default function TasksPage() {
     [reorderTasks]
   );
 
+  // Intersection observer for sticky filters
+  useEffect(() => {
+    const el = filtersRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setFiltersSticky(!entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-60px 0px 0px 0px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const stickyFilterActive = filtersSticky && filter !== 'archived';
+
   return (
     <div className="az-root min-h-[100dvh] bg-[var(--az-bg)]">
-      <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32 pt-4">
-        {/* Header */}
+      <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32 pt-3">
+        {/* Header — compact greeting + stats */}
         <TaskHeader
           stats={stats}
-          onToggleDashboard={() => setShowDashboard((s) => !s)}
-          showDashboard={showDashboard}
+          onToggleDashboard={() => setShowDashboard(true)}
           nextTaskTitle={nextTask?.title}
           onStartNext={() => nextTask && startFocus(nextTask)}
           onPlanToday={() => setFilter('today')}
           onAddTask={() => window.dispatchEvent(new CustomEvent('az:open-quick-add'))}
         />
 
-        {/* Focus Card */}
-        <FocusCard
-          activeTask={activeTask}
-          isRunning={isRunning}
-          seconds={seconds}
-          onPause={pauseFocus}
-          onResume={resumeFocus}
-          onStop={stopFocus}
-        />
+        {/* Focus Card — only renders when active */}
+        {activeTask && (
+          <FocusCard
+            activeTask={activeTask}
+            isRunning={isRunning}
+            seconds={seconds}
+            onPause={pauseFocus}
+            onResume={resumeFocus}
+            onStop={stopFocus}
+          />
+        )}
 
-        <TodayPlan
+        {/* Merged Smart Plan */}
+        <SmartPlanSection
           tasks={tasks}
           onFocus={startFocus}
           onOpenDetails={setDetailsTask}
           onShowToday={() => setFilter('today')}
-        />
-
-        <WeeklyReview
-          tasks={tasks}
           onCarryForward={(task) => updateTask(task.id, { status: 'today', dueDate: new Date().toISOString().split('T')[0] })}
           onArchive={(task) => archiveTask(task.id)}
         />
 
-        {/* Filters */}
-        <TaskFilters activeFilter={filter} onFilterChange={setFilter} />
+        {/* Filter bar sentinel for sticky detection */}
+        <div ref={filtersRef}>
+          <TaskFilters activeFilter={filter} onFilterChange={setFilter} />
+        </div>
 
-        {/* Dashboard (toggleable) */}
-        {showDashboard && (
-          <div className="mb-4 animate-[az-slide-up_400ms_ease-out]">
-            <Dashboard tasks={tasks} />
-            <div className="mt-4">
-              <ProductivityHeatmap tasks={tasks} />
-            </div>
-          </div>
-        )}
+        {/* Sticky filter bar clone when scrolled past */}
+        <AnimatePresence>
+          {stickyFilterActive && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-0 left-0 right-0 z-[50] bg-[var(--az-bg)]/90 backdrop-blur-xl border-b border-[var(--az-border)] px-3 py-2"
+              style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}
+            >
+              <div className="max-w-[680px] mx-auto">
+                <div className="flex items-center gap-2">
+                  {/* Mini stats pill */}
+                  <button
+                    onClick={() => setShowDashboard(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--az-radius-lg)] bg-[var(--az-accent-bg)] border border-[var(--az-accent-border)] text-[11px] font-bold text-[var(--az-accent)] whitespace-nowrap hover:shadow-[var(--az-shadow-sm)] transition-all flex-shrink-0"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span className="hidden sm:inline">Stats</span>
+                  </button>
+
+                  {/* Condensed filter pills only — no search, no view toggle, no command */}
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1">
+                    <StickyFilterPill
+                      label="Today"
+                      active={filter === 'today'}
+                      count={stats.today}
+                      onClick={() => setFilter('today')}
+                      color="var(--az-accent)"
+                    />
+                    <StickyFilterPill
+                      label="Active"
+                      active={filter === 'in-progress'}
+                      count={stats.inProgress}
+                      onClick={() => setFilter('in-progress')}
+                      color="var(--az-warn)"
+                    />
+                    <StickyFilterPill
+                      label="Done"
+                      active={filter === 'completed'}
+                      count={stats.completed}
+                      onClick={() => setFilter('completed')}
+                      color="var(--az-success)"
+                    />
+                    <StickyFilterPill
+                      label="All"
+                      active={filter === 'all'}
+                      onClick={() => setFilter('all')}
+                      color="var(--az-text-2)"
+                    />
+                    <div className="w-px h-4 bg-[var(--az-border)] mx-0.5" />
+                    <StickyFilterPill
+                      label="Overdue"
+                      active={filter === 'overdue'}
+                      count={stats.overdue}
+                      onClick={() => setFilter('overdue')}
+                      color="var(--az-danger)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Task Views */}
         {filter === 'archived' ? (
@@ -302,10 +288,17 @@ export default function TasksPage() {
         onFocus={startFocus}
       />
 
-      {/* Quick Add FAB — only on tasks tab, positioned above calculator toggle */}
+      {/* Dashboard Bottom Sheet */}
+      <DashboardSheet
+        tasks={tasks}
+        isOpen={showDashboard}
+        onClose={() => setShowDashboard(false)}
+      />
+
+      {/* Quick Add modal */}
       <QuickAdd />
-      
-      {/* Quick add task button — fixed FAB positioned above the floating calculator (inline styles to force right-side placement) */}
+
+      {/* Quick add task FAB */}
       <div style={{ position: 'fixed', right: '1.5rem', left: 'auto', bottom: 'calc(9rem + env(safe-area-inset-bottom))', zIndex: 10030, pointerEvents: 'auto' }}>
         <motion.button
             initial={{ scale: 0, opacity: 0 }}
@@ -329,6 +322,43 @@ export default function TasksPage() {
 
       <CommandPalette />
 
+      {/* Onboarding overlay for first-time users */}
+      <OnboardingOverlay />
     </div>
+  );
+}
+
+// ─── Sticky Filter Pill Component ───
+function StickyFilterPill({
+  label,
+  active,
+  count,
+  onClick,
+  color,
+}: {
+  label: string;
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+  color: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        flex items-center gap-1 px-2.5 py-1.5 rounded-[var(--az-radius-md)] text-[11px] font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
+        ${active
+          ? 'bg-[var(--az-accent)] text-white shadow-[0_0_8px_var(--az-accent-glow)]'
+          : 'text-[var(--az-text-2)] hover:text-[var(--az-text-1)] hover:bg-[var(--az-surface-2)]'
+        }
+      `}
+    >
+      {label}
+      {count !== undefined && count > 0 && (
+        <span className={`ml-0.5 ${active ? 'text-white/70' : ''}`} style={{ color: active ? undefined : color }}>
+          {count}
+        </span>
+      )}
+    </button>
   );
 }

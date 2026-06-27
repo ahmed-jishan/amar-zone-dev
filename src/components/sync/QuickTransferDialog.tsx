@@ -62,6 +62,19 @@ function fastBtoa(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+function toArrayBufferFn(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+}
+
 function yieldToUI(): Promise<void> {
   return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))
 }
@@ -516,10 +529,28 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
 
   const readReceivedEnvelope = async (raw: string): Promise<BackupEnvelope | null> => {
     const encrypted = parseEncryptedBackup(raw)
-    const decrypted = await decryptBackup(passphrase, encrypted)
+    // Decryption must match the encryption in handleWebRTCSend/handleStartSend
+    // which uses a raw key (not PBKDF2) - so we cannot use decryptBackup() from encryptedBackup.ts
+    const enc = new TextEncoder()
+    const iv = base64ToBytes(encrypted.iv)
+    const ciphertext = base64ToBytes(encrypted.ciphertext)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(passphrase.padEnd(16, ' ').slice(0, 16)),
+      'AES-GCM',
+      false,
+      ['decrypt']
+    )
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: toArrayBufferFn(iv) },
+      key,
+      toArrayBufferFn(ciphertext)
+    )
+    const decoder = new TextDecoder()
+    const decryptedStr = decoder.decode(plaintext)
     const backupText = encrypted.compressed
-      ? decompressText(decrypted as unknown as string)
-      : decrypted as unknown as string
+      ? decompressText(decryptedStr)
+      : decryptedStr
     const parsed = deserializeBackup(backupText)
 
     if (!parsed) {

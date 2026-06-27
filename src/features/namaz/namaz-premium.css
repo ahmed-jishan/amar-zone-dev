@@ -773,3 +773,144 @@
 
 /* ── Ring SVG Circumference Constants ── */
 /* For ring radius r, circumference = 2 * pi * r. Using r=30 → ~188.5 */
+
+/* ───────────────────────────────────────────────────────────────
+ * LIGHT MODE OVERRIDES
+ * The namaz-premium.css uses --st-* variables that are defined in
+ * settings.css's :root block. When settings.css is NOT loaded
+ * (e.g. when viewing the namaz tab in light mode before ever
+ * visiting settings), these values fall through to dark defaults.
+ *
+ * These scoped overrides ensure the PreferencesView renders
+ * correctly in light mode regardless of which CSS files are loaded.
+ * ─────────────────────────────────────────────────────────────── */
+html:not(.dark) .np-group-section {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+html:not(.dark) .np-group-header {
+  color: #6b6f8a;
+}
+
+html:not(.dark) .np-group-row {
+  color: #0b0d14;
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .np-group-row:active {
+  background: #eaeef6;
+}
+
+html:not(.dark) .np-group-row:active .np-group-row-icon {
+  transform: scale(0.92);
+}
+
+/* Light mode hover — use subtle blue tint instead of dark surface */
+@media (hover: hover) and (pointer: fine) {
+  html:not(.dark) .np-group-row:hover {
+    background: #f4f6fc;
+  }
+}
+
+html:not(.dark) .np-group-row-label {
+  color: #0b0d14;
+}
+
+html:not(.dark) .np-group-row-sub {
+  color: #8a8ca0;
+}
+
+html:not(.dark) .np-group-row-icon {
+  background: rgba(92, 107, 223, 0.07);
+  color: #5c6bdf;
+  border-color: rgba(92, 107, 223, 0.18);
+}
+
+html:not(.dark) .np-group-row-icon--success {
+  background: rgba(16, 185, 129, 0.07);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.18);
+}
+
+html:not(.dark) .np-group-row-icon--gold {
+  background: rgba(184, 150, 47, 0.07);
+  color: #b8962f;
+  border-color: rgba(184, 150, 47, 0.20);
+}
+
+html:not(.dark) .np-group-row-icon--neutral {
+  background: #f1f3fa;
+  color: #8a8ca0;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .np-group-row-value {
+  color: #8a8ca0;
+}
+
+html:not(.dark) .np-group-row-chevron {
+  color: #b5b7c8;
+}
+
+html:not(.dark) .np-segmented {
+  background: #f1f3fa;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .np-segmented-btn {
+  color: #8a8ca0;
+}
+
+html:not(.dark) .np-segmented-btn--active {
+  background: #ffffff;
+  color: #5c6bdf;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+html:not(.dark) .np-chip {
+  background: #f1f3fa;
+  border-color: rgba(0, 0, 0, 0.05);
+  color: #8a8ca0;
+}
+
+html:not(.dark) .np-chip--active {
+  background: rgba(92, 107, 223, 0.07);
+  border-color: rgba(92, 107, 223, 0.18);
+  color: #5c6bdf;
+  box-shadow: 0 0 12px rgba(92, 107, 223, 0.18);
+}
+
+html:not(.dark) .np-input {
+  background: #f1f3fa;
+  border-color: rgba(0, 0, 0, 0.05);
+  color: #0b0d14;
+}
+
+html:not(.dark) .np-input::placeholder {
+  color: #8a8ca0;
+}
+
+html:not(.dark) .np-divider {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .np-toggle-track {
+  background: #dce0ec;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .np-toggle-track--on {
+  background: #5c6bdf;
+  border-color: rgba(92, 107, 223, 0.22);
+  box-shadow: 0 0 8px rgba(92, 107, 223, 0.18);
+}
+
+html:not(.dark) .np-toggle-knob {
+  background: #ffffff;
+}
+
+html:not(.dark) .np-groups {
+  padding: 0;
+}

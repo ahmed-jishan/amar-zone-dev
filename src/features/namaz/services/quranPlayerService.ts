@@ -182,6 +182,8 @@ class QuranPlayerService {
     if (storage) {
       try { storage.removeItem(STATE_KEY) } catch { /* ignore */ }
     }
+    // Make sure native notification is hidden on stop
+    this.updateMediaSession()
     this.notify()
   }
 
@@ -217,6 +219,7 @@ class QuranPlayerService {
     if (!this.audio) return
     this.audio.onended = () => {
       this.state.isPlaying = false
+      this.updateMediaSession()
       this.notify()
       if (this.autoAdvanceEnabled) void this.next()
     }

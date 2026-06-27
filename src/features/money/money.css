@@ -1045,6 +1045,1108 @@ html:not(.dark) {
   background: var(--mon-bg);
 }
 
+/* ════════════════════════════════════════════════════════════╗
+   ║ Premium Wealth Hub — Apple/Samsung style expandable card  ║
+   ╚═══════════════════════════════════════════════════════════ */
+.mon-wealth-hub {
+  background: linear-gradient(135deg, rgba(201,168,76,0.24), rgba(99,102,241,0.16)), linear-gradient(180deg, var(--mon-surface-1), var(--mon-surface-2));
+  border: 1px solid var(--mon-glass-border);
+  border-radius: var(--mon-radius-3xl);
+  box-shadow: var(--mon-shadow-lg);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--mon-transition-slow);
+}
+
+.mon-wealth-hub:hover {
+  border-color: var(--mon-glass-border-2);
+}
+
+.hub-ambient-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 50%, var(--mon-gold-glow) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 50%, var(--mon-accent-glow) 0%, transparent 60%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.hub-primary {
+  padding: 20px;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  transition: all var(--mon-transition-fast);
+}
+
+.hub-primary:active {
+  transform: scale(0.99);
+}
+
+.hub-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.hub-view-pills {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 9999px;
+  padding: 2px;
+}
+
+.hub-view-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mon-text-3);
+  background: none;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all var(--mon-transition-fast);
+  white-space: nowrap;
+}
+
+.hub-view-pill.active {
+  background: var(--mon-surface-1);
+  color: var(--mon-text-1);
+  box-shadow: var(--mon-shadow-sm);
+}
+
+.hub-view-pill:active {
+  transform: scale(0.96);
+}
+
+.hub-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.hub-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  color: var(--mon-text-2);
+  border: none;
+  cursor: pointer;
+  transition: all var(--mon-transition-fast);
+}
+
+.hub-icon-btn:active {
+  transform: scale(0.9);
+  background: rgba(255,255,255,0.12);
+}
+
+.hub-amount-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.hub-currency-sign {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--mon-text-3);
+}
+
+.hub-amount {
+  font-size: 38px;
+  font-weight: 900;
+  color: var(--mon-text-1);
+  line-height: 1;
+  letter-spacing: -1px;
+  tabular-nums: true;
+  transition: all 0.3s ease;
+}
+
+.hub-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.hub-month {
+  color: var(--mon-text-3);
+  font-weight: 500;
+}
+
+.hub-income-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: var(--mon-income-bg);
+  color: var(--mon-income);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.hub-expense-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: var(--mon-expense-bg);
+  color: var(--mon-expense);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.hub-expand-indicator {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mon-border);
+}
+
+.hub-chevron {
+  transition: transform var(--mon-transition-spring);
+  color: var(--mon-text-3);
+}
+
+.hub-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.hub-expanded-content {
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hub-expanded-inner {
+  padding: 0 20px 4px;
+}
+
+.hub-section {
+  animation: mon-slide-up 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hub-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.hub-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--mon-radius-lg);
+  background: var(--mon-surface-1);
+  border: 1px solid var(--mon-border);
+  transition: all var(--mon-transition-fast);
+}
+
+.hub-stat-card:active {
+  transform: scale(0.98);
+}
+
+.hub-stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hub-stat-card.income .hub-stat-icon { background: var(--mon-income-bg); color: var(--mon-income); }
+.hub-stat-card.expense .hub-stat-icon { background: var(--mon-expense-bg); color: var(--mon-expense); }
+.hub-stat-card.balance .hub-stat-icon { background: var(--mon-gold-bg); color: var(--mon-gold); }
+.hub-stat-card.health .hub-stat-icon { background: var(--mon-accent-bg); color: var(--mon-accent); }
+
+.hub-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--mon-text-3);
+  margin-bottom: 2px;
+}
+
+.hub-stat-value {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--mon-text-1);
+}
+
+.hub-health-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hub-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.hub-quick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: var(--mon-radius-lg);
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all var(--mon-transition-spring);
+  white-space: nowrap;
+}
+
+.hub-quick-btn.expense {
+  background: var(--mon-expense-bg);
+  color: var(--mon-expense);
+  border: 1px solid var(--mon-expense-glow);
+}
+
+.hub-quick-btn.income {
+  background: var(--mon-income-bg);
+  color: var(--mon-income);
+  border: 1px solid var(--mon-income-glow);
+}
+
+.hub-quick-btn.wallet {
+  background: var(--mon-gold-bg);
+  color: var(--mon-gold);
+  border: 1px solid var(--mon-gold-glow);
+}
+
+.hub-quick-btn:active {
+  transform: scale(0.95);
+}
+
+/* Net Worth View */
+.hub-nw-card {
+  padding: 16px;
+  border-radius: var(--mon-radius-xl);
+  background: var(--mon-surface-1);
+  border: 1px solid var(--mon-border);
+}
+
+.hub-nw-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--mon-text-3);
+  margin-bottom: 4px;
+}
+
+.hub-nw-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--mon-text-1);
+  margin-bottom: 16px;
+}
+
+.hub-nw-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hub-nw-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--mon-text-2);
+}
+
+.hub-nw-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hub-nw-dot.savings { background: var(--mon-teal); }
+.hub-nw-dot.loans { background: var(--mon-amber); }
+.hub-nw-dot.assets { background: var(--mon-accent); }
+
+.hub-nw-amount {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--mon-text-1);
+}
+
+/* Wallet View */
+.hub-wallet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.hub-wallet-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: var(--mon-radius-lg);
+  background: var(--mon-surface-1);
+  border: 1px solid var(--mon-border);
+  cursor: pointer;
+  transition: all var(--mon-transition-fast);
+  width: 100%;
+  text-align: left;
+  color: inherit;
+}
+
+.hub-wallet-item:hover {
+  border-color: var(--mon-border-hover);
+}
+
+.hub-wallet-item.active {
+  border-color: var(--mon-gold-glow);
+  background: var(--mon-gold-bg);
+}
+
+.hub-wallet-item:active {
+  transform: scale(0.99);
+}
+
+.hub-wallet-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hub-wallet-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.hub-wallet-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.hub-wallet-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mon-text-1);
+}
+
+.hub-wallet-type {
+  font-size: 11px;
+  color: var(--mon-text-3);
+  text-transform: capitalize;
+}
+
+.hub-wallet-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hub-wallet-balance {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mon-text-1);
+}
+
+.hub-wallet-check {
+  color: var(--mon-gold);
+}
+
+.hub-manage-wallets {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--mon-radius-lg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mon-gold);
+  background: var(--mon-gold-bg);
+  border: 1px solid var(--mon-gold-glow);
+  cursor: pointer;
+  transition: all var(--mon-transition-fast);
+}
+
+.hub-manage-wallets:active {
+  transform: scale(0.98);
+}
+
+.hub-collapse-btn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-top: 1px solid var(--mon-border);
+  margin-top: 4px;
+  transition: all var(--mon-transition-fast);
+}
+
+.hub-collapse-btn:active {
+  background: var(--mon-surface-hover);
+}
+
+/* ════════════════════════════════════════════════════════════╗
+   ║ Premium Activity Feed — Apple-style contextual feed       ║
+   ╚═══════════════════════════════════════════════════════════ */
+.mon-activity-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feed-filter-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px;
+}
+
+.feed-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.feed-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mon-text-3);
+  background: var(--mon-surface-2);
+  border: 1px solid var(--mon-border);
+  cursor: pointer;
+  transition: all var(--mon-transition-fast);
+  white-space: nowrap;
+}
+
+.feed-filter-btn.active {
+  background: var(--mon-surface-1);
+  color: var(--mon-text-1);
+  border-color: var(--mon-gold-glow);
+  box-shadow: var(--mon-shadow-sm);
+}
+
+.feed-filter-btn:active {
+  transform: scale(0.97);
+}
+
+.feed-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--mon-gold);
+  background: var(--mon-gold-bg);
+}
+
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.feed-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  animation: mon-float 4s ease-in-out infinite;
+}
+
+.feed-empty-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mon-text-2);
+  margin-bottom: 4px;
+}
+
+.feed-empty-sub {
+  font-size: 12px;
+  color: var(--mon-text-3);
+}
+
+.feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--mon-radius-lg);
+  background: var(--mon-surface-1);
+  border: 1px solid var(--mon-border);
+  position: relative;
+  overflow: hidden;
+  animation: mon-slide-up 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: all var(--mon-transition-fast);
+}
+
+.feed-item:hover {
+  border-color: var(--mon-border-hover);
+}
+
+.feed-item:active {
+  transform: scale(0.99);
+}
+
+.feed-item-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.feed-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.feed-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mon-text-1);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feed-item-amount {
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.feed-item-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.feed-item-desc {
+  font-size: 11px;
+  color: var(--mon-text-3);
+}
+
+.feed-item-badge {
+  display: inline-flex;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.feed-item-time {
+  font-size: 10px;
+  color: var(--mon-text-4);
+}
+
+.feed-item-dismiss {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mon-text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--mon-transition-fast);
+  flex-shrink: 0;
+}
+
+.feed-item:hover .feed-item-dismiss {
+  opacity: 1;
+}
+
+.feed-item-dismiss:hover {
+  background: var(--mon-surface-2);
+  color: var(--mon-text-1);
+}
+
+.feed-item-type-indicator {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+
+/* ════════════════════════════════════════════════════════════╗
+   ║ Smart Morning Dashboard — Apple/Samsung style            ║
+   ╚═══════════════════════════════════════════════════════════ */
+.mon-smart-dashboard {
+  position: relative;
+}
+
+.sd-greeting {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sd-greeting-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sd-greeting-icon {
+  font-size: 28px;
+  line-height: 1;
+  animation: mon-spring-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sd-greeting-text {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--mon-text-1);
+}
+
+.sd-greeting-sub {
+  font-size: 12px;
+  color: var(--mon-text-3);
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sd-task-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--mon-accent-bg);
+  color: var(--mon-accent);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-greeting-right {
+  flex-shrink: 0;
+}
+
+.sd-balance-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 6px 12px;
+  border-radius: var(--mon-radius-lg);
+  background: var(--mon-surface-1);
+  border: 1px solid var(--mon-border);
+}
+
+.sd-balance-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--mon-text-4);
+}
+
+.sd-balance-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--mon-text-1);
+}
+
+/* Card Navigation Pills */
+.sd-nav-pills {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sd-nav-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.sd-nav-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mon-text-3);
+  background: var(--mon-surface-2);
+  border: 1px solid var(--mon-border);
+  cursor: pointer;
+  transition: all var(--mon-transition-spring);
+  white-space: nowrap;
+}
+
+.sd-nav-pill:active {
+  transform: scale(0.96);
+}
+
+/* Card Container */
+.sd-card-container {
+  position: relative;
+  min-height: 140px;
+}
+
+.sd-card {
+  padding: 16px;
+  border-radius: var(--mon-radius-2xl);
+  background: var(--mon-surface-1);
+  border: 1px solid var(--mon-border);
+  animation: mon-scale-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Focus Card */
+.sd-card-focus {
+  background: linear-gradient(135deg, var(--mon-surface-1), var(--mon-surface-2));
+}
+
+.sd-focus-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sd-focus-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.sd-focus-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mon-text-1);
+  line-height: 1.3;
+}
+
+.sd-focus-desc {
+  font-size: 11px;
+  color: var(--mon-text-3);
+  margin-top: 2px;
+}
+
+.sd-card-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mon-surface-2);
+  border: 1px solid var(--mon-border);
+  color: var(--mon-text-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--mon-transition-fast);
+}
+
+.sd-card-btn:active {
+  transform: scale(0.9);
+}
+
+.sd-focus-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.sd-metric {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sd-metric-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mon-surface-2);
+  flex-shrink: 0;
+}
+
+.sd-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--mon-text-3);
+}
+
+.sd-metric-value {
+  font-size: 15px;
+  font-weight: 800;
+  margin-top: 1px;
+}
+
+.sd-metric-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--mon-border);
+}
+
+/* Pulse Card */
+.sd-card-pulse {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sd-pulse-ring-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+
+.sd-pulse-ring-svg {
+  transform: rotate(-90deg);
+}
+
+.sd-pulse-ring-fg {
+  transition: stroke-dasharray 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sd-pulse-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sd-pulse-pct {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--mon-text-1);
+}
+
+.sd-pulse-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.sd-pulse-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mon-text-1);
+  margin-bottom: 10px;
+}
+
+.sd-pulse-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sd-pulse-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sd-pulse-stat-label {
+  font-size: 11px;
+  color: var(--mon-text-3);
+}
+
+.sd-pulse-stat-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Actions Card */
+.sd-card-actions {
+  padding: 14px;
+}
+
+.sd-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.sd-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--mon-radius-md);
+  background: var(--mon-surface-2);
+  border-left: 3px solid;
+}
+
+.sd-action-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sd-action-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mon-text-1);
+}
+
+.sd-actions-empty {
+  text-align: center;
+  padding: 12px 0 16px;
+}
+
+.sd-actions-empty-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 6px;
+  animation: mon-float 4s ease-in-out infinite;
+}
+
+.sd-actions-empty-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mon-text-2);
+}
+
+.sd-actions-quick {
+  border-top: 1px solid var(--mon-border);
+  padding-top: 12px;
+}
+
+.sd-actions-quick-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--mon-text-4);
+  margin-bottom: 8px;
+}
+
+.sd-actions-quick-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.sd-quick-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--mon-radius-md);
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all var(--mon-transition-fast);
+}
+
+.sd-quick-btn:active {
+  transform: scale(0.97);
+}
+
+.sd-quick-btn.expense {
+  background: var(--mon-expense-bg);
+  color: var(--mon-expense);
+  border: 1px solid var(--mon-expense-glow);
+}
+
+.sd-quick-btn.income {
+  background: var(--mon-income-bg);
+  color: var(--mon-income);
+  border: 1px solid var(--mon-income-glow);
+}
+
 /* ── Hero Section ── */
 .mon-hero {
   position: relative;

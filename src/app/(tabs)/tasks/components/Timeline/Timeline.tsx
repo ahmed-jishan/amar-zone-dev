@@ -13,9 +13,9 @@ interface Props {
 
 export default function Timeline({ tasks, onToggle, onOpenDetails }: Props) {
   const timelineItems = useMemo(() => {
-    const active = tasks.filter((t) => !t.completed && t.status !== 'archived');
-    const withDate = active.filter((t) => t.dueDate);
-    const withoutDate = active.filter((t) => !t.dueDate);
+    // Respect the filtered tasks as received (no re-filtering)
+    const withDate = tasks.filter((t) => t.dueDate);
+    const withoutDate = tasks.filter((t) => !t.dueDate);
 
     const sorted = [...withDate].sort((a, b) => {
       return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
