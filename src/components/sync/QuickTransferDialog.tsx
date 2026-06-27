@@ -664,7 +664,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     setWebrtcState('creating-peer')
 
     try {
-      const conn = await createReceiverConnection(
+      const { conn } = await createReceiverConnection(
         peerId,
         (state) => setWebrtcState(state),
         (errMsg) => setError(errMsg),

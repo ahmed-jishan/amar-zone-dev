@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ArrowDownLeft, ArrowUpRight, Eye, EyeOff, TrendingDown, TrendingUp, Wallet, Plus, X, Check } from 'lucide-react'
 import { useMoneyStore } from '../store/moneyStore'
@@ -15,19 +16,19 @@ import { useSwipeNavigation } from '@/features/namaz/hooks/useSwipeNavigation'
 import '../money.css'
 
 // Premium components
-import WealthHub from './premium/WealthHub'
-import ActivityFeed from './premium/ActivityFeed'
-import SmartMorningDashboard from './premium/SmartMorningDashboard'
+const WealthHub = dynamic(() => import('./premium/WealthHub'), { ssr: false })
+const ActivityFeed = dynamic(() => import('./premium/ActivityFeed'), { ssr: false })
+const SmartMorningDashboard = dynamic(() => import('./premium/SmartMorningDashboard'), { ssr: false })
 
 // Existing components
 import AddGoalModal from './AddGoalModal'
 import AddLoanModal from './AddLoanModal'
 import AddSubscriptionModal from './AddSubscriptionModal'
 import AddTransactionModal from './AddTransactionModal'
-import AnalyticsTab from './AnalyticsTab'
+const AnalyticsTab = dynamic(() => import('./AnalyticsTab'), { ssr: false })
 import BudgetTab from './BudgetTab'
-import BudgetCoach from './BudgetCoach'
-import CashflowForecast from './CashflowForecast'
+const BudgetCoach = dynamic(() => import('./BudgetCoach'), { ssr: false })
+const CashflowForecast = dynamic(() => import('./CashflowForecast'), { ssr: false })
 import EditLoanModal from './EditLoanModal'
 import GoalsTab from './GoalsTab'
 import LoanEntryModal from './LoanEntryModal'

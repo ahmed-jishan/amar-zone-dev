@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TaskHeader from './components/TaskList/TaskHeader';
@@ -9,21 +8,26 @@ import FocusCard from './components/FocusCard/FocusCard';
 import SmartPlanSection from './components/SmartPlanSection/SmartPlanSection';
 import TaskList from './components/TaskList/TaskList';
 import TaskDetailsModal from './components/TaskDetailsModal/TaskDetailsModal';
-import CommandPalette from './components/CommandPalette/CommandPalette';
-import ContextMenu from './components/ContextMenu/ContextMenu';
-import DashboardSheet from './components/DashboardSheet/DashboardSheet';
-import Timeline from './components/Timeline/Timeline';
-import ArchivedTasks from './components/Archived/ArchivedTasks';
-import TaskBoard from './components/TaskBoard/TaskBoard';
-import OnboardingOverlay from './components/OnboardingOverlay/OnboardingOverlay';
 import { useTaskFocus } from './hooks/useTaskFocus';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { useTaskAnalytics } from './hooks/useTaskAnalytics';
 import { Task } from './types';
 import { useTaskStore } from '@/lib/store/taskStore';
+import TabErrorBoundary from '@/components/shared/TabErrorBoundary';
 import './tasks.css';
+import dynamic from 'next/dynamic'
+const CommandPalette = dynamic(() => import('./components/CommandPalette/CommandPalette'), { ssr: false });
+const ContextMenu = dynamic(() => import('./components/ContextMenu/ContextMenu'), { ssr: false });
+const DashboardSheet = dynamic(() => import('./components/DashboardSheet/DashboardSheet'), { ssr: false });
+const Timeline = dynamic(() => import('./components/Timeline/Timeline'), { ssr: false });
+const ArchivedTasks = dynamic(() => import('./components/Archived/ArchivedTasks'), { ssr: false });
+const TaskBoard = dynamic(() => import('./components/TaskBoard/TaskBoard'), { ssr: false });
+const OnboardingOverlay = dynamic(() => import('./components/OnboardingOverlay/OnboardingOverlay'), { ssr: false });
 
-export default function TasksPage() {
+
+
+
+function TasksPageInner() {
   const tasks = useTaskStore((s) => s.tasks);
   const toggleTask = useTaskStore((s) => s.toggleTask);
   const updateTask = useTaskStore((s) => s.updateTask);
@@ -360,5 +364,13 @@ function StickyFilterPill({
         </span>
       )}
     </button>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <TabErrorBoundary fallbackTitle="Tasks tab crashed">
+      <TasksPageInner />
+    </TabErrorBoundary>
   );
 }

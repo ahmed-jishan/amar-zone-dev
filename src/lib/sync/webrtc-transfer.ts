@@ -1,4 +1,4 @@
-import Peer, { type DataConnection } from 'peerjs'
+﻿import Peer, { type DataConnection } from 'peerjs'
 
 export interface WebRTCQRPayload {
   peerId: string
@@ -65,18 +65,54 @@ type TransferAbortMessage = {
   reason: string
 }
 
+type PingMessage = {
+  type: 'ping'
+  ts: number
+}
+
+type PongMessage = {
+  type: 'pong'
+  ts: number
+}
+
 type TransferMessage =
   | TransferInitMessage
   | ChunkMessage
   | AckMessage
   | TransferCompleteMessage
   | TransferAbortMessage
+  | PingMessage
+  | PongMessage
 
-const CHUNK_SIZE = 48_000
-const ACK_TIMEOUT_MS = 5000
-const MAX_RETRIES = 8
-const TRANSFER_TIMEOUT_MS = 120_000
-const PROTOCOL_VERSION = 2
+// Tuning constants
+const CHUNK_SIZE = 16_384
+const ACK_TIMEOUT_MS = 10_000
+const MAX_RETRIES = 15
+const TRANSFER_TIMEOUT_MS = 300_000
+const CONNECT_TIMEOUT_MS = 60_000
+const PROTOCOL_VERSION = 3
+const PING_INTERVAL_MS = 10_000
+const PING_TIMEOUT_MS = 40_000
+
+function getIceServers(): RTCIceServer[] {
+  return [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    {
+      urls: [
+        'turn:global.relay.metered.ca:80',
+        'turn:global.relay.metered.ca:443',
+        'turn:global.relay.metered.ca:80?transport=tcp',
+        'turn:global.relay.metered.ca:443?transport=tcp',
+      ],
+      username: '7b4c8ef2c417b1a42e3b91e9',
+      credential: 'xuJpQqw3Tbi7K/mx',
+    },
+  ]
+}
 
 export function createSenderPeer(
   onStateChange: (state: WebRTCTransferState) => void,
@@ -87,21 +123,23 @@ export function createSenderPeer(
 
     const peer = new Peer('', {
       debug: 0,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-        ],
-      },
+      config: { iceServers: getIceServers() },
     })
 
     let connectionResolve: (conn: DataConnection) => void = () => undefined
-    const whenConnected = new Promise<DataConnection>((resolveConnection) => {
+    let connectionReject: (reason: Error) => void = () => undefined
+
+    const whenConnected = new Promise<DataConnection>((resolveConnection, rejectConnection) => {
       connectionResolve = resolveConnection
+      connectionReject = rejectConnection
     })
+
+    const connectTimer = setTimeout(() => {
+      connectionReject(new Error('Connection timed out. No receiver detected.'))
+      onError('Connection timed out. Please try again.')
+      onStateChange('failed')
+      peer.destroy()
+    }, CONNECT_TIMEOUT_MS)
 
     peer.on('open', (id) => {
       const payload: WebRTCQRPayload = {
@@ -109,11 +147,13 @@ export function createSenderPeer(
         deviceName: typeof navigator !== 'undefined' ? getDeviceName() : 'SelfSync Device',
         dataSize: 0,
         chunks: 1,
-        appVersion: '2.0.0',
+        appVersion: '3.0.0',
         protocolVersion: PROTOCOL_VERSION,
       }
 
       peer.on('connection', (conn) => {
+        clearTimeout(connectTimer)
+
         conn.on('close', () => {
           onStateChange('idle')
         })
@@ -139,6 +179,7 @@ export function createSenderPeer(
     })
 
     peer.on('error', (err) => {
+      clearTimeout(connectTimer)
       const msg = err.type === 'unavailable-id'
         ? 'Failed to create transfer ID. Try again.'
         : err.type === 'network'
@@ -159,452 +200,442 @@ export async function sendBackupViaWebRTC(
 ): Promise<void> {
   const bytes = new TextEncoder().encode(encryptedData)
   const totalChunks = Math.max(1, Math.ceil(bytes.length / CHUNK_SIZE))
-  const sessionId = createSessionId()
-  const transferChecksum = await sha256Hex(bytes)
   const startedAt = performance.now()
   let retries = 0
+  let lastProgressTime = 0
 
-  await waitForConnectionOpen(conn)
   onStateChange('sending')
+  onProgress(buildProgress(0, totalChunks, 0, bytes.length, startedAt, 0))
 
-  const pendingAcks = new Map<number, () => void>()
-  const ackHandler = (data: unknown) => {
-    const msg = data as Partial<TransferMessage>
-    if (msg.type !== 'ack' || msg.sessionId !== sessionId || typeof msg.index !== 'number') return
-    const resolve = pendingAcks.get(msg.index)
-    if (!resolve) return
-    pendingAcks.delete(msg.index)
-    resolve()
-  }
-
-  conn.on('data', ackHandler)
+  const stopKeepalive = startKeepalive(conn)
 
   try {
-    sendWhenOpen(conn, {
+    const totalBytes = bytes.length
+    const checksum = await sha256Hex(bytes)
+
+    await waitForConnectionOpen(conn)
+    queueSend(conn, {
       type: 'transfer-init',
-      sessionId,
+      sessionId: createSessionId(),
       totalChunks,
-      totalBytes: bytes.length,
-      checksum: transferChecksum,
-    } satisfies TransferInitMessage)
+      totalBytes,
+      checksum,
+    })
 
-    for (let i = 0; i < totalChunks; i += 1) {
-      const start = i * CHUNK_SIZE
+    let bytesSent = 0
+    for (let index = 0; index < totalChunks; index += 1) {
+      const start = index * CHUNK_SIZE
       const end = Math.min(start + CHUNK_SIZE, bytes.length)
-      const chunk = bytes.slice(start, end)
-      const msg: ChunkMessage = {
-        type: 'chunk',
-        sessionId,
-        index: i,
-        total: totalChunks,
-        data: arrayBufferToBase64(chunk),
-        size: chunk.length,
-        checksum: await sha256Hex(chunk),
-      }
+      const chunkBytes = bytes.slice(start, end)
+      const chunkB64 = arrayBufferToBase64(chunkBytes)
+      const chunkChecksum = await sha256Hex(chunkBytes)
 
-      let delivered = false
-      let attempt = 0
-      while (!delivered && attempt <= MAX_RETRIES) {
-        sendWhenOpen(conn, msg)
+      let chunkRetries = 0
+      let acked = false
+
+      while (!acked && chunkRetries < MAX_RETRIES) {
         try {
-          await waitForAck(i, pendingAcks)
-          delivered = true
-        } catch (error) {
-          attempt += 1
-          retries += 1
-          if (attempt > MAX_RETRIES) throw error
-        }
-      }
+          await waitForConnectionOpen(conn)
+          queueSend(conn, {
+            type: 'chunk',
+            sessionId: createSessionId(),
+            index,
+            total: totalChunks,
+            data: chunkB64,
+            size: chunkBytes.length,
+            checksum: chunkChecksum,
+          })
 
-      onProgress(buildProgress(i + 1, totalChunks, end, bytes.length, startedAt, retries))
-
-      if (i % 8 === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
-    }
-
-    sendWhenOpen(conn, { type: 'transfer-complete', sessionId } satisfies TransferCompleteMessage)
-    onStateChange('complete')
-  } catch (error) {
-    if (conn.open) {
-      conn.send({
-        type: 'transfer-abort',
-        sessionId,
-        reason: error instanceof Error ? error.message : 'Transfer interrupted',
-      } satisfies TransferAbortMessage)
-    }
-    onStateChange('failed')
-    throw error
-  } finally {
-    conn.off('data', ackHandler)
-    pendingAcks.clear()
-  }
-}
-
-export function receiveBackupViaWebRTC(
-  conn: DataConnection,
-  onProgress: (progress: WebRTCProgress) => void,
-  onStateChange: (state: WebRTCTransferState) => void,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    onStateChange('receiving')
-
-    const chunks = new Map<number, ArrayBuffer>()
-    const seen = new Set<number>()
-    let sessionId = ''
-    let totalChunks = 0
-    let totalBytes = 0
-    let receivedBytes = 0
-    let expectedChecksum = ''
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    const startedAt = performance.now()
-    let transferCompleted = false
-
-    const cleanupListeners = () => {
-      if (timeoutId) clearTimeout(timeoutId)
-      conn.off('data', handler)
-      conn.off('error', errorHandler)
-      conn.off('close', closeHandler)
-    }
-
-    const fail = (message: string) => {
-      if (transferCompleted) return // Prevent fail after successful completion
-      cleanupListeners()
-      onStateChange('failed')
-      reject(new Error(message))
-    }
-
-    const errorHandler = (err: Error) => {
-      fail(err.message || 'WebRTC error')
-    }
-
-    const closeHandler = () => {
-      // Connection closed. If transfer was already complete, ignore.
-      // If not, this is an unexpected close.
-      if (!transferCompleted) {
-        fail('Connection closed before transfer completed.')
-      }
-    }
-
-    const resetTimeout = () => {
-      if (timeoutId) clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => fail('Transfer timed out. Retry from the sender device.'), TRANSFER_TIMEOUT_MS)
-    }
-
-    const handler = (data: unknown) => {
-      resetTimeout()
-      void handleMessage(data).catch((error) => {
-        fail(error instanceof Error ? error.message : 'Transfer failed.')
-      })
-    }
-
-    const handleMessage = async (data: unknown) => {
-      const msg = data as Partial<TransferMessage>
-
-      if (msg.type === 'transfer-init') {
-        if (!isValidInit(msg)) {
-          fail('Invalid transfer session.')
-          return
-        }
-        sessionId = msg.sessionId
-        totalChunks = msg.totalChunks
-        totalBytes = msg.totalBytes
-        expectedChecksum = msg.checksum
-        onProgress(buildProgress(0, totalChunks, 0, totalBytes, startedAt, 0))
-        return
-      }
-
-      if (msg.type === 'chunk') {
-        if (!isValidChunk(msg) || msg.sessionId !== sessionId || msg.total !== totalChunks) return
-
-        if (!seen.has(msg.index)) {
-          const buffer = base64ToArrayBuffer(msg.data)
-          const checksum = await sha256Hex(new Uint8Array(buffer))
-          if (checksum !== msg.checksum) {
-            fail(`Chunk ${msg.index + 1} failed integrity validation.`)
-            return
+          await waitForAck(conn, index, ACK_TIMEOUT_MS)
+          acked = true
+        } catch (err) {
+          chunkRetries++
+          retries++
+          if (chunkRetries >= MAX_RETRIES) {
+            throw new Error('Failed to send chunk ' + index + ' after ' + MAX_RETRIES + ' retries.')
           }
-          chunks.set(msg.index, buffer)
-          seen.add(msg.index)
-          receivedBytes += msg.size
+          await new Promise(r => setTimeout(r, 200 * chunkRetries))
         }
-
-        sendWhenOpen(conn, { type: 'ack', sessionId, index: msg.index } satisfies AckMessage)
-        onProgress(buildProgress(chunks.size, totalChunks, receivedBytes, totalBytes || receivedBytes, startedAt, 0))
-
-        if (chunks.size === totalChunks) {
-          transferCompleted = true
-          cleanupListeners()
-          const result = await reassembleChunks(chunks, totalChunks, expectedChecksum)
-          onStateChange('complete')
-          resolve(result)
-        }
-        return
       }
 
-      if (msg.type === 'transfer-complete' && msg.sessionId === sessionId) {
-        // Sender confirms transfer is done. If we haven't completed yet, wait - the last chunk might be processing.
-        // If already completed, this is just a confirmation we can safely ignore.
-        return
-      }
+      bytesSent += chunkBytes.length
 
-      if (msg.type === 'transfer-abort' && msg.sessionId === sessionId) {
-        fail(typeof msg.reason === 'string' ? msg.reason : 'Sender cancelled the transfer.')
+      const now = performance.now()
+      if (now - lastProgressTime > 50) {
+        onProgress(buildProgress(index + 1, totalChunks, bytesSent, totalBytes, startedAt, retries))
+        await yieldToUI()
+        lastProgressTime = now
       }
     }
 
-    conn.on('data', handler)
-    conn.on('error', errorHandler)
-    conn.on('close', closeHandler)
+    await waitForConnectionOpen(conn)
+    queueSend(conn, {
+      type: 'transfer-complete',
+      sessionId: createSessionId(),
+    })
 
-    resetTimeout()
-  })
+    onProgress(buildProgress(totalChunks, totalChunks, totalBytes, totalBytes, startedAt, retries))
+    await yieldToUI()
+    onStateChange('complete')
+  } catch (err) {
+    onStateChange('failed')
+    throw err
+  } finally {
+    stopKeepalive()
+  }
 }
 
 export function createReceiverConnection(
-  peerId: string,
+  senderPeerId: string,
   onStateChange: (state: WebRTCTransferState) => void,
   onError: (error: string) => void,
-): Promise<DataConnection> {
+): Promise<{ conn: DataConnection; peer: Peer }> {
   return new Promise((resolve, reject) => {
     onStateChange('creating-peer')
 
-    const peer = new Peer('', {
+    let peer: Peer | null = null
+    let disposed = false
+    const cleanUp = () => {
+      disposed = true
+      try { peer?.destroy() } catch { }
+    }
+
+    const connectTimer = setTimeout(() => {
+      if (!disposed) {
+        cleanUp()
+        onError('Connection timed out. Could not reach sender device.')
+        onStateChange('failed')
+        reject(new Error('Receiver connection timeout'))
+      }
+    }, CONNECT_TIMEOUT_MS)
+
+    peer = new Peer('', {
       debug: 0,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-        ],
-      },
+      config: { iceServers: getIceServers() },
     })
 
-    let attemptCount = 0
-    const MAX_ATTEMPTS = 3
-    const INITIAL_TIMEOUT_MS = 30_000
-
-    function attemptConnect() {
-      attemptCount++
+    peer.on('open', () => {
+      if (disposed) return
       onStateChange('connecting')
 
-      const conn = peer.connect(peerId, {
+      const conn = peer.connect(senderPeerId, {
         reliable: true,
         serialization: 'json',
       })
 
-      const timeout = setTimeout(() => {
-        conn.off('open', onOpen)
-        conn.off('error', onConnError)
-        if (attemptCount < MAX_ATTEMPTS) {
-          onStateChange('connecting')
-          setTimeout(attemptConnect, 1000 * attemptCount)
-        } else {
-          onStateChange('failed')
-          reject(new Error('Connection timed out. Make sure both devices are on the same network and try again.'))
-        }
-      }, INITIAL_TIMEOUT_MS * attemptCount)
-
-      function onOpen() {
-        clearTimeout(timeout)
+      conn.on('open', () => {
+        if (disposed) return
+        clearTimeout(connectTimer)
         onStateChange('connected')
-        resolve(conn)
-      }
+        resolve({ conn, peer: peer! })
+      })
 
-      function onConnError(err: Error) {
-        clearTimeout(timeout)
-        if (attemptCount < MAX_ATTEMPTS) {
-          onStateChange('connecting')
-          setTimeout(attemptConnect, 1000 * attemptCount)
-        } else {
-          onError(err.message || 'Connection failed after multiple attempts')
-          onStateChange('failed')
-          reject(err)
-        }
-      }
-
-      conn.on('open', onOpen)
-      conn.on('error', onConnError)
-    }
-
-    peer.on('open', () => {
-      attemptConnect()
+      conn.on('error', (err) => {
+        if (disposed) return
+        cleanUp()
+        onError(err.message || 'Connection failed')
+        onStateChange('failed')
+        reject(err)
+      })
     })
 
     peer.on('error', (err) => {
-      onError(err.message || 'PeerJS error')
+      if (disposed) return
+      cleanUp()
+      clearTimeout(connectTimer)
+      const msg = err.type === 'network'
+        ? 'Network error. Check internet or use QR mode.'
+        : err.message || 'Failed to create receiver peer'
+      onError(msg)
       onStateChange('failed')
       reject(err)
     })
   })
 }
 
-function getDeviceName(): string {
-  if (typeof navigator === 'undefined') return 'SelfSync Device'
-  const ua = navigator.userAgent
-  if (ua.includes('Android')) return 'Android Phone'
-  if (ua.includes('iPhone') || ua.includes('iPad')) return 'iPhone/iPad'
-  if (ua.includes('Windows')) return 'Windows PC'
-  return 'SelfSync Device'
-}
+export async function receiveBackupViaWebRTC(
+  conn: DataConnection,
+  onProgress: (progress: WebRTCProgress) => void,
+  onStateChange: (state: WebRTCTransferState) => void,
+  abortSignal?: AbortSignal,
+): Promise<string> {
+  onStateChange('receiving')
 
-function waitForAck(index: number, pendingAcks: Map<number, () => void>): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      pendingAcks.delete(index)
-      reject(new Error(`Timed out waiting for chunk ${index + 1} acknowledgement`))
-    }, ACK_TIMEOUT_MS)
+  const chunks = new Map<number, ArrayBuffer>()
+  let transferInit: any = null
+  let bytesReceived = 0
+  let startedAt = performance.now()
+  let lastProgressTime = 0
+  let resolvePromise: (value: string) => void = () => undefined
+  let rejectPromise: (reason: Error) => void = () => undefined
+  let settled = false
 
-    pendingAcks.set(index, () => {
-      clearTimeout(timeout)
-      resolve()
-    })
+  const stopKeepalive = startKeepalive(conn)
+
+  const transferTimer = setTimeout(() => {
+    if (!settled) {
+      settled = true
+      stopKeepalive()
+      cleanup()
+      onStateChange('failed')
+      rejectPromise(new Error('Transfer timed out'))
+    }
+  }, TRANSFER_TIMEOUT_MS)
+
+  const ackedChunks = new Set<number>()
+
+  const handleMessage = (raw: unknown) => {
+    if (settled) return
+    const msg = raw as any
+
+    if (msg.type === 'ping') {
+      queueSend(conn, { type: 'pong', ts: (msg as PingMessage).ts })
+      return
+    }
+    if (msg.type === 'pong') return
+
+    if (msg.type === 'transfer-init' && isValidInit(msg)) {
+      transferInit = msg
+      startedAt = performance.now()
+      onStateChange('receiving')
+      onProgress(buildProgress(0, msg.totalChunks, 0, msg.totalBytes, startedAt, 0))
+      return
+    }
+
+    if (msg.type === 'chunk' && isValidChunk(msg) && transferInit) {
+      if (!ackedChunks.has(msg.index)) {
+        ackedChunks.add(msg.index)
+        const buffer = base64ToArrayBuffer(msg.data)
+        chunks.set(msg.index, buffer)
+        bytesReceived += msg.size
+        onProgress(buildProgress(chunks.size, transferInit.totalChunks, bytesReceived, transferInit.totalBytes, startedAt, 0))
+      }
+      queueSend(conn, { type: 'ack', sessionId: transferInit.sessionId, index: msg.index })
+      if (chunks.size === transferInit.totalChunks) {
+        finishTransfer()
+      }
+      return
+    }
+
+    if (msg.type === 'transfer-complete') {
+      finishTransfer()
+      return
+    }
+
+    if (msg.type === 'transfer-abort') {
+      if (!settled) {
+        settled = true
+        stopKeepalive()
+        cleanup()
+        onStateChange('failed')
+        rejectPromise(new Error(msg.reason || 'Sender aborted transfer'))
+      }
+      return
+    }
+  }
+
+  const finishTransfer = async () => {
+    if (settled) return
+    settled = true
+    stopKeepalive()
+    cleanup()
+    clearTimeout(transferTimer)
+    try {
+      if (!transferInit) {
+        rejectPromise(new Error('No transfer init received'))
+        return
+      }
+      onStateChange('receiving')
+      const data = await reassembleChunks(chunks, transferInit.totalChunks, transferInit.checksum)
+      onProgress(buildProgress(transferInit.totalChunks, transferInit.totalChunks, transferInit.totalBytes, transferInit.totalBytes, startedAt, 0))
+      await yieldToUI()
+      onStateChange('complete')
+      resolvePromise(data)
+    } catch (err) {
+      onStateChange('failed')
+      rejectPromise(err instanceof Error ? err : new Error('Reassembly failed'))
+    }
+  }
+
+  const cleanup = () => {
+    conn.off('data', handleMessage)
+    if (abortSignal) abortSignal.removeEventListener('abort', onAbort)
+  }
+
+  const onAbort = () => {
+    if (!settled) {
+      settled = true
+      stopKeepalive()
+      cleanup()
+      clearTimeout(transferTimer)
+      onStateChange('failed')
+      rejectPromise(new Error('Transfer aborted'))
+    }
+  }
+
+  conn.on('data', handleMessage)
+  if (abortSignal) abortSignal.addEventListener('abort', onAbort)
+
+  return new Promise<string>((resolve, reject) => {
+    resolvePromise = resolve
+    rejectPromise = reject
   })
 }
 
-function waitForConnectionOpen(conn: DataConnection, timeoutMs = 30000): Promise<void> {
-  if (conn.open) return Promise.resolve()
+function startKeepalive(conn: DataConnection): () => void {
+  let lastPongTime = Date.now()
+  let dead = false
 
+  const pongHandler = (raw: unknown) => {
+    const msg = raw as any
+    if (msg.type === 'pong') {
+      lastPongTime = Date.now()
+    }
+  }
+
+  conn.on('data', pongHandler)
+
+  const interval = setInterval(() => {
+    if (dead) return
+    if (Date.now() - lastPongTime > PING_TIMEOUT_MS) {
+      dead = true
+      conn.off('data', pongHandler)
+      clearInterval(interval)
+      return
+    }
+    try {
+      if (conn.open) {
+        conn.send({ type: 'ping', ts: Date.now() })
+      }
+    } catch { }
+  }, PING_INTERVAL_MS)
+
+  return () => {
+    dead = true
+    conn.off('data', pongHandler)
+    clearInterval(interval)
+  }
+}
+
+async function waitForAck(conn: DataConnection, expectedIndex: number, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      cleanup()
-      reject(new Error('Connection is not ready yet. Please retry the scan.'))
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        conn.off('data', handler)
+        reject(new Error('Ack timeout for chunk ' + expectedIndex))
+      }
     }, timeoutMs)
 
-    const handleOpen = () => {
-      cleanup()
-      resolve()
+    const handler = (raw: unknown) => {
+      if (settled) return
+      const msg = raw as any
+      if (msg.type === 'ack' && msg.index === expectedIndex) {
+        settled = true
+        clearTimeout(timer)
+        conn.off('data', handler)
+        resolve()
+      }
     }
-    const handleClose = () => {
-      cleanup()
-      reject(new Error('Connection closed before transfer started.'))
-    }
-    const handleError = (error: Error) => {
-      cleanup()
-      reject(error)
-    }
+
+    conn.on('data', handler)
+  })
+}
+
+function waitForConnectionOpen(conn: DataConnection): Promise<void> {
+  if (conn.open) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('Connection open timeout')) }, 10_000)
+    const handleOpen = () => { cleanup(); resolve() }
+    const handleClose = () => { cleanup(); reject(new Error('Connection closed')) }
+    const handleError = (error: Error) => { cleanup(); reject(error) }
     const cleanup = () => {
       clearTimeout(timeout)
       conn.off('open', handleOpen)
       conn.off('close', handleClose)
       conn.off('error', handleError)
     }
-
     conn.on('open', handleOpen)
     conn.on('close', handleClose)
     conn.on('error', handleError)
   })
 }
 
-function sendWhenOpen(conn: DataConnection, message: TransferMessage): void {
-  if (!conn.open) {
-    throw new Error('Connection is not open yet. Please retry the transfer.')
-  }
-  conn.send(message)
+function queueSend(conn: DataConnection, message: TransferMessage): void {
+  if (conn.open) { conn.send(message); return }
+  setTimeout(() => {
+    if (conn.open) conn.send(message)
+    else setTimeout(queueSend.bind(null, conn, message), 100)
+  }, 100)
 }
 
 function arrayBufferToBase64(buffer: Uint8Array): string {
   let binary = ''
-  for (let i = 0; i < buffer.length; i += 1) {
-    binary += String.fromCharCode(buffer[i])
-  }
+  for (let i = 0; i < buffer.length; i += 1) { binary += String.fromCharCode(buffer[i]) }
   return btoa(binary)
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64)
   const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i)
-  }
+  for (let i = 0; i < binary.length; i += 1) { bytes[i] = binary.charCodeAt(i) }
   return bytes.buffer
 }
 
 function createSessionId(): string {
-  const random = crypto.getRandomValues(new Uint32Array(2))
-  return `${Date.now().toString(36)}-${random[0].toString(36)}-${random[1].toString(36)}`
+  const r = crypto.getRandomValues(new Uint32Array(2))
+  return Date.now().toString(36) + '-' + r[0].toString(36) + '-' + r[1].toString(36)
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const input = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
   const digest = await crypto.subtle.digest('SHA-256', input)
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-function buildProgress(
-  received: number,
-  total: number,
-  bytesTransferred: number,
-  bytesTotal: number,
-  startedAt: number,
-  retries: number,
-): WebRTCProgress {
-  const elapsedSeconds = Math.max((performance.now() - startedAt) / 1000, 0.001)
-  const speedBytesPerSecond = bytesTransferred / elapsedSeconds
-  const remainingBytes = Math.max(bytesTotal - bytesTransferred, 0)
-  const etaSeconds = speedBytesPerSecond > 0 ? remainingBytes / speedBytesPerSecond : undefined
-
-  return {
-    received,
-    total,
-    bytesTransferred,
-    bytesTotal,
-    speedBytesPerSecond,
-    etaSeconds,
-    retries,
-  }
+function buildProgress(received: number, total: number, bt: number, btotal: number, startedAt: number, retries: number): WebRTCProgress {
+  const elapsed = Math.max((performance.now() - startedAt) / 1000, 0.001)
+  const speed = bt / elapsed
+  const remaining = Math.max(btotal - bt, 0)
+  return { received, total, bytesTransferred: bt, bytesTotal: btotal, speedBytesPerSecond: speed, etaSeconds: speed > 0 ? remaining / speed : undefined, retries }
 }
 
-function isValidInit(value: Partial<TransferMessage>): value is TransferInitMessage {
-  return value.type === 'transfer-init' &&
-    typeof value.sessionId === 'string' &&
-    typeof value.totalChunks === 'number' &&
-    value.totalChunks > 0 &&
-    typeof value.totalBytes === 'number' &&
-    value.totalBytes >= 0 &&
-    typeof value.checksum === 'string'
+function isValidInit(value: any): value is TransferInitMessage {
+  return value.type === 'transfer-init' && typeof value.sessionId === 'string' && typeof value.totalChunks === 'number' && value.totalChunks > 0 && typeof value.totalBytes === 'number' && value.totalBytes >= 0 && typeof value.checksum === 'string'
 }
 
-function isValidChunk(value: Partial<TransferMessage>): value is ChunkMessage {
-  return value.type === 'chunk' &&
-    typeof value.sessionId === 'string' &&
-    typeof value.index === 'number' &&
-    typeof value.total === 'number' &&
-    typeof value.data === 'string' &&
-    typeof value.size === 'number' &&
-    typeof value.checksum === 'string' &&
-    value.index >= 0 &&
-    value.index < value.total
+function isValidChunk(value: any): value is ChunkMessage {
+  return value.type === 'chunk' && typeof value.sessionId === 'string' && typeof value.index === 'number' && typeof value.total === 'number' && typeof value.data === 'string' && typeof value.size === 'number' && typeof value.checksum === 'string' && value.index >= 0 && value.index < value.total
 }
 
-async function reassembleChunks(
-  chunks: Map<number, ArrayBuffer>,
-  totalChunks: number,
-  expectedChecksum: string,
-): Promise<string> {
+async function reassembleChunks(chunks: Map<number, ArrayBuffer>, totalChunks: number, expectedChecksum: string): Promise<string> {
   const ordered: Uint8Array[] = []
-  for (let index = 0; index < totalChunks; index += 1) {
-    const chunk = chunks.get(index)
-    if (!chunk) throw new Error('Transfer is missing a data chunk. Please retry.')
-    ordered.push(new Uint8Array(chunk))
+  for (let i = 0; i < totalChunks; i++) {
+    const c = chunks.get(i)
+    if (!c) throw new Error('Missing chunk ' + i)
+    ordered.push(new Uint8Array(c))
   }
+  const total = ordered.reduce((s, c) => s + c.byteLength, 0)
+  const buf = new Uint8Array(total)
+  let off = 0
+  ordered.forEach(c => { buf.set(c, off); off += c.byteLength })
+  const cs = await sha256Hex(buf)
+  if (cs !== expectedChecksum) throw new Error('Integrity check failed')
+  return new TextDecoder().decode(buf)
+}
 
-  const totalLength = ordered.reduce((sum, chunk) => sum + chunk.byteLength, 0)
-  const fullBuffer = new Uint8Array(totalLength)
-  let offset = 0
-  ordered.forEach((chunk) => {
-    fullBuffer.set(chunk, offset)
-    offset += chunk.byteLength
-  })
+function yieldToUI(): Promise<void> {
+  return new Promise(r => setTimeout(r, 0))
+}
 
-  const checksum = await sha256Hex(fullBuffer)
-  if (checksum !== expectedChecksum) {
-    throw new Error('Transfer failed integrity validation. Please retry.')
-  }
-
-  return new TextDecoder().decode(fullBuffer)
+function getDeviceName(): string {
+  if (typeof navigator === 'undefined') return 'SelfSync Device'
+  const ua = navigator.userAgent
+  if (/android/i.test(ua)) return 'Android'
+  if (/iphone|ipad|ipod/i.test(ua)) return 'iOS Device'
+  if (/windows/i.test(ua)) return 'Windows PC'
+  if (/mac/i.test(ua)) return 'Mac'
+  if (/linux/i.test(ua)) return 'Linux PC'
+  return navigator.platform || 'SelfSync Device'
 }

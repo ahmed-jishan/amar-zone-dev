@@ -8,6 +8,12 @@ import PrayerTimeCard from './PrayerTimeCardList';
 import AzanJamatConfigPanel from './AzanJamatConfigPanel';
 import DailyStreakWidget from './StreakWidget';
 import QuickActions from './QuickActions';
+import ModeBanner from '../../modes/components/ModeBanner';
+import IftarCountdown from '../../modes/components/IftarCountdown';
+import FastingTracker from '../../modes/components/FastingTracker';
+import TaraweehTracker from '../../modes/components/TaraweehTracker';
+import RamadanCountdown from '../../modes/components/RamadanCountdown';
+import { useModeEngine } from '../../modes/hooks/useModeEngine';
 import { motion } from 'framer-motion';
 import { useLogsStore, TRACKED_PRAYERS } from '../../store/logsStore';
 import { usePrefsStore } from '../../store/prefsStore';
@@ -16,6 +22,7 @@ import { formatLocalDateKey } from '../../utils/dateHelpers';
 import { computePrayerTimeConfig } from '../../utils/azanJamatConfig';
 import type { useAzanScheduler } from '../../hooks/useAzanScheduler';
 import type { PrayerTimesResponse } from '../../types/prayer.types';
+import '@/features/namaz/modes/modes-premium.css';
 
 // Prayer status type
 export type PrayerStatus = 'pending' | 'onTime' | 'late' | 'missed' | 'jamaat';
@@ -63,6 +70,7 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
   const logs = useLogsStore((state) => state.logs);
   const updatePrayer = useLogsStore((state) => state.updatePrayer);
   const prayerTimePreferences = usePrefsStore((state) => state.prayerTimePreferences);
+  const ramadanMode = usePrefsStore((state) => state.ramadanMode);
   const today = formatLocalDateKey(new Date());
 
   const prayerData = useMemo(() => prayerTimesResponse ? ({
@@ -113,8 +121,40 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
     updatePrayer(today, prayerName as 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha', status);
   };
 
+  // Check if we're actually in Ramadan month (from API Hijri date)
+  const isActualRamadanMonth = prayerTimesResponse?.hijriDate?.toLowerCase().includes('ramadan') ?? false;
+  // Full Ramadan features only available during actual Ramadan
+  const showFullRamadanFeatures = ramadanMode && isActualRamadanMonth;
+
   return (
     <div className="space-y-6">
+      {/* Mode Intelligence Banner (Ramadan / Travel) */}
+      <ModeBanner onOpenSettings={() => {}} />
+
+      {/* Ramadan Announcement Card (shown only when toggle ON but NOT actual Ramadan month) */}
+      {/* When OFF → normal dashboard (no countdown card, no announcement) */}
+      {/* When ON + not Ramadan → amber announcement card with next Ramadan date */}
+      {/* When ON + actual Ramadan → hidden (full Iftar/Fasting/Taraweeh shows instead) */}
+      {ramadanMode && !isActualRamadanMonth && (
+        <RamadanCountdown 
+          isRamadanActive={false}
+          ramadanDay={null}
+          onOpenSettings={() => {}}
+        />
+      )}
+
+      {/* Full Ramadan Mode: Iftar Countdown + Fasting + Taraweeh */}
+      {/* Only shows during ACTUAL Ramadan month, not when toggled on outside season */}
+      {showFullRamadanFeatures && (
+        <div className="space-y-4">
+          <IftarCountdown variant="full" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FastingTracker />
+            <TaraweehTracker />
+          </div>
+        </div>
+      )}
+
       {/* Current/Next Prayer Card */}
       {prayerData && prayerTimesResponse ? (
         <CurrentPrayerCard

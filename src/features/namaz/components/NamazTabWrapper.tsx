@@ -19,6 +19,7 @@ import { useLocationSync } from '../hooks/useLocationSync';
 import { useSettingsStore } from '@/features/settings/store/settingsStore';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { triggerHaptic, vibrateBrowser } from '@/lib/native/haptics';
+import '../namaz-globals.css';
 
 // Tab navigation order for swipe gestures
 const TAB_ORDER: ActiveTab[] = ['dashboard', 'qibla', 'tasbih'];

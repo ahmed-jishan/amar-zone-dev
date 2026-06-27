@@ -8,6 +8,7 @@ import NotesList from '@/features/notes/components/NotesList'
 import BMICalculator from '@/features/health/components/BMICalculator'
 import { ZakatWizard } from '@/features/zakat'
 import SafeRender from '@/components/shared/SafeRender'
+import TabErrorBoundary from '@/components/shared/TabErrorBoundary'
 import '@/features/home/home.css'
 
 const HOME_TABS: HomeSubTab[] = ['dashboard', 'notes', 'health', 'zakat']
@@ -67,6 +68,7 @@ export default function HomePage() {
   }
 
   return (
+    <TabErrorBoundary fallbackTitle="Home tab crashed">
     <div className="home-root min-h-[100dvh]">
       <div className="max-w-[680px] mx-auto px-4 sm:px-6 pb-32 pt-4 sm:pt-6">
         {/* Header */}
@@ -102,5 +104,6 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+    </TabErrorBoundary>
   )
 }

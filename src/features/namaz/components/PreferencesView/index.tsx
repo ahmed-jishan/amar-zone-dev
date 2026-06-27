@@ -21,6 +21,8 @@ import {
   LocationPermissionError,
   reverseGeocodeLocation,
 } from '@/lib/native/location';
+import ModePreferences from '../../modes/components/ModePreferences';
+import { useModeEngine } from '../../modes/hooks/useModeEngine';
 import '@/features/namaz/namaz-premium.css';
 
 // ─── Sub-components ───
@@ -518,9 +520,8 @@ export default function PreferencesView() {
         <PremiumAzanSettings />
       </div>
 
-      <div className="np-group">
-        <PremiumSpecialModes />
-      </div>
+      {/* Enhanced Mode Preferences — replaces old PremiumSpecialModes */}
+      <ModePreferences />
     </div>
   );
 }

@@ -2,33 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { storageRepairScript } from '@/lib/startup/storageRepairScript'
 
-const extensionErrorGuardScript = `
-(function () {
-  var isMetaMaskExtensionError = function (event) {
-    var message = String((event && (event.message || event.reason && event.reason.message)) || '');
-    var filename = String((event && event.filename) || '');
-    var stack = String((event && event.error && event.error.stack) || (event && event.reason && event.reason.stack) || '');
-    return (filename.indexOf('chrome-extension://') === 0 || stack.indexOf('chrome-extension://') !== -1) &&
-      /metamask|failed to connect/i.test(message + ' ' + stack);
-  };
-
-  window.addEventListener('error', function (event) {
-    if (isMetaMaskExtensionError(event)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    }
-  }, true);
-
-  window.addEventListener('unhandledrejection', function (event) {
-    if (isMetaMaskExtensionError(event)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    }
-  }, true);
-})();
-`
-
-
 export const metadata: Metadata = {
   title: 'SelfSync',
   description: 'Your personal life management app',
@@ -55,7 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="bn" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: storageRepairScript }} />
-        <script dangerouslySetInnerHTML={{ __html: extensionErrorGuardScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

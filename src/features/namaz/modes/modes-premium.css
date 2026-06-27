@@ -1,0 +1,210 @@
+/* ──────────────────────────────────────────────────────────────
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║   Modes Premium CSS                                        ║
+ * ║   Apple/Google-grade glass morphism, dynamic gradients     ║
+ * ╚══════════════════════════════════════════════════════════════╝
+ * ────────────────────────────────────────────────────────────── */
+
+/* ── Mode Banner ──────────────────────────────────────────── */
+.mode-banner {
+  position: relative;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-banner--ramadan {
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.25) 0%, 
+    rgba(217, 119, 6, 0.15) 50%, 
+    rgba(180, 83, 9, 0.2) 100%
+  );
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.mode-banner--travel {
+  background: linear-gradient(135deg, 
+    rgba(56, 189, 248, 0.2) 0%, 
+    rgba(14, 165, 233, 0.15) 50%, 
+    rgba(2, 132, 199, 0.2) 100%
+  );
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.mode-banner--ramadan-travel {
+  background: linear-gradient(135deg,
+    rgba(245, 158, 11, 0.2) 0%,
+    rgba(56, 189, 248, 0.15) 50%,
+    rgba(180, 83, 9, 0.15) 100%
+  );
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+/* Mode Badges */
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mode-badge--ramadan {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.mode-badge--travel {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* ── Travel Qasr Badge ────────────────────────────────────── */
+.travel-badge--qasr {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #7dd3fc;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.travel-badge--full {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ── Ramadan Glow Effect ──────────────────────────────────── */
+@keyframes ramadan-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.2); }
+}
+
+.ramadan-glow {
+  animation: ramadan-glow 3s ease-in-out infinite;
+}
+
+/* ── Iftar Pulse ──────────────────────────────────────────── */
+@keyframes iftar-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+.iftar-pulse-dot {
+  animation: iftar-pulse 2s ease-in-out infinite;
+}
+
+/* ── Combined Prayer Card (Travel) ────────────────────────── */
+.prayer-combined-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  background: linear-gradient(135deg, 
+    rgba(56, 189, 248, 0.08) 0%, 
+    rgba(14, 165, 233, 0.04) 100%
+  );
+}
+
+.prayer-combined-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #38bdf8, #0ea5e9);
+  border-radius: 0 3px 3px 0;
+}
+
+.prayer-combined-card--dark {
+  background: linear-gradient(135deg,
+    rgba(56, 189, 248, 0.12) 0%,
+    rgba(14, 165, 233, 0.06) 100%
+  );
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+/* ── ALWAYS-DARK GLASS CARDS ── */
+/* All mode cards (IftarCountdown, Fasting, Taraweeh, Prep) */
+/* use dark backgrounds always so white text stays visible.    */
+/* This matches Apple Control Center widget behavior —         */
+/* dark glass regardless of light/dark system theme.           */
+
+/* Force all text inside mode cards to stay light */
+.mode-card-dark {
+  --tw-text-opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Override ALL Tailwind text color classes inside mode cards */
+.mode-card-dark [class*="text-"] {
+  color: rgba(255, 255, 255, 0.92);
+}
+.mode-card-dark .text-muted,
+.mode-card-dark [class*="text-"] .text-muted {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Amber/gold/orange text keep their hue but light enough to read */
+.mode-card-dark [class*="amber"] {
+  color: #fbbf24;
+}
+.mode-card-dark [class*="emerald"] {
+  color: #34d399;
+}
+.mode-card-dark [class*="indigo"] {
+  color: #818cf8;
+}
+
+/* Semi-transparent backgrounds become more opaque for contrast */
+.mode-card-dark [class*="bg-white/5"] {
+  background: rgba(255, 255, 255, 0.08);
+}
+.mode-card-dark [class*="bg-white/10"] {
+  background: rgba(255, 255, 255, 0.12);
+}
+.mode-card-dark [class*="border-white/5"] {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Mode banner also stays dark in light mode */
+html:not(.dark) .mode-banner--ramadan {
+  background: linear-gradient(135deg,
+    rgba(180, 83, 9, 0.6) 0%,
+    rgba(146, 64, 14, 0.5) 50%,
+    rgba(120, 53, 15, 0.5) 100%
+  );
+  border-color: rgba(245, 158, 11, 0.3);
+}
+html:not(.dark) .mode-banner .text-white,
+html:not(.dark) .mode-banner [class*="text-white"] {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .mode-banner .mode-badge {
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+}
