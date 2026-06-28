@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, ChevronDown, Check, Plus, Building2, PiggyBank, Landmark } from 'lucide-react'
+import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, ChevronDown, Check, Plus, Building2, Landmark } from 'lucide-react'
 import { formatCurrency } from '../../utils'
 import type { Wallet, SavingsGoal, Loan } from '@/lib/types'
 
@@ -46,7 +46,7 @@ export default function WealthHub({
 
   const views: { key: HubView; label: string; icon: typeof Building2 }[] = [
     { key: 'balance', label: 'Balance', icon: WalletIcon },
-    { key: 'net-worth', label: 'Net Worth', icon: PiggyBank },
+    { key: 'net-worth', label: 'Net Worth', icon: Building2 },
     { key: 'wallets', label: 'Wallets', icon: Landmark },
   ]
 

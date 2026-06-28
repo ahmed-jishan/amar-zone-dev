@@ -2,30 +2,36 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Type, Lock, Image as ImageIcon, Link, Plus, Upload } from 'lucide-react'
+import { X, Type, Lock, Image as ImageIcon, Link, Plus, Upload, Save } from 'lucide-react'
 import { useNotesStore } from '../store/notesStore'
-import { NoteType, NoteCategory, NOTE_CATEGORIES, NOTE_CATEGORY_COLORS } from '../types'
+import { NoteType, NoteCategory, Note, NOTE_CATEGORIES, NOTE_CATEGORY_COLORS } from '../types'
 
 interface AddNoteModalProps {
   open: boolean
   onClose: () => void
+  editNote?: Note | null
 }
 
-export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
+export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalProps) {
   const addNote = useNotesStore((s) => s.addNote)
+  const updateNote = useNotesStore((s) => s.updateNote)
+  const isEditing = !!editNote
 
-  const [step, setStep] = useState<'choose' | 'fill'>('choose')
-  const [selectedType, setSelectedType] = useState<NoteType>('text')
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<NoteCategory>('personal')
-  const [tags, setTags] = useState('')
-  const [body, setBody] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [url, setUrl] = useState('')
-  const [description, setDescription] = useState('')
-  const [caption, setCaption] = useState('')
-  const [imageDataUrl, setImageDataUrl] = useState('')
+  const [step, setStep] = useState<'choose' | 'fill'>(editNote ? 'fill' : 'choose')
+  const [selectedType, setSelectedType] = useState<NoteType>(editNote?.type || 'text')
+  const [title, setTitle] = useState(editNote?.title || '')
+  const [category, setCategory] = useState<NoteCategory>(editNote?.category || 'personal')
+  const [tags, setTags] = useState(editNote?.tags?.join(', ') || '')
+  const [body, setBody] = useState(editNote?.type === 'text' ? (editNote as any).body || '' : '')
+  const [username, setUsername] = useState(editNote?.type === 'password' ? (editNote as any).username || '' : '')
+  const [password, setPassword] = useState(editNote?.type === 'password' ? (editNote as any).password || '' : '')
+  const [url, setUrl] = useState(
+    editNote?.type === 'password' ? (editNote as any).url || '' :
+    editNote?.type === 'link' ? (editNote as any).url || '' : ''
+  )
+  const [description, setDescription] = useState(editNote?.type === 'link' ? (editNote as any).description || '' : '')
+  const [caption, setCaption] = useState(editNote?.type === 'image' ? (editNote as any).caption || '' : '')
+  const [imageDataUrl, setImageDataUrl] = useState(editNote?.type === 'image' ? (editNote as any).dataUrl || '' : '')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [imageFileName, setImageFileName] = useState('')
 
@@ -46,7 +52,9 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
   }
 
   const handleClose = () => {
-    resetForm()
+    if (!isEditing) {
+      resetForm()
+    }
     onClose()
   }
 
@@ -59,7 +67,6 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string
-      // Compress by reducing quality for large images
       if (dataUrl) {
         const img = new Image()
         img.onload = () => {
@@ -95,15 +102,29 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
       .map((t) => t.trim())
       .filter(Boolean)
 
-    addNote(selectedType, {
-      title: title.trim(),
-      category,
-      tags: tagList,
-      ...(selectedType === 'text' && { body }),
-      ...(selectedType === 'password' && { username, password, url }),
-      ...(selectedType === 'image' && { dataUrl: imageDataUrl, caption }),
-      ...(selectedType === 'link' && { url, description }),
-    })
+    if (isEditing && editNote) {
+      const updates: any = {
+        title: title.trim(),
+        category,
+        tags: tagList,
+        type: selectedType,
+      }
+      if (selectedType === 'text') updates.body = body
+      if (selectedType === 'password') { updates.username = username; updates.password = password; updates.url = url }
+      if (selectedType === 'image') { updates.dataUrl = imageDataUrl; updates.caption = caption }
+      if (selectedType === 'link') { updates.url = url; updates.description = description }
+      updateNote(editNote.id, updates)
+    } else {
+      addNote(selectedType, {
+        title: title.trim(),
+        category,
+        tags: tagList,
+        ...(selectedType === 'text' && { body }),
+        ...(selectedType === 'password' && { username, password, url }),
+        ...(selectedType === 'image' && { dataUrl: imageDataUrl, caption }),
+        ...(selectedType === 'link' && { url, description }),
+      })
+    }
 
     handleClose()
   }
@@ -136,7 +157,11 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
 
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-[var(--hm-text)]">
-                {step === 'choose' ? 'New Note' : `New ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Note`}
+                {isEditing
+                  ? `Edit ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Note`
+                  : step === 'choose'
+                    ? 'New Note'
+                    : `New ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Note`}
               </h2>
               <button
                 onClick={handleClose}
@@ -146,7 +171,7 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
               </button>
             </div>
 
-            {step === 'choose' ? (
+            {step === 'choose' && !isEditing ? (
               <div className="grid grid-cols-2 gap-3">
                 {typeOptions.map(({ type, icon: Icon, label, color }) => (
                   <button
@@ -231,7 +256,7 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
                       placeholder="Write your note here..."
-                      rows={4}
+                      rows={6}
                       className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors resize-none"
                     />
                   </div>
@@ -347,19 +372,26 @@ export default function AddNoteModal({ open, onClose }: AddNoteModalProps) {
 
                 {/* Actions */}
                 <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setStep('choose')}
-                    className="flex-1 py-2.5 rounded-xl bg-[var(--hm-soft)] text-[var(--hm-muted)] font-medium text-sm hover:bg-[var(--hm-border)] transition-colors"
-                  >
-                    Back
-                  </button>
+                  {!isEditing && step === 'fill' && (
+                    <button
+                      onClick={() => setStep('choose')}
+                      className="flex-1 py-2.5 rounded-xl bg-[var(--hm-soft)] text-[var(--hm-muted)] font-medium text-sm hover:bg-[var(--hm-border)] transition-colors"
+                    >
+                      Back
+                    </button>
+                  )}
                   <button
                     onClick={handleSubmit}
                     disabled={!title.trim()}
-                    className="flex-1 py-2.5 rounded-xl bg-[var(--hm-accent)] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
+                    className={`py-2.5 rounded-xl bg-[var(--hm-accent)] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-40 ${
+                      isEditing || step === 'fill' ? 'flex-1' : ''
+                    }`}
                   >
-                    <Plus size={16} className="inline mr-1" />
-                    Create
+                    {isEditing ? (
+                      <><Save size={16} className="inline mr-1" /> Save Changes</>
+                    ) : (
+                      <><Plus size={16} className="inline mr-1" /> Create</>
+                    )}
                   </button>
                 </div>
               </div>

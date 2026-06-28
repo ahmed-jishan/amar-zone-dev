@@ -8,6 +8,7 @@ import { collectBackupPayload, getBackupCounts, getTotalAmount } from './collect
 import { computeDifferences } from './merger'
 import { getBackupFileSize } from './serializer'
 import { validateBackupData } from './validator'
+import { normalizeMoneyCollection } from './money-consistency'
 
 // ─── Create emergency snapshot before any destructive operation ───
 export function createEmergencySnapshot(snapshotKey = `${BACKUP_META_KEYS.snapshotPrefix}${Date.now()}`): EmergencySnapshot {
@@ -179,11 +180,12 @@ function writePayloadToStorage(payload: BackupPayload, options: RestoreOptions):
 
   // Money
   if (options.selectedModules?.money !== false) {
+    const normalizedMoney = normalizeMoneyCollection(payload.money)
     const existing = readRaw(BACKUP_STORAGE_KEYS.money)
     if (existing) {
-      writeWithState(BACKUP_STORAGE_KEYS.money, payload.money, existing)
+      writeWithState(BACKUP_STORAGE_KEYS.money, normalizedMoney, existing)
     } else {
-      localStorage.setItem(BACKUP_STORAGE_KEYS.money, JSON.stringify({ state: payload.money }))
+      localStorage.setItem(BACKUP_STORAGE_KEYS.money, JSON.stringify({ state: normalizedMoney }))
     }
     keys.push(BACKUP_STORAGE_KEYS.money)
   }

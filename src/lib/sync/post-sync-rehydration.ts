@@ -16,6 +16,7 @@ import { useTasbihStore } from '@/features/namaz/store/tasbihStore'
 import { useQuranStore } from '@/features/namaz/store/quranStore'
 import { useDuaStore } from '@/features/namaz/store/duaStore'
 import { useAIStore } from '@/lib/ai/store'
+import { repairPersistedMoneyConsistency } from '@/lib/backup/money-consistency'
 import { useState, useEffect } from 'react'
 
 /**
@@ -43,6 +44,8 @@ export function dispatchDataRefreshEvent(): void {
  */
 export function rehydrateAllStores(): void {
   if (typeof window === 'undefined') return
+
+  repairPersistedMoneyConsistency()
 
   // Main stores (used in backup/restore)
   rehydrateStore('useTaskStore',     () => { useTaskStore.persist.rehydrate() })

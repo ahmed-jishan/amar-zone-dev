@@ -200,6 +200,7 @@ export async function sendBackupViaWebRTC(
 ): Promise<void> {
   const bytes = new TextEncoder().encode(encryptedData)
   const totalChunks = Math.max(1, Math.ceil(bytes.length / CHUNK_SIZE))
+  const sessionId = createSessionId()
   const startedAt = performance.now()
   let retries = 0
   let lastProgressTime = 0
@@ -216,7 +217,7 @@ export async function sendBackupViaWebRTC(
     await waitForConnectionOpen(conn)
     queueSend(conn, {
       type: 'transfer-init',
-      sessionId: createSessionId(),
+      sessionId,
       totalChunks,
       totalBytes,
       checksum,
@@ -238,7 +239,7 @@ export async function sendBackupViaWebRTC(
           await waitForConnectionOpen(conn)
           queueSend(conn, {
             type: 'chunk',
-            sessionId: createSessionId(),
+            sessionId,
             index,
             total: totalChunks,
             data: chunkB64,
@@ -271,7 +272,7 @@ export async function sendBackupViaWebRTC(
     await waitForConnectionOpen(conn)
     queueSend(conn, {
       type: 'transfer-complete',
-      sessionId: createSessionId(),
+      sessionId,
     })
 
     onProgress(buildProgress(totalChunks, totalChunks, totalBytes, totalBytes, startedAt, retries))
@@ -403,21 +404,12 @@ export async function receiveBackupViaWebRTC(
     }
 
     if (msg.type === 'chunk' && isValidChunk(msg) && transferInit) {
-      if (!ackedChunks.has(msg.index)) {
-        ackedChunks.add(msg.index)
-        const buffer = base64ToArrayBuffer(msg.data)
-        chunks.set(msg.index, buffer)
-        bytesReceived += msg.size
-        onProgress(buildProgress(chunks.size, transferInit.totalChunks, bytesReceived, transferInit.totalBytes, startedAt, 0))
-      }
-      queueSend(conn, { type: 'ack', sessionId: transferInit.sessionId, index: msg.index })
-      if (chunks.size === transferInit.totalChunks) {
-        finishTransfer()
-      }
+      void handleChunk(msg)
       return
     }
 
     if (msg.type === 'transfer-complete') {
+      if (transferInit && msg.sessionId !== transferInit.sessionId) return
       finishTransfer()
       return
     }
@@ -454,6 +446,47 @@ export async function receiveBackupViaWebRTC(
     } catch (err) {
       onStateChange('failed')
       rejectPromise(err instanceof Error ? err : new Error('Reassembly failed'))
+    }
+  }
+
+  const failTransfer = (message: string) => {
+    if (settled) return
+    settled = true
+    if (transferInit) {
+      queueSend(conn, { type: 'transfer-abort', sessionId: transferInit.sessionId, reason: message })
+    }
+    stopKeepalive()
+    cleanup()
+    clearTimeout(transferTimer)
+    onStateChange('failed')
+    rejectPromise(new Error(message))
+  }
+
+  const handleChunk = async (msg: ChunkMessage) => {
+    if (!transferInit || settled) return
+    if (msg.sessionId !== transferInit.sessionId || msg.total !== transferInit.totalChunks) {
+      failTransfer('Transfer session mismatch')
+      return
+    }
+    if (!ackedChunks.has(msg.index)) {
+      const buffer = base64ToArrayBuffer(msg.data)
+      if (buffer.byteLength !== msg.size) {
+        failTransfer('Chunk size mismatch')
+        return
+      }
+      const checksum = await sha256Hex(new Uint8Array(buffer))
+      if (checksum !== msg.checksum) {
+        failTransfer('Chunk integrity check failed')
+        return
+      }
+      ackedChunks.add(msg.index)
+      chunks.set(msg.index, buffer)
+      bytesReceived += msg.size
+      onProgress(buildProgress(chunks.size, transferInit.totalChunks, bytesReceived, transferInit.totalBytes, startedAt, 0))
+    }
+    queueSend(conn, { type: 'ack', sessionId: transferInit.sessionId, index: msg.index })
+    if (chunks.size === transferInit.totalChunks) {
+      void finishTransfer()
     }
   }
 

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ArrowDownLeft, ArrowUpRight, Eye, EyeOff, TrendingDown, TrendingUp, Wallet, Plus, X, Check } from 'lucide-react'
 import { useMoneyStore } from '../store/moneyStore'
+import { repairPersistedMoneyConsistency } from '@/lib/backup/money-consistency'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { CATEGORY_META, TRANSLATIONS } from '../constants'
@@ -268,6 +269,12 @@ export default function MoneyPage() {
     haptics.tabChange()
     setTab(newTab)
   }, [haptics])
+
+  useEffect(() => {
+    if (repairPersistedMoneyConsistency()) {
+      void useMoneyStore.persist.rehydrate()
+    }
+  }, [])
 
   useEffect(() => {
     setMounted(true)

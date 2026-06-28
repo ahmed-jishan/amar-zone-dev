@@ -7,6 +7,7 @@ import type {
   BackupPayload, BackupCounts, BackupDifferences,
 } from './types'
 import { collectBackupPayload, getBackupCounts, getTotalAmount } from './collector'
+import { normalizeMergedMoneyCollection } from './money-consistency'
 import type { Task } from '@/app/(tabs)/tasks/types'
 import type { Note } from '@/features/notes/types'
 import type { BMIRecord } from '@/features/health/types'
@@ -112,7 +113,7 @@ function mergeMoney(
   incoming: BackupPayload['money'],
   local: BackupPayload['money'],
 ): BackupPayload['money'] {
-  return {
+  const merged: BackupPayload['money'] = {
     transactions: mergeById(local.transactions, incoming.transactions, (t) => t.createdAt),
     loans: mergeLoans(local.loans, incoming.loans),
     budgets: mergeByKey(local.budgets, incoming.budgets, (b) => b.month),
@@ -127,6 +128,8 @@ function mergeMoney(
     // NetWorthSnapshot doesn't have an 'id' field - use mergeByKey with date
     netWorthHistory: mergeByKey(local.netWorthHistory, incoming.netWorthHistory, (n) => n.date),
   }
+
+  return normalizeMergedMoneyCollection(merged, incoming, local)
 }
 
 function mergeNamaz(

@@ -25,7 +25,6 @@ import {
   collectBackupPayload,
 } from '@/lib/backup'
 import {
-  decryptBackup,
   serializeEncryptedBackup,
   parseEncryptedBackup,
 } from '@/lib/utils/encryptedBackup'
@@ -49,11 +48,16 @@ type MergeStage = 'merging' | 'finalizing' | 'complete' | 'error'
 type ScanPhase = 'starting' | 'scanning' | 'detected' | 'transferring' | 'done' | 'failed'
 type TransferMode = 'qr' | 'webrtc' | 'file'
 type CameraPermissionState = 'unknown' | 'checking' | 'prompt' | 'granted' | 'denied'
+type TransferSummary = {
+  counts: BackupCounts
+  restoredKeys: string[]
+}
 
 // ─── Constants ───
 const QR_CHUNK_SIZE = 2400
 const QR_WIDTH = 340
 const AUTO_ADVANCE_INTERVAL_MS = 3000  // 3 seconds per QR frame
+const TRANSFER_KEY_ITERATIONS = 150000
 
 // Fast base64 helper
 function fastBtoa(bytes: Uint8Array): string {
@@ -118,6 +122,10 @@ const tr = (lang: Language) => ({
   qrDetected: lang === 'bn' ? 'QR কোড শনাক্ত! ✓' : 'QR Code Detected! ✓',
   decrypting: lang === 'bn' ? 'ডিক্রিপ্ট হচ্ছে...' : 'Decrypting...',
   dataReady: lang === 'bn' ? 'ডেটা প্রস্তুত!' : 'Data ready!',
+  verifyingData: lang === 'bn' ? 'ডেটা যাচাই হচ্ছে...' : 'Verifying data...',
+  mergeSafe: lang === 'bn' ? 'লোকাল ও নতুন ডেটা নিরাপদে মার্জ হচ্ছে' : 'Safely merging local and incoming data',
+  mergedFiles: lang === 'bn' ? 'মার্জ হওয়া ডেটা' : 'Merged data',
+  visibleNow: lang === 'bn' ? 'ডেটা সিঙ্ক হয়েছে এবং অ্যাপে দেখা যাবে।' : 'Data is synced and visible in the app.',
   cameraError: lang === 'bn' ? 'ক্যামেরা অ্যাক্সেস ব্যর্থ' : 'Camera access failed',
   cameraPermissionTitle: lang === 'bn' ? 'ক্যামেরা পারমিশন দরকার' : 'Camera permission needed',
   cameraPermissionBody: lang === 'bn' ? 'QR স্ক্যান করতে ক্যামেরা অ্যাক্সেস অনুমতি দিন। অনুমতি দিলে স্ক্যানার সাথে সাথে খুলবে।' : 'Allow camera access to scan the QR code. The scanner will open immediately after approval.',
@@ -133,6 +141,7 @@ const tr = (lang: Language) => ({
   connected: lang === 'bn' ? 'কানেক্টেড!' : 'Connected!',
   sending: lang === 'bn' ? 'ডেটা পাঠানো হচ্ছে...' : 'Sending data...',
   receiving: lang === 'bn' ? 'ডেটা আসছে...' : 'Receiving data...',
+  decryptingTransfer: lang === 'bn' ? 'ডেটা ডিক্রিপ্ট ও যাচাই হচ্ছে...' : 'Decrypting and verifying data...',
   webrtcDone: lang === 'bn' ? 'ট্রান্সফার সম্পূর্ণ!' : 'Transfer Complete!',
   webrtcFailed: lang === 'bn' ? 'কানেকশন ব্যর্থ' : 'Connection failed',
   webrtcTimeout: lang === 'bn' ? 'কানেকশন টাইম আউট। নেটওয়ার্ক চেক করুন অথবা QR মোড ব্যবহার করুন।' : 'Connection timed out. Check network or use QR mode.',
@@ -241,6 +250,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
 
   // Merge
   const [mergeStage, setMergeStage] = useState<MergeStage>('merging')
+  const [transferSummary, setTransferSummary] = useState<TransferSummary | null>(null)
 
   // Error / message
   const [error, setError] = useState('')
@@ -318,7 +328,11 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     const reader = new mod.BrowserQRCodeReader()
     scannerRef.current = reader
 
-    const controls = await startQrDecodeWithRetry(reader, video, (text) => {
+    const stream = await getQrCameraStream()
+    video.srcObject = stream
+    await video.play().catch(() => undefined)
+
+    const controls = await startQrDecodeWithRetry(reader, stream, video, (text) => {
       const handshake = safeParseWebRTCHandshake(text)
       if (handshake) {
         try { navigator.vibrate?.([40, 30, 40]) } catch { /* noop */ }
@@ -403,6 +417,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
     setDifferences(null)
     setSendStage('preparing')
     setMergeStage('merging')
+    setTransferSummary(null)
     setOriginalSize(0)
     setCompressedSize(0)
     setDetectedFlash(false)
@@ -490,23 +505,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       const compressed = compressText(content)
       setCompressedSize(compressed.length)
 
-      const enc = new TextEncoder()
-      const data = enc.encode(compressed)
-      const salt = crypto.getRandomValues(new Uint8Array(16))
-      const iv = crypto.getRandomValues(new Uint8Array(12))
-      const key = await crypto.subtle.importKey('raw', enc.encode(passphrase.padEnd(16, ' ').slice(0, 16)), 'AES-GCM', false, ['encrypt'])
-      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data))
-
-      const finalEncrypted = {
-        v: 1 as const, alg: 'AES-GCM' as const, kdf: 'PBKDF2' as const,
-        iterations: 150000,
-        compressed: true as const,
-        salt: fastBtoa(salt),
-        iv: fastBtoa(iv),
-        ciphertext: fastBtoa(ct),
-      }
-
-      const text = serializeEncryptedBackup(finalEncrypted)
+      const text = await encryptTransferText(passphrase, compressed)
       const chunks = chunkString(text, QR_CHUNK_SIZE)
       const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       setQrSessionId(sessionId)
@@ -529,25 +528,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
 
   const readReceivedEnvelope = async (raw: string): Promise<BackupEnvelope | null> => {
     const encrypted = parseEncryptedBackup(raw)
-    // Decryption must match the encryption in handleWebRTCSend/handleStartSend
-    // which uses a raw key (not PBKDF2) - so we cannot use decryptBackup() from encryptedBackup.ts
-    const enc = new TextEncoder()
-    const iv = base64ToBytes(encrypted.iv)
-    const ciphertext = base64ToBytes(encrypted.ciphertext)
-    const key = await crypto.subtle.importKey(
-      'raw',
-      enc.encode(passphrase.padEnd(16, ' ').slice(0, 16)),
-      'AES-GCM',
-      false,
-      ['decrypt']
-    )
-    const plaintext = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: toArrayBufferFn(iv) },
-      key,
-      toArrayBufferFn(ciphertext)
-    )
-    const decoder = new TextDecoder()
-    const decryptedStr = decoder.decode(plaintext)
+    const decryptedStr = await decryptTransferText(passphrase, encrypted)
     const backupText = encrypted.compressed
       ? decompressText(decryptedStr)
       : decryptedStr
@@ -577,6 +558,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       const result = await restoreBackup(payload, { strategy })
       if (result.success) {
         rehydrateAllStores()
+        setTransferSummary({ counts: getBackupCounts(payload), restoredKeys: result.restoredKeys })
         setMessage(strings.doneMsg)
         setMergeStage('finalizing')
         setTimeout(() => { setMergeStage('complete'); setStep('receive-done') }, 500)
@@ -593,8 +575,10 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
   const handleReceiveData = async (raw: string) => {
     try {
       await new Promise(r => setTimeout(r, 200))
+      setMessage(strings.verifyingData)
       const parsed = await readReceivedEnvelope(raw)
       if (!parsed) { setScanPhase('failed'); return }
+      setMessage('')
       stageReceivedEnvelope(parsed)
       setScanPhase('done')
       await restoreReceivedEnvelope(parsed, 'merge')
@@ -631,19 +615,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       const content = JSON.stringify(backupEnvelope)
       const compressed = compressText(content)
 
-      const enc = new TextEncoder()
-      const data = enc.encode(compressed)
-      const salt = crypto.getRandomValues(new Uint8Array(16))
-      const iv = crypto.getRandomValues(new Uint8Array(12))
-      const key = await crypto.subtle.importKey('raw', enc.encode(passphrase.padEnd(16, ' ').slice(0, 16)), 'AES-GCM', false, ['encrypt'])
-      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data))
-
-      const encryptedData = JSON.stringify({
-        v: 1, alg: 'AES-GCM', kdf: 'PBKDF2',
-        iterations: 150000, compressed: true,
-        salt: fastBtoa(salt), iv: fastBtoa(iv),
-        ciphertext: fastBtoa(ct),
-      })
+      const encryptedData = await encryptTransferText(passphrase, compressed)
 
       await sendBackupViaWebRTC(conn, encryptedData,
         (progress) => setWebrtcProgress(progress),
@@ -676,8 +648,10 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
       )
 
       // Data received, now decrypt, validate, and merge into this device.
+      setMessage(strings.decryptingTransfer)
       const parsed = await readReceivedEnvelope(data)
       if (!parsed) { setWebrtcState('failed'); return }
+      setMessage('')
       stageReceivedEnvelope(parsed)
       await restoreReceivedEnvelope(parsed, 'merge')
     } catch (e) {
@@ -1522,6 +1496,7 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
                 <>
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--st-accent-bg)] text-[var(--st-accent)]"><Loader2 size={22} className="animate-spin" /></div>
                   <p className="text-sm text-[var(--st-text-2)]">{mergeStage === 'merging' ? strings.mergingLabel : strings.finalizing}</p>
+                  {mergeStage === 'merging' && <p className="max-w-[300px] text-center text-xs text-[var(--st-text-3)]">{strings.mergeSafe}</p>}
                 </>
               ) : mergeStage === 'complete' ? (
                 <>
@@ -1544,7 +1519,23 @@ export default function QuickTransferDialog({ open, onClose }: QuickTransferProp
           <div className="flex flex-col items-center gap-4 py-6">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--st-success-bg)] text-[var(--st-success)]"><CheckCircle2 size={28} /></div>
             <p className="text-sm font-bold text-[var(--st-success)]">{strings.doneMsg}</p>
-            <p className="text-xs text-[var(--st-text-3)]">{lang === 'bn' ? 'অ্যাপ রিফ্রেশ করুন' : 'Refresh the app'}</p>
+            <p className="max-w-[320px] text-center text-xs text-[var(--st-text-3)]">{strings.visibleNow}</p>
+            {transferSummary && (
+              <div className="w-full rounded-2xl border border-[var(--st-border-strong)] p-3 text-xs">
+                <div className="mb-2 font-bold uppercase tracking-wide text-[var(--st-text-2)]">{strings.mergedFiles}</div>
+                <div className="grid grid-cols-2 gap-2 text-[var(--st-text-2)]">
+                  <span>{strings.tasks}: <b className="text-[var(--st-text-1)]">{transferSummary.counts.tasks}</b></span>
+                  <span>{strings.transactions}: <b className="text-[var(--st-text-1)]">{transferSummary.counts.transactions}</b></span>
+                  <span>{strings.loans}: <b className="text-[var(--st-text-1)]">{transferSummary.counts.loans}</b></span>
+                  <span>{strings.namazDays}: <b className="text-[var(--st-text-1)]">{transferSummary.counts.namazDays}</b></span>
+                  <span>{lang === 'bn' ? 'নোট' : 'Notes'}: <b className="text-[var(--st-text-1)]">{transferSummary.counts.notes}</b></span>
+                  <span>{lang === 'bn' ? 'হেলথ' : 'Health'}: <b className="text-[var(--st-text-1)]">{transferSummary.counts.bmiRecords}</b></span>
+                </div>
+                <div className="mt-2 truncate text-[10px] text-[var(--st-text-3)]">
+                  {transferSummary.restoredKeys.join(', ')}
+                </div>
+              </div>
+            )}
             <button onClick={() => window.location.reload()} className="mo-submit mo-submit--neu">{strings.refresh}</button>
           </div>
         )}
@@ -1585,7 +1576,7 @@ function safeParseWebRTCHandshake(text: string): { peerId: string; deviceName?: 
     const parsed = JSON.parse(text) as { type?: string; peerId?: string; deviceName?: string; appVersion?: string; protocolVersion?: number }
     if (parsed.type !== 'webrtc-handshake' || typeof parsed.peerId !== 'string') return null
     if (parsed.peerId.length < 8 || parsed.peerId.length > 128) return null
-    if (parsed.protocolVersion && parsed.protocolVersion > 2) return null
+    if (parsed.protocolVersion && parsed.protocolVersion > 3) return null
     return {
       peerId: parsed.peerId,
       deviceName: parsed.deviceName,
@@ -1635,26 +1626,19 @@ function waitForVideoPlayback(video: HTMLVideoElement, timeoutMs = 2500): Promis
 
 async function startQrDecodeWithRetry(
   reader: BrowserQRCodeReader,
+  stream: MediaStream,
   video: HTMLVideoElement,
   onText: (text: string) => void,
-  attempts = 2
 ) {
   let lastError: unknown
-  const constraintOptions: MediaStreamConstraints[] = [
-    {
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-      audio: false,
-    },
-    { video: { facingMode: 'environment' }, audio: false },
-  ]
 
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await reader.decodeFromConstraints(constraintOptions[attempt] ?? constraintOptions[constraintOptions.length - 1], video, (result) => {
+      return await reader.decodeFromStream(stream, video, (result, scanError) => {
+        if (scanError) {
+          // NotFound/Format/Checksum errors are normal during scanning - ignore them
+          return
+        }
         if (result) onText(result.getText())
       })
     } catch (error) {
@@ -1681,36 +1665,111 @@ function cameraErrorMessage(error: unknown) {
 }
 
 async function ensureCameraPermission(onState: (state: CameraPermissionState) => void): Promise<void> {
-  try {
-    const permissions = navigator.permissions as Permissions | undefined
-    const query = permissions?.query?.bind(permissions)
-    if (query) {
-      try {
-        const status = await query({ name: 'camera' as PermissionName })
-        if (status.state === 'granted') {
-          onState('granted')
-          return
-        }
-        if (status.state === 'denied') {
-          onState('denied')
-          throw new DOMException('Camera permission denied.', 'NotAllowedError')
-        }
-        onState('prompt')
-      } catch {
-        onState('prompt')
-      }
-    } else {
-      onState('prompt')
-    }
+  const permissions = navigator.permissions as Permissions | undefined
+  const query = permissions?.query?.bind(permissions)
+  if (!query) {
+    onState('prompt')
+    return
+  }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
+  try {
+    const status = await query({ name: 'camera' as PermissionName })
+    if (status.state === 'granted') {
+      onState('granted')
+      return
+    }
+    if (status.state === 'denied') {
+      onState('denied')
+      throw new DOMException('Camera permission denied.', 'NotAllowedError')
+    }
+    onState('prompt')
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      throw error
+    }
+    onState('prompt')
+  }
+}
+
+async function getQrCameraStream(): Promise<MediaStream> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
     })
-    stream.getTracks().forEach((track) => track.stop())
-    onState('granted')
   } catch (error) {
-    onState('denied')
+    const name = error instanceof DOMException ? error.name : ''
+    if (name === 'OverconstrainedError' || name === 'NotFoundError') {
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    }
     throw error
   }
+}
+
+async function deriveTransferKey(passphrase: string, salt: Uint8Array, iterations = TRANSFER_KEY_ITERATIONS): Promise<CryptoKey> {
+  const enc = new TextEncoder()
+  const material = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: toArrayBufferFn(salt), iterations, hash: 'SHA-256' },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  )
+}
+
+async function encryptTransferText(passphrase: string, text: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const key = await deriveTransferKey(passphrase, salt)
+  const data = new TextEncoder().encode(text)
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBufferFn(iv) }, key, toArrayBufferFn(data)))
+
+  return serializeEncryptedBackup({
+    v: 1,
+    alg: 'AES-GCM',
+    kdf: 'PBKDF2',
+    iterations: TRANSFER_KEY_ITERATIONS,
+    compressed: true,
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(ciphertext),
+  })
+}
+
+async function decryptTransferText(passphrase: string, encrypted: ReturnType<typeof parseEncryptedBackup>): Promise<string> {
+  const salt = base64ToBytes(encrypted.salt)
+  const iv = base64ToBytes(encrypted.iv)
+  const ciphertext = base64ToBytes(encrypted.ciphertext)
+
+  try {
+    const key = await deriveTransferKey(passphrase, salt, encrypted.iterations || TRANSFER_KEY_ITERATIONS)
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: toArrayBufferFn(iv) },
+      key,
+      toArrayBufferFn(ciphertext)
+    )
+    return new TextDecoder().decode(plaintext)
+  } catch (error) {
+    // Legacy QR/WebRTC payloads used the first 16 passphrase bytes despite saying PBKDF2.
+    const legacyKey = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(passphrase.padEnd(16, ' ').slice(0, 16)),
+      'AES-GCM',
+      false,
+      ['decrypt']
+    )
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: toArrayBufferFn(iv) },
+      legacyKey,
+      toArrayBufferFn(ciphertext)
+    )
+    return new TextDecoder().decode(plaintext)
+  }
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
 }
