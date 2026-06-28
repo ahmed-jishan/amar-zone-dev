@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Bell, BellRing, CheckCircle2, X } from 'lucide-react'
+import { useDraggable } from '@/lib/hooks/useDraggable'
 import { CATEGORY_META, EXPENSE_CATEGORIES } from '@/features/money/constants'
 import { getRecurringOccurrences } from '@/features/money/recurring'
 import { useMoneyStore } from '@/features/money/store/moneyStore'
@@ -321,27 +322,57 @@ export default function NotificationCenter() {
         ? 'border-amber-500/35 bg-amber-500/10 text-amber-300'
         : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
 
+  const {
+    position,
+    isDragging: bellDragging,
+    handlers: bellHandlers,
+  } = useDraggable({
+    storageKey: 'selfsync-bell-position',
+  })  
+
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  const handleBellClick = useCallback(() => {
+    setOpen((value) => !value)
+  }, [])
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="fixed right-4 top-4 sm:top-6 sm:right-6 z-[10040] flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(var(--border),0.65)] bg-[rgb(var(--bg))]/95 text-[rgb(var(--fg))] shadow-lg shadow-black/10 backdrop-blur-xl transition hover:border-indigo-400/50 hover:text-indigo-400"
-        style={{ pointerEvents: 'auto', padding: 0 }}
-        aria-label="Open notifications"
+      <div
+        className="fixed z-[10040]"
+        style={{
+          left: position.x,
+          top: position.y,
+          touchAction: 'none',
+          cursor: bellDragging ? 'grabbing' : 'grab',
+        }}
+        {...bellHandlers}
       >
-        {alerts.length ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
-        {alerts.length > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {alerts.length}
-          </span>
-        )}
-      </button>
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleBellClick}
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(var(--border),0.65)] bg-[rgb(var(--bg))]/95 text-[rgb(var(--fg))] shadow-lg shadow-black/10 backdrop-blur-xl transition hover:border-indigo-400/50 hover:text-indigo-400"
+          style={{ pointerEvents: 'auto', padding: 0 }}
+          aria-label="Open notifications"
+        >
+          {alerts.length ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+          {alerts.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {alerts.length}
+            </span>
+          )}
+        </button>
+      </div>
 
       {open && (
         <div
-          className="fixed right-4 top-[calc(4rem+env(safe-area-inset-top))] sm:top-[calc(5rem+env(safe-area-inset-top))] z-[10030] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
-          style={{ transformOrigin: 'top right' }}
+          className="fixed z-[10030] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
+          style={{
+            left: position.x,
+            top: position.y + 60,
+            transformOrigin: 'top left',
+          }}
         >
           <div className="flex items-start justify-between border-b border-[rgba(var(--border),0.55)] p-4">
             <div>
