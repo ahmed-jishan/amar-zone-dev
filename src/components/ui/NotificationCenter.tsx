@@ -383,11 +383,21 @@ export default function NotificationCenter() {
     const height = viewport.height || 640
     const modalWidth = Math.min(BELL_MODAL_WIDTH, Math.max(0, width - VIEWPORT_GAP * 2))
     const maxLeft = Math.max(VIEWPORT_GAP, width - modalWidth - VIEWPORT_GAP)
-    const left = clamp(position.x, VIEWPORT_GAP, maxLeft)
+    const bellCenterX = position.x + BELL_SIZE / 2
+    const preferredLeft = bellCenterX > width / 2
+      ? position.x - modalWidth - VIEWPORT_GAP
+      : position.x + BELL_SIZE + VIEWPORT_GAP
+    const left = clamp(preferredLeft, VIEWPORT_GAP, maxLeft)
     const belowTop = position.y + BELL_SIZE + VIEWPORT_GAP
     const aboveTop = position.y - MODAL_ESTIMATED_HEIGHT - VIEWPORT_GAP
-    const hasRoomBelow = belowTop + MODAL_ESTIMATED_HEIGHT <= height - VIEWPORT_GAP
-    const top = clamp(hasRoomBelow ? belowTop : aboveTop, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, height - VIEWPORT_GAP - 160))
+    const availableBelow = height - VIEWPORT_GAP - belowTop
+    const availableAbove = position.y - VIEWPORT_GAP * 2
+    const openBelow = availableBelow >= Math.min(MODAL_ESTIMATED_HEIGHT, availableAbove)
+    const top = clamp(
+      openBelow ? belowTop : aboveTop,
+      VIEWPORT_GAP,
+      Math.max(VIEWPORT_GAP, height - VIEWPORT_GAP - 160)
+    )
 
     return {
       left,

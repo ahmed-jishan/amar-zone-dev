@@ -713,8 +713,8 @@
 /* ─── Fixed + Button (aligned with bell icon right edge) ─── */
 .hm-notes-float-add {
   position: fixed;
-  top: 80px;
-  right: 20px;
+  top: calc(80px + env(safe-area-inset-top));
+  right: calc(20px + env(safe-area-inset-right));
   z-index: 10060;
   width: 36px;
   height: 36px;
@@ -727,6 +727,7 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
+  transform: translateZ(0);
   transition: all 0.2s;
 }
 

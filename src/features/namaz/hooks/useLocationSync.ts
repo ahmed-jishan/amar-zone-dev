@@ -25,6 +25,12 @@ const MIN_LOCATION_DELTA = 0.0005;
 const MAX_STALE_MS = 5 * 60 * 1000;
 const MIN_ACCURACY_IMPROVEMENT = 15;
 
+type UseLocationSyncOptions = {
+  force?: boolean;
+  watch?: boolean;
+  deferMs?: number;
+};
+
 function locationCacheKey(latitude: number, longitude: number) {
   return `${latitude.toFixed(5)}:${longitude.toFixed(5)}`;
 }
@@ -69,11 +75,14 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Part
   return location;
 }
 
-export function useLocationSync(force = false) {
+export function useLocationSync(optionsOrForce: boolean | UseLocationSyncOptions = false) {
+  const options = typeof optionsOrForce === 'boolean'
+    ? { force: optionsOrForce, watch: true, deferMs: 0 }
+    : { force: false, watch: true, deferMs: 0, ...optionsOrForce };
   const location = usePrefsStore((state) => state.location);
   const autoDetectLocation = usePrefsStore((state) => state.autoDetectLocation);
   const setLocation = usePrefsStore((state) => state.setLocation);
-  const [status, setStatus] = useState<LocationStatus>('idle');
+  const [status, setStatus] = useState<LocationStatus>(() => location.source === 'fallback' ? 'idle' : 'ready');
   const [error, setError] = useState<string | null>(null);
   const locationRef = useRef(location);
 
@@ -82,14 +91,19 @@ export function useLocationSync(force = false) {
   }, [location]);
 
   useEffect(() => {
-    if (!force && !autoDetectLocation) return;
+    if (!options.force && !autoDetectLocation) {
+      setStatus(locationRef.current.source === 'fallback' ? 'idle' : 'ready');
+      return;
+    }
     if (typeof window === 'undefined') {
       setStatus('unsupported');
       return;
     }
 
     let cancelled = false;
-    setStatus('loading');
+    let cleanupWatch: (() => void) | undefined;
+    let startupTimer: number | undefined;
+    setStatus(locationRef.current.source === 'fallback' ? 'loading' : 'ready');
     setError(null);
 
     const syncPosition = async (positionLocation: PrayerLocation) => {
@@ -119,34 +133,41 @@ export function useLocationSync(force = false) {
       setError(geoError.message);
     };
 
-    let cleanupWatch: (() => void) | undefined;
+    const startSync = () => {
+      if (cancelled) return;
 
-    void getCurrentPrayerLocation()
-      .then(syncPosition)
-      .catch(onError);
+      void getCurrentPrayerLocation()
+        .then(syncPosition)
+        .catch(onError);
 
-    void watchPrayerLocation(
-      (next) => {
-        if (shouldSyncLocation(locationRef.current, next, next.accuracy)) {
-          void syncPosition(next);
-        }
-      },
-      onError
-    )
-      .then((cleanup) => {
-        if (cancelled) {
-          cleanup();
-          return;
-        }
-        cleanupWatch = cleanup;
-      })
-      .catch(onError);
+      if (!options.watch) return;
+
+      void watchPrayerLocation(
+        (next) => {
+          if (shouldSyncLocation(locationRef.current, next, next.accuracy)) {
+            void syncPosition(next);
+          }
+        },
+        onError
+      )
+        .then((cleanup) => {
+          if (cancelled) {
+            cleanup();
+            return;
+          }
+          cleanupWatch = cleanup;
+        })
+        .catch(onError);
+    };
+
+    startupTimer = window.setTimeout(startSync, Math.max(0, options.deferMs ?? 0));
 
     return () => {
       cancelled = true;
+      if (startupTimer) window.clearTimeout(startupTimer);
       cleanupWatch?.();
     };
-  }, [autoDetectLocation, force, setLocation]);
+  }, [autoDetectLocation, options.deferMs, options.force, options.watch, setLocation]);
 
   return useMemo(() => ({
     location,

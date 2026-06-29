@@ -33,7 +33,7 @@
     radial-gradient(circle at 14% -8%, rgba(23, 123, 106, 0.12), transparent 30rem),
     linear-gradient(135deg, var(--nz-bg), var(--nz-bg-2) 54%, #fbf6e8);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .namaz-root::after {
@@ -53,11 +53,13 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 60;
+  z-index: 80;
   display: flex;
   justify-content: center;
   padding-top: calc(env(safe-area-inset-top) + 8px);
+  padding-bottom: 8px;
   pointer-events: none; /* allow only inner pill to receive pointer events */
+  background: transparent;
 }
 
 .namaz-root .namaz-topbar > .inline-flex {
@@ -99,9 +101,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* Spacer inserted after the fixed topbar to keep layout flow intact */
+.dark .namaz-root .namaz-topbar {
+  background: transparent;
+}
+
+/* Spacer offsets the fixed topbar so content doesn't hide behind it */
 .namaz-topbar-spacer {
-  height: 64px; /* default while JS measures; TopbarNav will set an exact inline height */
+  display: block;
+  height: 64px;
 }
 
 @media (max-width: 640px) {
@@ -477,13 +484,13 @@
   border: 1px solid rgba(176, 138, 53, 0.15);
 }
 
-/* ─── Premium Now Playing Bar ─── */
+/* ─── Premium Now Playing Bar (fixed above bottom nav) ─── */
 .namaz-root .qz-now-playing {
   position: fixed;
-  bottom: calc(100px + env(safe-area-inset-bottom));
+  bottom: calc(80px + env(safe-area-inset-bottom));
   left: 50%;
-  transform: translateX(-50%);
-  z-index: 55;
+  translate: -50% 0;
+  z-index: 60;
   width: auto;
   max-width: calc(100vw - 32px);
   min-width: 300px;
@@ -498,19 +505,6 @@
     0 12px 32px rgba(0, 0, 0, 0.08),
     0 20px 60px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  animation: qzNowPlayingIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes qzNowPlayingIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(16px) scale(0.95);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-    filter: blur(0);
-  }
 }
 .dark .namaz-root .qz-now-playing {
   background: rgba(21, 29, 33, 0.88);

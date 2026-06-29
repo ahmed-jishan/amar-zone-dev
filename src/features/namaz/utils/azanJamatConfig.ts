@@ -1,4 +1,5 @@
 import { formatPrayerTime12h } from './prayerSchedule';
+import { DEFAULT_PRAYER_TIME_PREFERENCES } from '../store/prefsStore';
 import type { ConfigurablePrayerName, PrayerTimePreference, PrayerTimePreferences } from '../store/prefsStore';
 
 export const CONFIGURABLE_PRAYERS: ConfigurablePrayerName[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
@@ -35,14 +36,27 @@ function minutesToTime(value: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-export function computePrayerTimeConfig(startTime: string, preference: PrayerTimePreference): ComputedPrayerTimeConfig {
+function withSafePreference(startTime: string, preference?: PrayerTimePreference): PrayerTimePreference {
+  const fallback = DEFAULT_PRAYER_TIME_PREFERENCES.fajr;
+  return {
+    azanMode: preference?.azanMode === 'fixed' || preference?.azanMode === 'offset' ? preference.azanMode : fallback.azanMode,
+    azanOffsetMinutes: Number.isFinite(preference?.azanOffsetMinutes) ? Number(preference?.azanOffsetMinutes) : 0,
+    azanFixedTime: preference?.azanFixedTime || startTime,
+    jamatMode: preference?.jamatMode === 'fixed' || preference?.jamatMode === 'offset' ? preference.jamatMode : fallback.jamatMode,
+    jamatOffsetMinutes: Number.isFinite(preference?.jamatOffsetMinutes) ? Number(preference?.jamatOffsetMinutes) : fallback.jamatOffsetMinutes,
+    jamatFixedTime: preference?.jamatFixedTime || fallback.jamatFixedTime,
+  };
+}
+
+export function computePrayerTimeConfig(startTime: string, preference?: PrayerTimePreference): ComputedPrayerTimeConfig {
+  const safePreference = withSafePreference(startTime, preference);
   const startMinutes = parseTimeToMinutes(startTime);
-  const azanMinutes = preference.azanMode === 'fixed'
-    ? parseTimeToMinutes(preference.azanFixedTime)
-    : startMinutes + preference.azanOffsetMinutes;
-  const jamatMinutes = preference.jamatMode === 'fixed'
-    ? parseTimeToMinutes(preference.jamatFixedTime)
-    : azanMinutes + preference.jamatOffsetMinutes;
+  const azanMinutes = safePreference.azanMode === 'fixed'
+    ? parseTimeToMinutes(safePreference.azanFixedTime)
+    : startMinutes + safePreference.azanOffsetMinutes;
+  const jamatMinutes = safePreference.jamatMode === 'fixed'
+    ? parseTimeToMinutes(safePreference.jamatFixedTime)
+    : azanMinutes + safePreference.jamatOffsetMinutes;
 
   const errors: string[] = [];
   if (azanMinutes < startMinutes) errors.push('Azan time cannot be earlier than prayer start time.');

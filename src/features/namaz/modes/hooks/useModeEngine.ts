@@ -13,9 +13,15 @@ import { usePrefsStore } from '../../store/prefsStore';
 import { usePrayerTimes } from '../../hooks/usePrayerTimes';
 import { computeModeEffects } from '../combined';
 import { computeIftarSehriTimes, formatIftarCountdown } from '../ramadan';
-import { computeTravelPrayerAdjustments, getCombinationLabel } from '../travel';
 import type { ModeEffects, IftarSehriTimes, PrayerCombination } from '../types';
-import { DEFAULT_MODE_EFFECTS } from '../types';
+import type { PrayerTimesResponse } from '../../types/prayer.types';
+
+type ModeEngineResult = ModeEffects & {
+  iftarCountdownString: string | null;
+  toggleRamadanMode: () => void;
+  toggleTravelMode: () => void;
+  setCombinationPreference: (pref: PrayerCombination) => void;
+};
 
 /**
  * useModeEngine — The single source of truth for mode effects.
@@ -25,18 +31,17 @@ import { DEFAULT_MODE_EFFECTS } from '../types';
  *   const { uiEffects, ramadanData, prayerAdjustments } = modeEngine;
  *   if (modeEngine.activeModes.ramadanMode) { ... }
  */
-export function useModeEngine(): ModeEffects & {
-  iftarCountdownString: string | null;
-  toggleRamadanMode: () => void;
-  toggleTravelMode: () => void;
-  setCombinationPreference: (pref: PrayerCombination) => void;
-} {
+export function useModeEngine(): ModeEngineResult {
+  const { data: prayerTimes } = usePrayerTimes();
+  return useModeEngineFromPrayerTimes(prayerTimes);
+}
+
+export function useModeEngineFromPrayerTimes(prayerTimes: PrayerTimesResponse | null): ModeEngineResult {
   // Subscribe to the stores
   const ramadanMode = usePrefsStore((s) => s.ramadanMode);
   const travelMode = usePrefsStore((s) => s.travelMode);
   const location = usePrefsStore((s) => s.location);
   const setSpecialMode = usePrefsStore((s) => s.setSpecialMode);
-  const { data: prayerTimes } = usePrayerTimes();
 
   // Compute effects
   const modeEffects = useMemo(() => {

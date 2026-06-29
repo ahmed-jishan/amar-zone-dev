@@ -11,8 +11,6 @@ import {
   Play,
   Search,
   Volume2,
-  SkipBack,
-  SkipForward,
   Eye,
   EyeOff,
   Type,
@@ -578,54 +576,7 @@ export default function QuranView() {
           </AnimatePresence>
         </div>
 
-        {/* ─── Now Playing Mini Bar ─── */}
-        <AnimatePresence>
-          {showPlayer && activeSurah === selectedSurah.number && activeAyah && (
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.95 }}
-              className="qz-now-playing"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold nz-text truncate">
-                    {selectedSurah.transliteration} — Ayah {activeAyah}
-                  </p>
-                  <p className="text-[10px] nz-muted truncate">
-                    {quranReciter} reciter
-                  </p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => void playAdjacentAyah(selectedSurah.number, activeAyah, -1)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg nz-control"
-                    aria-label="Previous ayah"
-                  >
-                    <SkipBack size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void playPosition(selectedSurah, activeAyah)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl nz-primary"
-                    aria-label={isPlaying ? 'Pause' : 'Play'}
-                  >
-                    {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void playAdjacentAyah(selectedSurah.number, activeAyah, 1)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg nz-control"
-                    aria-label="Next ayah"
-                  >
-                    <SkipForward size={14} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        
       </div>
     );
   }

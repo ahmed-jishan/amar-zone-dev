@@ -39,17 +39,19 @@ export function usePrayerTimes(inputDate?: Date) {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     const cached = getCachedPrayerTimes(request);
     if (cached) setData(cached);
 
     setIsLoading(!cached);
     setError(null);
 
-    fetchPrayerTimes(request)
+    fetchPrayerTimes(request, controller.signal)
       .then((value) => {
         if (!cancelled) setData(value);
       })
       .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
         if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load prayer times');
       })
       .finally(() => {
@@ -58,6 +60,7 @@ export function usePrayerTimes(inputDate?: Date) {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [request]);
 

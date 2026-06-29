@@ -33,6 +33,7 @@ interface AladhanTimingResponse {
 type PrayerTimesCache = Record<string, { savedAt: number; value: PrayerTimesResponse }>;
 
 const CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 12;
+const inFlightRequests = new Map<string, Promise<PrayerTimesResponse>>();
 
 function formatDate(date: Date | string): string {
   if (typeof date === 'string') return date;
@@ -95,7 +96,7 @@ function normalizeResponse(
   };
 }
 
-export async function fetchPrayerTimes(input: PrayerTimesRequest): Promise<PrayerTimesResponse> {
+export async function fetchPrayerTimes(input: PrayerTimesRequest, signal?: AbortSignal): Promise<PrayerTimesResponse> {
   const key = cacheKey(input);
   const cache = getItem<PrayerTimesCache>(NAMAZ_STORAGE_KEYS.prayerTimesCache, {});
   const cached = cache[key];
@@ -104,6 +105,9 @@ export async function fetchPrayerTimes(input: PrayerTimesRequest): Promise<Praye
     return cached.value;
   }
 
+  const inFlight = !signal ? inFlightRequests.get(key) : undefined;
+  if (inFlight) return inFlight;
+
   const params = new URLSearchParams({
     latitude: String(input.latitude),
     longitude: String(input.longitude),
@@ -111,24 +115,33 @@ export async function fetchPrayerTimes(input: PrayerTimesRequest): Promise<Praye
     school: input.madhab === 'hanafi' ? '1' : '0',
   });
 
-  // External data fetch: Aladhan API returns prayer timings for one date and location.
-  const response = await fetch(`${API_ENDPOINTS.aladhanTimings}/${formatDate(input.date)}?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch prayer times: ${response.status}`);
+  const request = (async () => {
+    // External data fetch: Aladhan API returns prayer timings for one date and location.
+    const response = await fetch(`${API_ENDPOINTS.aladhanTimings}/${formatDate(input.date)}?${params.toString()}`, { signal });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch prayer times: ${response.status}`);
+    }
+
+    const payload = (await response.json()) as AladhanTimingResponse;
+    if (payload.code !== 200 || !payload.data?.timings) {
+      throw new Error(payload.status || 'Invalid prayer times response');
+    }
+
+    const value = normalizeResponse(input, payload);
+    setItem<PrayerTimesCache>(NAMAZ_STORAGE_KEYS.prayerTimesCache, {
+      ...getItem<PrayerTimesCache>(NAMAZ_STORAGE_KEYS.prayerTimesCache, {}),
+      [key]: { savedAt: Date.now(), value },
+    });
+
+    return value;
+  })();
+
+  if (!signal) inFlightRequests.set(key, request);
+  try {
+    return await request;
+  } finally {
+    if (!signal) inFlightRequests.delete(key);
   }
-
-  const payload = (await response.json()) as AladhanTimingResponse;
-  if (payload.code !== 200 || !payload.data?.timings) {
-    throw new Error(payload.status || 'Invalid prayer times response');
-  }
-
-  const value = normalizeResponse(input, payload);
-  setItem<PrayerTimesCache>(NAMAZ_STORAGE_KEYS.prayerTimesCache, {
-    ...cache,
-    [key]: { savedAt: Date.now(), value },
-  });
-
-  return value;
 }
 
 export function getCachedPrayerTimes(input: PrayerTimesRequest): PrayerTimesResponse | null {

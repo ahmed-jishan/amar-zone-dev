@@ -382,7 +382,7 @@ html:not(.dark) {
 .mon-fab {
   position: fixed;
   bottom: calc(9rem + env(safe-area-inset-bottom));
-  right: 20px;
+  right: calc(20px + env(safe-area-inset-right));
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -395,6 +395,7 @@ html:not(.dark) {
   border: none;
   cursor: pointer;
   z-index: 40;
+  transform: translateZ(0);
   transition: all var(--mon-transition-spring);
 }
 

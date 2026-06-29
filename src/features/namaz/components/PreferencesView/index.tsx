@@ -169,9 +169,8 @@ function PremiumLocationPicker() {
 
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <textarea
+          readOnly
           value={address}
-          onChange={(e) => { setAddress(e.target.value); setDetectedLocation(null); setError(null); }}
-          placeholder={language === 'bn' ? 'ঠিকানা লিখুন' : 'Enter address'}
           disabled={detectState === 'loading'}
           rows={2}
           className="np-input"

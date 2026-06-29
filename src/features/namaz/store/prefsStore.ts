@@ -104,6 +104,15 @@ export const usePrefsStore = create<PrefsState>()(
     {
       name: NAMAZ_STORAGE_KEYS.settings,
       version: 3,
+      merge: (persisted, current) => {
+        const persistedState = persisted as Partial<PrefsState> | undefined;
+        return {
+          ...current,
+          ...persistedState,
+          location: { ...current.location, ...persistedState?.location },
+          prayerTimePreferences: mergePrayerTimePreferences(persistedState?.prayerTimePreferences),
+        };
+      },
       migrate: (persistedState, version) => {
         const state = persistedState as Partial<PrefsState> | undefined;
         if (!state) return persistedState;
@@ -118,12 +127,10 @@ export const usePrefsStore = create<PrefsState>()(
           nextState = { ...nextState, madhab: 'shafi' };
         }
 
-        if (version < 3) {
-          nextState = {
-            ...nextState,
-            prayerTimePreferences: mergePrayerTimePreferences(nextState.prayerTimePreferences),
-          };
-        }
+        nextState = {
+          ...nextState,
+          prayerTimePreferences: mergePrayerTimePreferences(nextState.prayerTimePreferences),
+        };
 
         return nextState;
       },

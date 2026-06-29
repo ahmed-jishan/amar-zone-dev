@@ -212,19 +212,14 @@ function RemainingText({
   label,
   language,
   target,
+  now,
 }: {
   isActive: boolean;
   label: string;
   language: 'bn' | 'en';
   target?: Date;
+  now: Date;
 }) {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
   if (!target) return null;
 
   return (
@@ -357,6 +352,7 @@ export default function PrayerTimeCard({ prayerTimes, prayerTimesResponse, onMar
                       label={label}
                       language={language}
                       target={target}
+                      now={now}
                     />
                   )}
                 </div>

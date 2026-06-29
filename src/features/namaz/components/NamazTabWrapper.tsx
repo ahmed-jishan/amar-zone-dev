@@ -1,45 +1,51 @@
 // app/(tabs)/namaz/components/NamazTabWrapper.tsx
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import TopbarNav, { type ActiveTab } from './TopbarNav';
 import DashboardView from './DashboardView';
-import LogsView from './LogsView';
-import CalendarView from './CalendarView';
-import QiblaView from './QiblaView';
-import TasbihView from './TasbihView';
-import DuaView from './DuaView';
-import QuranView from './QuranView';
-import InsightsView from './InsightsView';
-import PreferencesView from './PreferencesView';
 import { usePrayerTimes } from '../hooks/usePrayerTimes';
 import { useAzanScheduler } from '../hooks/useAzanScheduler';
 import { useLocationSync } from '../hooks/useLocationSync';
 import { useSettingsStore } from '@/features/settings/store/settingsStore';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { triggerHaptic, vibrateBrowser } from '@/lib/native/haptics';
+import SafeRender from '@/components/shared/SafeRender';
 import '../namaz-globals.css';
 
 // Tab navigation order for swipe gestures
 const TAB_ORDER: ActiveTab[] = ['dashboard', 'qibla', 'tasbih'];
+const tabLoading = () => <div className="rounded-2xl p-5 text-sm font-semibold nz-card nz-text">Loading...</div>;
+
+const LogsView = dynamic(() => import('./LogsView'), { loading: tabLoading });
+const CalendarView = dynamic(() => import('./CalendarView'), { loading: tabLoading });
+const QiblaView = dynamic(() => import('./QiblaView'), { loading: tabLoading });
+const TasbihView = dynamic(() => import('./TasbihView'), { loading: tabLoading });
+const DuaView = dynamic(() => import('./DuaView'), { loading: tabLoading });
+const QuranView = dynamic(() => import('./QuranView'), { loading: tabLoading });
+const InsightsView = dynamic(() => import('./InsightsView'), { loading: tabLoading });
+const PreferencesView = dynamic(() => import('./PreferencesView'), { loading: tabLoading });
 
 export function NamazTabWrapper() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [animateKey, setAnimateKey] = useState(0);
   const { language } = useSettingsStore();
-  const locationSync = useLocationSync(true);
+  const locationSync = useLocationSync({ force: true, watch: false, deferMs: 1200 });
   const { data: prayerTimes } = usePrayerTimes();
   const azan = useAzanScheduler(prayerTimes);
 
   // Haptic + keyboard support for tab changes
   const handleTabChange = useCallback((tab: ActiveTab) => {
-    if (tab === activeTab) return;
-    triggerHaptic('light');
-    vibrateBrowser(5);
-    setAnimateKey((k) => k + 1);
-    setActiveTab(tab);
-  }, [activeTab]);
+    setActiveTab((current) => {
+      if (tab === current) return current;
+      void triggerHaptic('light');
+      vibrateBrowser(5);
+      setAnimateKey((k) => k + 1);
+      return tab;
+    });
+  }, []);
 
   // Swipe between dashboard/qibla/tasbih
   const handleSwipeLeft = useCallback(() => {
@@ -114,24 +120,29 @@ export function NamazTabWrapper() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ type: 'spring', stiffness: 200, damping: 25 }}
             >
-              {activeTab === 'dashboard' && (
-                <DashboardView
-                  azan={azan}
-                  prayerTimesResponse={prayerTimes}
-                  locationLabel={locationSync.label}
-                  locationStatus={locationSync.status}
-                  onOpenQuran={() => handleTabChange('quran')}
-                  language={language}
-                />
-              )}
-              {activeTab === 'logs' && <LogsView />}
-              {activeTab === 'calendar' && <CalendarView />}
-              {activeTab === 'qibla' && <QiblaView />}
-              {activeTab === 'tasbih' && <TasbihView />}
-              {activeTab === 'dua' && <DuaView />}
-              {activeTab === 'quran' && <QuranView />}
-              {activeTab === 'insights' && <InsightsView />}
-              {activeTab === 'preferences' && <PreferencesView />}
+              <SafeRender
+                name={`Namaz ${activeTab}`}
+                fallback={<div className="rounded-2xl p-5 text-sm font-semibold nz-card nz-text">This Namaz section recovered from an error. Please switch tabs and try again.</div>}
+              >
+                {activeTab === 'dashboard' && (
+                  <DashboardView
+                    azan={azan}
+                    prayerTimesResponse={prayerTimes}
+                    locationLabel={locationSync.label}
+                    locationStatus={locationSync.status}
+                    onOpenQuran={() => handleTabChange('quran')}
+                    language={language}
+                  />
+                )}
+                {activeTab === 'logs' && <LogsView />}
+                {activeTab === 'calendar' && <CalendarView />}
+                {activeTab === 'qibla' && <QiblaView />}
+                {activeTab === 'tasbih' && <TasbihView />}
+                {activeTab === 'dua' && <DuaView />}
+                {activeTab === 'quran' && <QuranView />}
+                {activeTab === 'insights' && <InsightsView />}
+                {activeTab === 'preferences' && <PreferencesView />}
+              </SafeRender>
             </motion.div>
           </AnimatePresence>
         </div>

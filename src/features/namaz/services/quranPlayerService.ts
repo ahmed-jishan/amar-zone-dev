@@ -38,6 +38,8 @@ class QuranPlayerService {
   private reciter: ReciterKey = 'alafasy'
   private autoAdvanceEnabled = true
   private audioFocusResume = false
+  private loadToken = 0
+  private visibilityChangeHandler: (() => void) | null = null
 
   constructor() {
     this.recoverState()
@@ -84,6 +86,7 @@ class QuranPlayerService {
   setReciter(reciter: ReciterKey) { this.reciter = reciter }
 
   async playPosition(surahNumber: number, ayahNumber: number) {
+    const token = ++this.loadToken
     if (this.state.surahNumber === surahNumber && this.state.ayahNumber === ayahNumber && this.audio) {
       if (this.state.isPlaying) { this.pause(); return }
       try {
@@ -99,6 +102,10 @@ class QuranPlayerService {
     try {
       const audio = this.audio ?? new Audio()
       this.audio = audio
+      audio.pause()
+      audio.oncanplaythrough = null
+      audio.onerror = null
+      audio.onended = null
       audio.preload = 'auto'
       audio.src = getAyahAudioUrl(surahNumber, ayahNumber, this.reciter)
 
@@ -106,15 +113,36 @@ class QuranPlayerService {
       this.notify()
 
       await new Promise<void>((resolve, reject) => {
-        audio.oncanplaythrough = () => resolve()
-        audio.onerror = () => reject(new Error('Audio load failed'))
+        const timeout = window.setTimeout(() => {
+          cleanup()
+          reject(new Error('Audio load timed out'))
+        }, 15000)
+        const cleanup = () => {
+          window.clearTimeout(timeout)
+          audio.oncanplaythrough = null
+          audio.onerror = null
+        }
+        audio.oncanplaythrough = () => {
+          cleanup()
+          resolve()
+        }
+        audio.onerror = () => {
+          cleanup()
+          reject(new Error('Audio load failed'))
+        }
         audio.load()
       })
+
+      if (token !== this.loadToken) return
 
       this.state.isLoaded = true
       this.notify()
 
       await audio.play()
+      if (token !== this.loadToken) {
+        audio.pause()
+        return
+      }
       this.state.isPlaying = true
       this.updateMediaSession()
       this.setupMediaSessionHandlers()
@@ -173,7 +201,14 @@ class QuranPlayerService {
   }
 
   stop() {
-    if (this.audio) { this.audio.pause(); this.audio.src = '' }
+    this.loadToken += 1
+    if (this.audio) {
+      this.audio.pause()
+      this.audio.oncanplaythrough = null
+      this.audio.onerror = null
+      this.audio.onended = null
+      this.audio.src = ''
+    }
     this.state = { surahNumber: null, ayahNumber: null, isPlaying: false, isLoaded: false, error: null }
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'none'
@@ -227,18 +262,14 @@ class QuranPlayerService {
 
   private setupAudioFocus() {
     if (typeof document === 'undefined') return
-    document.addEventListener('visibilitychange', () => {
+    if (this.visibilityChangeHandler) return
+    this.visibilityChangeHandler = () => {
       if (document.visibilityState === 'visible' && this.audioFocusResume) {
         this.audioFocusResume = false
         if (!this.state.isPlaying && this.state.isLoaded) this.resume()
       }
-    })
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') audioCtx.resume()
-      })
-    } catch { /* AudioContext not available */ }
+    }
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler)
   }
 
   handleIncomingCall() {
@@ -255,7 +286,19 @@ class QuranPlayerService {
   }
 
   destroy() {
-    if (this.audio) { this.audio.pause(); this.audio.src = ''; this.audio = null }
+    this.loadToken += 1
+    if (this.audio) {
+      this.audio.pause()
+      this.audio.oncanplaythrough = null
+      this.audio.onerror = null
+      this.audio.onended = null
+      this.audio.src = ''
+      this.audio = null
+    }
+    if (this.visibilityChangeHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler)
+      this.visibilityChangeHandler = null
+    }
     this.listeners.clear()
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'none'

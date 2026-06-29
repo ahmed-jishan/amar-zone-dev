@@ -16,6 +16,7 @@ export interface AppSettings {
   onboardingComplete: boolean
   notificationsEnabled: boolean
   calculatorEnabled: boolean
+  voiceEnabled: boolean
   notificationCategories: {
     tasks: boolean
     money: boolean
@@ -47,6 +48,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   onboardingComplete: true,
   notificationsEnabled: true,
   calculatorEnabled: true,
+  voiceEnabled: true,
   notificationCategories: {
     tasks: true,
     money: true,
@@ -65,8 +67,10 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 // Helper to apply theme to document root
 function applyThemeToDOM(theme: Theme) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+
   const root = document.documentElement
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
   const isDark = theme === 'dark' || (theme === 'system' && prefersDark)
   if (isDark) {
     root.classList.add('dark')

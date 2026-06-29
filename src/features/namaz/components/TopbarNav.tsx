@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { memo, useCallback, useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard,
   Compass,
@@ -47,7 +47,7 @@ const MORE_ITEMS: { id: ActiveTab; labelEn: string; labelBn: string; icon: React
   { id: 'preferences', labelEn: 'Settings', labelBn: 'সেটিংস', icon: <Settings2 size={16} />, descEn: 'Customize app', descBn: 'কাস্টমাইজ' },
 ];
 
-export default function TopbarNav({ activeTab, onTabChange, language }: TopbarNavProps) {
+function TopbarNav({ activeTab, onTabChange, language }: TopbarNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const moreBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -83,10 +83,10 @@ export default function TopbarNav({ activeTab, onTabChange, language }: TopbarNa
 
   const isInMore = !PRIMARY_TABS.some((t) => t.id === activeTab);
 
-  const handleMoreSelect = (tabId: ActiveTab) => {
+  const handleMoreSelect = useCallback((tabId: ActiveTab) => {
     onTabChange(tabId);
     setMoreOpen(false);
-  };
+  }, [onTabChange]);
 
   return (
     <>
@@ -211,3 +211,5 @@ export default function TopbarNav({ activeTab, onTabChange, language }: TopbarNa
     </>
   );
 }
+
+export default memo(TopbarNav);

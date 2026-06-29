@@ -9,18 +9,20 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Navigation, Sparkles, X, ChevronDown } from 'lucide-react';
-import { useModeEngine } from '../hooks/useModeEngine';
+import { useModeEngine, useModeEngineFromPrayerTimes } from '../hooks/useModeEngine';
 import { getModeLabel, getModeDescription } from '../types';
 import { usePrefsStore } from '../../store/prefsStore';
 import { useSettingsStore } from '@/features/settings/store/settingsStore';
 import { triggerHaptic } from '@/lib/native/haptics';
+import type { PrayerTimesResponse } from '../../types/prayer.types';
 
 interface ModeBannerProps {
   onOpenSettings?: () => void;
+  prayerTimes?: PrayerTimesResponse | null;
 }
 
-export default function ModeBanner({ onOpenSettings }: ModeBannerProps) {
-  const engine = useModeEngine();
+export default function ModeBanner({ onOpenSettings, prayerTimes }: ModeBannerProps) {
+  const engine = useModeEngineFromPrayerTimes(prayerTimes ?? null);
   const { language } = useSettingsStore();
   const setSpecialMode = usePrefsStore((s) => s.setSpecialMode);
   const { ramadanMode, travelMode } = engine.activeModes;

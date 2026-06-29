@@ -6,7 +6,7 @@ import type { PrayerTimesResponse } from '../types/prayer.types';
 import { AZAN_PRAYER_ORDER, buildPrayerDate, formatRemaining, getNextAzan } from '../utils/prayerSchedule';
 import { computePrayerTimeConfig } from '../utils/azanJamatConfig';
 import type { ConfigurablePrayerName } from '../store/prefsStore';
-import { isNativeNotificationPlatform, requestAppNotificationPermission, scheduleAppNotification } from '@/lib/native/notifications';
+import { getNotificationPermission, isNativeNotificationPlatform, scheduleAppNotification } from '@/lib/native/notifications';
 import { cancelNativeAzan, isNativeAzanSupported, scheduleNativeAzan } from '@/lib/native/azan';
 import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
@@ -57,6 +57,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   const quietHoursEnd = useSettingsStore((state) => state.quietHoursEnd);
   const [now, setNow] = useState(new Date());
   const firedRef = useRef<Set<string>>(new Set());
+  const nativeScheduledIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 1000);
@@ -81,10 +82,9 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
 
       if (delay <= 0 || firedRef.current.has(key) || isWithinQuietHours(target, quietHoursEnabled, quietHoursStart, quietHoursEnd)) return null;
 
-      // Schedule notification (always, on all platforms)
       if (isNativeNotificationPlatform()) {
         void (async () => {
-          const permission = await requestAppNotificationPermission();
+          const permission = await getNotificationPermission();
           if (permission !== 'granted') return;
           await scheduleAppNotification({
             tag: key,
@@ -123,7 +123,8 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   // This uses Android AlarmManager to wake the device and play audio
   // even if the app process is killed by the OS.
   useEffect(() => {
-    if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes || !isNativeAzanSupported()) return;
+    if (!prayerTimes || !isNativeAzanSupported()) return;
+    let cancelled = false;
 
     const items = AZAN_PRAYER_ORDER.map((prayer) => {
       const entry = prayerTimes.timings[prayer];
@@ -136,11 +137,30 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         time: target.getTime(),
       };
     }).filter((item) => item.time > Date.now() && !isWithinQuietHours(new Date(item.time), quietHoursEnabled, quietHoursStart, quietHoursEnd));
+    const nextIds = items.map((item) => item.id);
+    const enabled = azanEnabled && notificationsEnabled && prayerNotificationsEnabled;
 
-    void scheduleNativeAzan(items, AZAN_AUDIO_URL).catch((error) => console.warn('Native azan schedule failed:', error));
+    if (!enabled) {
+      const previousIds = nativeScheduledIdsRef.current;
+      nativeScheduledIdsRef.current = [];
+      void cancelNativeAzan(previousIds).catch((error) => console.warn('Native azan cancel failed:', error));
+      return;
+    }
+
+    const staleIds = nativeScheduledIdsRef.current.filter((id) => !nextIds.includes(id));
+    if (staleIds.length > 0) {
+      void cancelNativeAzan(staleIds).catch((error) => console.warn('Native azan stale cancel failed:', error));
+    }
+    nativeScheduledIdsRef.current = nextIds;
+
+    const scheduleTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      void scheduleNativeAzan(items, AZAN_AUDIO_URL).catch((error) => console.warn('Native azan schedule failed:', error));
+    }, 1500);
 
     return () => {
-      void cancelNativeAzan(items.map((item) => item.id)).catch((error) => console.warn('Native azan cancel failed:', error));
+      cancelled = true;
+      window.clearTimeout(scheduleTimer);
     };
   }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 

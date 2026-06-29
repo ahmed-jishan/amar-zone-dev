@@ -13,7 +13,6 @@ import IftarCountdown from '../../modes/components/IftarCountdown';
 import FastingTracker from '../../modes/components/FastingTracker';
 import TaraweehTracker from '../../modes/components/TaraweehTracker';
 import RamadanCountdown from '../../modes/components/RamadanCountdown';
-import { useModeEngine } from '../../modes/hooks/useModeEngine';
 import { motion } from 'framer-motion';
 import { useLogsStore, TRACKED_PRAYERS } from '../../store/logsStore';
 import { usePrefsStore } from '../../store/prefsStore';
@@ -129,7 +128,7 @@ export default function DashboardView({ azan, prayerTimesResponse, locationLabel
   return (
     <div className="space-y-6">
       {/* Mode Intelligence Banner (Ramadan / Travel) */}
-      <ModeBanner onOpenSettings={() => {}} />
+      <ModeBanner onOpenSettings={() => {}} prayerTimes={prayerTimesResponse ?? null} />
 
       {/* Ramadan Announcement Card (shown only when toggle ON but NOT actual Ramadan month) */}
       {/* When OFF → normal dashboard (no countdown card, no announcement) */}
