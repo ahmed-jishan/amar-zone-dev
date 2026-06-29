@@ -118,13 +118,13 @@ const getViewportSize = () => {
 }
 
 export default function NotificationCenter() {
-  const tasks = useTaskStore((s) => asArray(s.tasks, isTask))
+  const taskItems = useTaskStore((s) => s.tasks)
   const markReminderTriggered = useTaskStore((s) => s.markReminderTriggered)
-  const transactions = useMoneyStore((s) => asArray(s.transactions, isTransaction))
-  const loans = useMoneyStore((s) => asArray(s.loans, isLoan))
-  const budgets = useMoneyStore((s) => asArray(s.budgets, isMonthlyBudget))
-  const savingsGoals = useMoneyStore((s) => asArray(s.savingsGoals, isSavingsGoal))
-  const subscriptions = useMoneyStore((s) => asArray(s.subscriptions, isSubscription))
+  const transactionItems = useMoneyStore((s) => s.transactions)
+  const loanItems = useMoneyStore((s) => s.loans)
+  const budgetItems = useMoneyStore((s) => s.budgets)
+  const savingsGoalItems = useMoneyStore((s) => s.savingsGoals)
+  const subscriptionItems = useMoneyStore((s) => s.subscriptions)
   const getCategoryBreakdown = useMoneyStore((s) => s.getCategoryBreakdown)
   const {
     currency_symbol,
@@ -138,6 +138,12 @@ export default function NotificationCenter() {
   const [open, setOpen] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [viewport, setViewport] = useState(getViewportSize)
+  const tasks = useMemo(() => asArray(taskItems, isTask), [taskItems])
+  const transactions = useMemo(() => asArray(transactionItems, isTransaction), [transactionItems])
+  const loans = useMemo(() => asArray(loanItems, isLoan), [loanItems])
+  const budgets = useMemo(() => asArray(budgetItems, isMonthlyBudget), [budgetItems])
+  const savingsGoals = useMemo(() => asArray(savingsGoalItems, isSavingsGoal), [savingsGoalItems])
+  const subscriptions = useMemo(() => asArray(subscriptionItems, isSubscription), [subscriptionItems])
 
   useEffect(() => {
     const loadPermission = async () => {

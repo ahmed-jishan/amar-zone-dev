@@ -1,17 +1,31 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { CheckSquare, Moon, Home, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState } from 'react'
-import CalculatorModal from '@/components/ui/CalculatorModal'
-import NotificationCenter from '@/components/ui/NotificationCenter'
 import AppLockGate from '@/components/security/AppLockGate'
-import VoiceFloatingButton from '@/components/ui/VoiceFloatingButton'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import SafeRender from '@/components/shared/SafeRender'
-import PermissionOnboarding from '@/components/shared/PermissionOnboarding'
+
+const CalculatorModal = dynamic(() => import('@/components/ui/CalculatorModal'), {
+  ssr: false,
+  loading: () => null,
+})
+const NotificationCenter = dynamic(() => import('@/components/ui/NotificationCenter'), {
+  ssr: false,
+  loading: () => null,
+})
+const VoiceFloatingButton = dynamic(() => import('@/components/ui/VoiceFloatingButton'), {
+  ssr: false,
+  loading: () => null,
+})
+const PermissionOnboarding = dynamic(() => import('@/components/shared/PermissionOnboarding'), {
+  ssr: false,
+  loading: () => null,
+})
 
 const TABS = [
   { href: '/tasks', icon: CheckSquare, label: 'Tasks' },
