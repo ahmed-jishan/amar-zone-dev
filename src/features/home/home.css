@@ -1075,8 +1075,6 @@
   position: relative;
 }
 
-/* ─── [Removed] Ambient Background — no color cast ─── */
-
 /* ─── Greeting Row ─── */
 .greeting-row {
   display: flex;
@@ -1235,7 +1233,7 @@
   clip-path: inset(50% 0 0 0);
 }
 
-/* ─── Premium Digit — Apple-grade Clean ─── */
+/* ─── Premium Digit ─── */
 .premium-digit {
   display: inline-flex;
   align-items: center;
@@ -1261,7 +1259,7 @@
   transform: translateY(-28px);
 }
 
-/* ─── Colon — Clean Minimal ─── */
+/* ─── Colon ─── */
 .premium-colon {
   font-family: 'SF Pro Display', 'Inter Display', 'Plus Jakarta Sans', monospace;
   font-size: 42px;
@@ -1299,6 +1297,7 @@
   transform: translateY(-28px);
 }
 
+/* ─── Tab Panels ─── */
 .hm-tab-panels {
   position: relative;
 }
@@ -1323,6 +1322,7 @@
   display: none;
 }
 
+/* ─── Touch Device Optimizations ─── */
 @media (hover: none) and (pointer: coarse) {
   .hm-glass-card,
   .hm-action-btn,
@@ -1351,6 +1351,7 @@
   }
 }
 
+/* ─── Premium Colon Dot ─── */
 .premium-colon-dot {
   width: 6px;
   height: 6px;
@@ -1358,7 +1359,7 @@
   background: var(--hm-accent);
 }
 
-/* ─── AM/PM — Clean Badge ─── */
+/* ─── AM/PM Badge ─── */
 .premium-ampm {
   display: inline-flex;
   align-items: center;
@@ -1422,6 +1423,71 @@
   width: 14px;
   height: 14px;
   border-radius: 2px;
+}
+
+/* ─── CSS Entry Animations (replacing Framer Motion) ─── */
+.animate-header-in {
+  animation: headerSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes headerSlideIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-greeting-in {
+  animation: greetingSlideIn 0.32s ease-out 0.08s both;
+  will-change: transform, opacity;
+}
+@keyframes greetingSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-clock-in {
+  animation: clockSlideIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+  will-change: transform, opacity;
+}
+@keyframes clockSlideIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-date-in {
+  animation: dateSlideIn 0.32s ease-out 0.18s both;
+  will-change: transform, opacity;
+}
+@keyframes dateSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* CSS-only flip animations for digit cards */
+.flip-anim-top {
+  animation: flipTop 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform;
+}
+@keyframes flipTop {
+  from { transform: rotateX(0); opacity: 1; }
+  to { transform: rotateX(-86deg); opacity: 0.68; }
+}
+
+.flip-anim-bottom {
+  animation: flipBottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+  will-change: transform;
+}
+@keyframes flipBottom {
+  from { transform: rotateX(86deg); opacity: 0.68; }
+  to { transform: rotateX(0); opacity: 1; }
+}
+
+/* CSS-only colon pulsating glow */
+.premium-colon-css {
+  animation: colonPulse 1s ease-in-out infinite;
+}
+@keyframes colonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.42; }
 }
 
 /* ─── Second Tick Pulse ─── */

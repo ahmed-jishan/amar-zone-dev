@@ -33,7 +33,24 @@ const config: CapacitorConfig = {
   appId: 'com.selfsync.app',
   appName: 'SelfSync',
   webDir: 'out',
-  server: { androidScheme: 'https' },
+  server: {
+    androidScheme: 'https',
+    allowNavigation: [],
+  },
+  android: {
+    // Hardware acceleration & WebView optimizations for native-like performance
+    allowMixedContent: true,
+    // Capture back button for smoother navigation
+    captureInput: true,
+    // Enable hardware accelerated rendering
+    webContentsDebuggingEnabled: false,
+    // Disable zoom gestures for app-like feel
+    initialFocus: true,
+  },
+  ios: {
+    contentInset: 'always',
+    scrollEnabled: false,
+  },
   plugins: {
     GoogleAuth: {
       clientId: googleWebClientId,
@@ -45,6 +62,21 @@ const config: CapacitorConfig = {
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
       iconColor: '#63f18b',
+    },
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: true,
+      backgroundColor: '#0f0f13',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+    Keyboard: {
+      resize: 'body',
+      style: 'dark',
+      resizeOnFullScreen: true,
     },
   },
 };

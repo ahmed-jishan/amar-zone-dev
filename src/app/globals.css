@@ -29,6 +29,10 @@ body {
   color: rgb(var(--fg));
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  /* Hardware-accelerated compositing */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 html {
@@ -46,6 +50,10 @@ body {
 #__next {
   height: 100%;
   overflow-y: auto;
+  /* Enable GPU compositing for the main container */
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  will-change: scroll-position;
 }
 
 .card {
@@ -64,6 +72,10 @@ body {
   transition: all 0.15s;
   cursor: pointer;
   border: none;
+  /* Touch optimizations */
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .btn-primary:active { transform: scale(0.95); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -77,6 +89,9 @@ body {
   cursor: pointer;
   background: transparent;
   border: none;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .btn-ghost:hover  { background-color: rgb(var(--card)); }
 .btn-ghost:active { transform: scale(0.95); }
@@ -125,6 +140,14 @@ body {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* GPU-accelerated scroll containers */
+.scroll-gpu {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  transform: translateZ(0);
+  will-change: scroll-position;
 }
 
 /* Spring-scale animation for tap feedback */
@@ -216,4 +239,16 @@ body {
   .ripple-btn.ripple-anim::after {
     animation-duration: 0.32s;
   }
+}
+
+/* ─── Enhanced touch feedback for all interactive elements ──────────────── */
+button, a, [role="button"], input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* GPU compositing for smoother scrolling on all scroll containers */
+main, [style*="overflow-y: auto"], .overflow-y-auto, .overflow-auto {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
 }

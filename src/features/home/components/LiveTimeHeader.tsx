@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 
 const BD_TIMEZONE = 'Asia/Dhaka'
 const LOCALE = 'en-BD'
@@ -41,12 +40,13 @@ function getGreeting(hour: number): { text: string; emoji: string } {
   return { text: 'Good Night', emoji: '\u{1F303}' }
 }
 
+// Optimized: CSS flip animation instead of Framer Motion AnimatePresence
 function FlipDigit({ digit, prevDigit, label }: { digit: string; prevDigit: string; label: string }) {
   const isFlipping = digit !== prevDigit
 
   return (
     <div className="flip-card-container">
-      <div style={{ width: 36, height: 56 }} className="relative">
+      <div style={{ width: 36, height: 56 }} className="relative flip-card-wrapper">
         <div className="flip-card">
           <div className="flip-card-face flip-card-face-top">
             <span className="premium-digit">{digit}</span>
@@ -54,32 +54,22 @@ function FlipDigit({ digit, prevDigit, label }: { digit: string; prevDigit: stri
           <div className="flip-card-face flip-card-face-bottom">
             <span className="premium-digit">{digit}</span>
           </div>
-          <AnimatePresence>
-            {isFlipping && (
-              <>
-                <motion.div
-                  key={`old-${prevDigit}-${digit}`}
-                  className="flip-flap flip-flap-top"
-                  initial={{ rotateX: 0, opacity: 1 }}
-                  animate={{ rotateX: -86, opacity: 0.68 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                >
-                  <span className="premium-digit">{prevDigit}</span>
-                </motion.div>
-                <motion.div
-                  key={`new-${prevDigit}-${digit}`}
-                  className="flip-flap flip-flap-bottom"
-                  initial={{ rotateX: 86, opacity: 0.68 }}
-                  animate={{ rotateX: 0, opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <span className="premium-digit">{digit}</span>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          {isFlipping && (
+            <>
+              <div
+                key={`old-${prevDigit}-${digit}`}
+                className="flip-flap flip-flap-top flip-anim-top"
+              >
+                <span className="premium-digit">{prevDigit}</span>
+              </div>
+              <div
+                key={`new-${prevDigit}-${digit}`}
+                className="flip-flap flip-flap-bottom flip-anim-bottom"
+              >
+                <span className="premium-digit">{digit}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
       {label && <span className="clock-label">{label}</span>}
@@ -87,21 +77,18 @@ function FlipDigit({ digit, prevDigit, label }: { digit: string; prevDigit: stri
   )
 }
 
+// Optimized: CSS-only glowing colon animation
 function GlowingColon() {
   return (
-    <motion.div
-      className="premium-colon"
-      animate={{ opacity: [1, 0.42, 1] }}
-      transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
-    >
+    <div className="premium-colon premium-colon-css">
       <div className="premium-colon-dot" />
-    </motion.div>
+    </div>
   )
 }
 
 function BangladeshFlag() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20" style={{ width: 18, height: 12, verticalAlign: 'middle', marginRight: 4 }}>
       <rect width="30" height="20" fill="#006a4e" />
       <circle cx="13" cy="10" r="5.5" fill="#f42a41" />
     </svg>
@@ -139,36 +126,13 @@ export default function LiveTimeHeader() {
   if (!mounted) return null
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-      className="live-time-header"
-    >
-      <motion.div
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.08, duration: 0.32 }}
-        className="greeting-row"
-      >
-        <motion.span
-          className="greeting-emoji"
-          key={greeting.emoji}
-          initial={{ scale: 0.9, rotate: -8 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-        >
-          {greeting.emoji}
-        </motion.span>
+    <div className="live-time-header animate-header-in">
+      <div className="greeting-row animate-greeting-in">
+        <span className="greeting-emoji">{greeting.emoji}</span>
         <span className="greeting-text">{greeting.text}</span>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.12, duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
-        className="clock-row"
-      >
+      <div className="clock-row animate-clock-in">
         <FlipDigit digit={time.hours.charAt(0)} prevDigit={previous.hours.charAt(0)} label="" />
         <FlipDigit digit={time.hours.charAt(1)} prevDigit={previous.hours.charAt(1)} label="" />
         <GlowingColon />
@@ -177,23 +141,10 @@ export default function LiveTimeHeader() {
         <GlowingColon />
         <FlipDigit digit={time.seconds.charAt(0)} prevDigit={previous.seconds.charAt(0)} label="" />
         <FlipDigit digit={time.seconds.charAt(1)} prevDigit={previous.seconds.charAt(1)} label="" />
-        <motion.span
-          className="premium-ampm"
-          key={time.ampm}
-          initial={{ opacity: 0, x: -4, scale: 0.95 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 220, damping: 20 }}
-        >
-          {time.ampm}
-        </motion.span>
-      </motion.div>
+        <span className="premium-ampm">{time.ampm}</span>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18, duration: 0.32 }}
-        className="date-row"
-      >
+      <div className="date-row animate-date-in">
         <span className="date-dayname">{date.dayName}</span>
         <span className="date-sep">,</span>
         <span className="date-full">{date.month} {date.day}, {date.year}</span>
@@ -201,7 +152,7 @@ export default function LiveTimeHeader() {
           <BangladeshFlag />
           Bangladesh
         </span>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }

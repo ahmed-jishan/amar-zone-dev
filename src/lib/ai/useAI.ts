@@ -1,10 +1,13 @@
 // ─── SelfSync AI — Public API Hook ────────────────────────────────────────
 // This hook connects all Zustand stores to the AI engine.
 // Components call useAI() to get scores, insights, daily brief, etc.
+//
+// PERFORMANCE: Uses lazy gathering — only reads from stores when AI computation
+// is actually triggered, not on mount. Individual selectors for reactive values.
 
 'use client'
 
-import { useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAIStore } from './store'
 import { useTaskStore } from '@/lib/store/taskStore'
 import { useNamazStore } from '@/features/namaz/store/namazStore'
@@ -98,45 +101,60 @@ function gatherInput(): AggregatorInput {
 }
 
 export function useAI(): AIApi {
-  const store = useAIStore()
+  // Only subscribe to the specific slices we need from AI store
+  const scores = useAIStore((s) => s.scores)
+  const insights = useAIStore((s) => s.insights)
+  const dailyBrief = useAIStore((s) => s.dailyBrief)
+  const patterns = useAIStore((s) => s.patterns)
+  const isComputing = useAIStore((s) => s.isComputing)
+  const lastComputed = useAIStore((s) => s.lastComputed)
+  const dismissInsight = useAIStore((s) => s.dismissInsight)
+  const markInsightRead = useAIStore((s) => s.markInsightRead)
+  const recompute = useAIStore((s) => s.recompute)
+  const maybeRecompute = useAIStore((s) => s.maybeRecompute)
+
+  // Use ref to track if initial computation has been triggered
+  const initializedRef = useRef(false)
 
   const refresh = useCallback(() => {
     const input = gatherInput()
-    store.recompute(input)
-  }, [store.recompute])
+    recompute(input)
+  }, [recompute])
 
-  // Auto-compute on mount if stale
+  // Auto-compute on mount if stale — only once
   useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
     const input = gatherInput()
-    store.maybeRecompute(input)
+    maybeRecompute(input)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const unreadCount = useMemo(
-    () => store.insights.filter((i) => !i.read).length,
-    [store.insights]
+    () => insights.filter((i) => !i.read).length,
+    [insights]
   )
 
   const focusSuggestion = useMemo(
-    () => store.dailyBrief?.focusSuggestion ?? null,
-    [store.dailyBrief]
+    () => dailyBrief?.focusSuggestion ?? null,
+    [dailyBrief]
   )
 
   const overallScore = useMemo(
-    () => store.scores?.overall ?? null,
-    [store.scores]
+    () => scores?.overall ?? null,
+    [scores]
   )
 
   return {
-    scores: store.scores,
-    insights: store.insights,
-    dailyBrief: store.dailyBrief,
-    patterns: store.patterns,
-    isComputing: store.isComputing,
-    lastComputed: store.lastComputed,
+    scores,
+    insights,
+    dailyBrief,
+    patterns,
+    isComputing,
+    lastComputed,
     refresh,
-    dismissInsight: store.dismissInsight,
-    markInsightRead: store.markInsightRead,
+    dismissInsight,
+    markInsightRead,
     unreadCount,
     focusSuggestion,
     overallScore,

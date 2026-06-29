@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { StickyNote, Heart, TrendingUp, Clock, Sparkles, RefreshCw } from 'lucide-react'
@@ -67,27 +67,105 @@ function safeLocaleDate(value: unknown): string {
   })
 }
 
-const CONTAINER = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.05,
-    },
-  },
-}
+// Optimized: Use CSS transitions instead of Framer Motion for stagger animations
+// Only use motion.div for elements that truly need spring physics
+const ITEM_TRANSITION = 'opacity 0.4s ease-out, transform 0.4s ease-out'
 
-const ITEM = {
-  hidden: { opacity: 0, y: 20 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const },
-  },
-}
+// Memoized card components to prevent re-renders
+const StatsCard = memo(function StatsCard({
+  icon: Icon,
+  value,
+  label,
+  sublabel,
+}: {
+  icon: React.ElementType
+  value: string | number
+  label: string
+  sublabel?: string
+}) {
+  return (
+    <div className="hm-glass-card" style={{ opacity: 1, transform: 'translateY(0)', transition: ITEM_TRANSITION }}>
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-9 h-9 rounded-lg bg-[var(--hm-accent-soft)] flex items-center justify-center">
+          <Icon size={16} className="text-[var(--hm-accent)]" />
+        </div>
+      </div>
+      <div className="text-2xl font-bold text-[var(--hm-text)]">{value}</div>
+      <div className="text-xs text-[var(--hm-muted)] mt-1">
+        {label}
+        {sublabel && <span> · {sublabel}</span>}
+      </div>
+    </div>
+  )
+})
+
+const QuickActionBtn = memo(function QuickActionBtn({
+  icon,
+  label,
+  gradient,
+  onClick,
+}: {
+  icon: string
+  label: string
+  gradient: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="hm-action-btn"
+      style={{ willChange: 'transform' }}
+    >
+      <div
+        className="icon-wrapper"
+        style={{ background: gradient, color: '#fff' }}
+      >
+        {icon}
+      </div>
+      <span className="label">{label}</span>
+    </button>
+  )
+})
+
+const ActivityItem = memo(function ActivityItem({
+  icon,
+  title,
+  type,
+  date,
+  delay,
+}: {
+  icon: string
+  title: string
+  type: string
+  date: string
+  delay: number
+}) {
+  return (
+    <div
+      className="flex items-center gap-3"
+      style={{
+        opacity: 1,
+        transform: 'translateX(0)',
+        transition: `opacity 0.3s ease-out ${delay}s, transform 0.3s ease-out ${delay}s`,
+      }}
+    >
+      <div className="w-8 h-8 rounded-lg bg-[var(--hm-soft)] flex items-center justify-center text-sm">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-[var(--hm-text)] truncate">
+          {title}
+        </div>
+        <div className="text-xs text-[var(--hm-muted)]">
+          {type === 'note' ? '📝 Note' : '✅ Task'} · {safeLocaleDate(date)}
+        </div>
+      </div>
+    </div>
+  )
+})
 
 export default function DashboardView({ onNavigate }: DashboardViewProps) {
+  // Optimized: Use individual selectors instead of whole store subscriptions
   const notes = useNotesStore((s) => asArray(s.notes, isNote))
   const healthHistory = useHealthStore((s) => asArray(s.history, isBMIRecord))
   const tasks = useTaskStore((s) => asArray(s.tasks, isTask))
@@ -108,30 +186,11 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   // Handle insight action routing — maps insight routes to tab navigation
   const handleInsightAction = useCallback((route: string) => {
-    // Extract the base route (strip query params)
     const baseRoute = route.split('?')[0]
-    // Map routes to tab navigation:
-    // Tasks tab
-    if (baseRoute === '/tasks') {
-      router.push('/tasks')
-      return
-    }
-    // Money tab
-    if (baseRoute === '/money') {
-      router.push('/money')
-      return
-    }
-    // Namaz tab
-    if (baseRoute === '/namaz') {
-      router.push('/namaz')
-      return
-    }
-    // Home sub-tabs (health, notes)
-    if (baseRoute === '/home') {
-      onNavigate('health')
-      return
-    }
-    // Fallback: just navigate to the route directly
+    if (baseRoute === '/tasks') { router.push('/tasks'); return }
+    if (baseRoute === '/money') { router.push('/money'); return }
+    if (baseRoute === '/namaz') { router.push('/namaz'); return }
+    if (baseRoute === '/home') { onNavigate('health'); return }
     router.push(baseRoute)
   }, [router, onNavigate])
 
@@ -150,7 +209,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const recentActivity = useMemo(() => {
     const items: { id: string; icon: string; title: string; date: string; type: string }[] = []
 
-    // Recent notes
     notes.slice(0, 2).forEach((note) => {
       items.push({
         id: `note-${note.id}`,
@@ -161,7 +219,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       })
     })
 
-    // Recent completed tasks
     tasks
       .filter((t) => t.completed)
       .sort((a, b) => safeTimestamp(b.updatedAt) - safeTimestamp(a.updatedAt))
@@ -179,7 +236,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     return items.sort((a, b) => safeTimestamp(b.date) - safeTimestamp(a.date)).slice(0, 4)
   }, [notes, tasks])
 
-  const quickActions = [
+  const quickActions = useMemo(() => [
     {
       icon: '📝',
       label: 'New Note',
@@ -204,19 +261,17 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
       onClick: () => onNavigate('health'),
     },
-  ]
+  ], [onNavigate])
 
   return (
-    <motion.div className="space-y-4" variants={CONTAINER} initial="hidden" animate="show">
+    <div className="space-y-4">
       {/* Live Time Header — animated clock + date */}
-      <motion.div variants={ITEM}>
-        <SafeRender name="LiveTimeHeader">
-          <LiveTimeHeader />
-        </SafeRender>
-      </motion.div>
+      <SafeRender name="LiveTimeHeader">
+        <LiveTimeHeader />
+      </SafeRender>
 
       {/* Premium Cards Grid */}
-      <motion.div variants={ITEM} className="space-y-3.5">
+      <div className="space-y-3.5">
         <SafeRender name="NamazPulseCard">
           <NamazPulseCard />
         </SafeRender>
@@ -226,43 +281,34 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
         <SafeRender name="MoneyGlanceCard">
           <MoneyGlanceCard />
         </SafeRender>
-      </motion.div>
+      </div>
 
       {/* ── AI SECTION ───────────────────────────────────────────── */}
-      {/* Wellness Score (only show when scores are computed) */}
       {scores && overallScore !== null && (
-        <motion.div variants={ITEM}>
-          <SafeRender name="AIWellnessScore">
-            <AIWellnessScore scores={scores} overallScore={overallScore} />
-          </SafeRender>
-        </motion.div>
+        <SafeRender name="AIWellnessScore">
+          <AIWellnessScore scores={scores} overallScore={overallScore} />
+        </SafeRender>
       )}
 
-      {/* Focus Suggestion */}
       {focusSuggestion && (
-        <motion.div variants={ITEM}>
-          <SafeRender name="AIFocusCard">
-            <AIFocusCard suggestion={focusSuggestion} overallScore={overallScore} />
-          </SafeRender>
-        </motion.div>
+        <SafeRender name="AIFocusCard">
+          <AIFocusCard suggestion={focusSuggestion} overallScore={overallScore} />
+        </SafeRender>
       )}
 
-      {/* AI Insights */}
       {insights.length > 0 && (
-        <motion.div variants={ITEM}>
-          <SafeRender name="AIInsightsList">
-            <AIInsightsList
-              insights={insights}
-              onDismiss={dismissInsight}
-              onMarkRead={markInsightRead}
-              unreadCount={unreadCount}
-            />
-          </SafeRender>
-        </motion.div>
+        <SafeRender name="AIInsightsList">
+          <AIInsightsList
+            insights={insights}
+            onDismiss={dismissInsight}
+            onMarkRead={markInsightRead}
+            unreadCount={unreadCount}
+          />
+        </SafeRender>
       )}
 
-      {/* Refresh AI Button (shown when computing or as a subtle refresh) */}
-      <motion.div variants={ITEM} className="flex justify-center">
+      {/* Refresh AI Button */}
+      <div className="flex justify-center">
         <button
           onClick={refresh}
           disabled={isComputing}
@@ -273,107 +319,53 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
           <RefreshCw size={12} className={isComputing ? 'animate-spin' : ''} />
           {isComputing ? 'Analyzing...' : 'Refresh AI'}
         </button>
-      </motion.div>
+      </div>
 
       {/* Quick Actions */}
-      <motion.div variants={ITEM}>
+      <div>
         <h2 className="section-label">Quick Actions</h2>
         <div className="grid grid-cols-4 gap-3">
-          {quickActions.map((action, i) => (
-            <motion.button
-              key={action.label}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={action.onClick}
-              className="hm-action-btn"
-            >
-              <div
-                className="icon-wrapper"
-                style={{ background: action.gradient, color: '#fff' }}
-              >
-                {action.icon}
-              </div>
-              <span className="label">{action.label}</span>
-            </motion.button>
+          {quickActions.map((action) => (
+            <QuickActionBtn key={action.label} {...action} />
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats Grid */}
-      <motion.div variants={ITEM}>
+      <div>
         <h2 className="section-label">Overview</h2>
         <div className="grid grid-cols-2 gap-3">
-          <div className="hm-glass-card">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-[var(--hm-accent-soft)] flex items-center justify-center">
-                <StickyNote size={16} className="text-[var(--hm-accent)]" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-[var(--hm-text)]">{stats.totalNotes}</div>
-            <div className="text-xs text-[var(--hm-muted)] mt-1">
-              Total Notes {stats.pinnedNotes > 0 && `· ${stats.pinnedNotes} pinned`}
-            </div>
-          </div>
-
-          <div className="hm-glass-card">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-[var(--hm-accent-soft)] flex items-center justify-center">
-                <Heart size={16} className="text-[var(--hm-accent)]" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-[var(--hm-text)]">{stats.bmiRecords}</div>
-            <div className="text-xs text-[var(--hm-muted)] mt-1">
-              BMI Records
-              {stats.latestBMI && ` · Last: ${stats.latestBMI.bmi}`}
-            </div>
-          </div>
-
-          <div className="hm-glass-card">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-[var(--hm-accent-soft)] flex items-center justify-center">
-                <TrendingUp size={16} className="text-[var(--hm-accent)]" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-[var(--hm-text)]">{stats.tasksCompletedToday}</div>
-            <div className="text-xs text-[var(--hm-muted)] mt-1">Tasks done today</div>
-          </div>
-
-          <div className="hm-glass-card">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-[var(--hm-accent-soft)] flex items-center justify-center">
-                <Clock size={16} className="text-[var(--hm-accent)]" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-[var(--hm-text)]">{stats.recentNotes}</div>
-            <div className="text-xs text-[var(--hm-muted)] mt-1">Notes this week</div>
-          </div>
+          <StatsCard
+            icon={StickyNote}
+            value={stats.totalNotes}
+            label="Total Notes"
+            sublabel={stats.pinnedNotes > 0 ? `${stats.pinnedNotes} pinned` : undefined}
+          />
+          <StatsCard
+            icon={Heart}
+            value={stats.bmiRecords}
+            label="BMI Records"
+            sublabel={stats.latestBMI ? `Last: ${stats.latestBMI.bmi}` : undefined}
+          />
+          <StatsCard
+            icon={TrendingUp}
+            value={stats.tasksCompletedToday}
+            label="Tasks done today"
+          />
+          <StatsCard
+            icon={Clock}
+            value={stats.recentNotes}
+            label="Notes this week"
+          />
         </div>
-      </motion.div>
+      </div>
 
       {/* Recent Activity */}
-      <motion.div variants={ITEM}>
+      <div>
         <h2 className="section-label">Recent Activity</h2>
         <div className="hm-glass-card space-y-3">
           {recentActivity.map((item, i) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + i * 0.05 }}
-              className="flex items-center gap-3"
-            >
-              <div className="w-8 h-8 rounded-lg bg-[var(--hm-soft)] flex items-center justify-center text-sm">
-                {item.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-[var(--hm-text)] truncate">
-                  {item.title}
-                </div>
-                <div className="text-xs text-[var(--hm-muted)]">
-                  {item.type === 'note' ? '📝 Note' : '✅ Task'} · {safeLocaleDate(item.date)}
-                </div>
-              </div>
-            </motion.div>
+            <ActivityItem key={item.id} {...item} delay={0.4 + i * 0.05} />
           ))}
           {recentActivity.length === 0 && (
             <div className="text-sm text-[var(--hm-muted)] text-center py-4">
@@ -382,7 +374,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
