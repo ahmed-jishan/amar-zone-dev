@@ -33,6 +33,10 @@ type AppAlert = {
 
 const FIRED_KEY = 'selfsync-fired-alerts-v1'
 const DAY_MS = 24 * 60 * 60 * 1000
+const BELL_SIZE = 48
+const BELL_MODAL_WIDTH = 360
+const VIEWPORT_GAP = 12
+const MODAL_ESTIMATED_HEIGHT = 440
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
@@ -103,6 +107,16 @@ const markAlertFired = (id: string) => {
   window.localStorage.setItem(FIRED_KEY, JSON.stringify({ ...fired, [id]: today }))
 }
 
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+const getViewportSize = () => {
+  if (typeof window === 'undefined') return { width: 0, height: 0 }
+  return {
+    width: window.visualViewport?.width ?? window.innerWidth,
+    height: window.visualViewport?.height ?? window.innerHeight,
+  }
+}
+
 export default function NotificationCenter() {
   const tasks = useTaskStore((s) => asArray(s.tasks, isTask))
   const markReminderTriggered = useTaskStore((s) => s.markReminderTriggered)
@@ -123,6 +137,7 @@ export default function NotificationCenter() {
   } = useSettingsStore()
   const [open, setOpen] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
+  const [viewport, setViewport] = useState(getViewportSize)
 
   useEffect(() => {
     const loadPermission = async () => {
@@ -137,6 +152,21 @@ export default function NotificationCenter() {
     const openNotifications = () => setOpen(true)
     window.addEventListener('selfsync-open-notifications', openNotifications)
     return () => window.removeEventListener('selfsync-open-notifications', openNotifications)
+  }, [])
+
+  useEffect(() => {
+    const updateViewport = () => setViewport(getViewportSize())
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+    window.addEventListener('orientationchange', updateViewport)
+    window.visualViewport?.addEventListener('resize', updateViewport)
+    window.visualViewport?.addEventListener('scroll', updateViewport)
+    return () => {
+      window.removeEventListener('resize', updateViewport)
+      window.removeEventListener('orientationchange', updateViewport)
+      window.visualViewport?.removeEventListener('resize', updateViewport)
+      window.visualViewport?.removeEventListener('scroll', updateViewport)
+    }
   }, [])
 
   const alerts = useMemo<AppAlert[]>(() => {
@@ -324,26 +354,55 @@ export default function NotificationCenter() {
 
   const {
     position,
+    elementRef: bellRef,
     isDragging: bellDragging,
+    wasDragged: wasBellDragged,
     handlers: bellHandlers,
   } = useDraggable({
     storageKey: 'selfsync-bell-position',
+    elementWidth: BELL_SIZE,
+    elementHeight: BELL_SIZE,
+    viewportPadding: VIEWPORT_GAP,
   })  
 
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   const handleBellClick = useCallback(() => {
+    if (wasBellDragged()) return
     setOpen((value) => !value)
-  }, [])
+  }, [wasBellDragged])
+
+  const modalPosition = useMemo(() => {
+    const width = viewport.width || 360
+    const height = viewport.height || 640
+    const modalWidth = Math.min(BELL_MODAL_WIDTH, Math.max(0, width - VIEWPORT_GAP * 2))
+    const maxLeft = Math.max(VIEWPORT_GAP, width - modalWidth - VIEWPORT_GAP)
+    const left = clamp(position.x, VIEWPORT_GAP, maxLeft)
+    const belowTop = position.y + BELL_SIZE + VIEWPORT_GAP
+    const aboveTop = position.y - MODAL_ESTIMATED_HEIGHT - VIEWPORT_GAP
+    const hasRoomBelow = belowTop + MODAL_ESTIMATED_HEIGHT <= height - VIEWPORT_GAP
+    const top = clamp(hasRoomBelow ? belowTop : aboveTop, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, height - VIEWPORT_GAP - 160))
+
+    return {
+      left,
+      top,
+      width: modalWidth,
+      maxHeight: Math.max(220, height - top - VIEWPORT_GAP),
+    }
+  }, [position.x, position.y, viewport.height, viewport.width])
 
   return (
     <>
       <div
+        ref={bellRef}
         className="fixed z-[10040]"
         style={{
           left: position.x,
           top: position.y,
           touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none',
           cursor: bellDragging ? 'grabbing' : 'grab',
         }}
         {...bellHandlers}
@@ -369,8 +428,10 @@ export default function NotificationCenter() {
         <div
           className="fixed z-[10030] w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[rgba(var(--border),0.7)] bg-[rgb(var(--bg))]/98 shadow-2xl shadow-black/20 backdrop-blur-2xl"
           style={{
-            left: position.x,
-            top: position.y + 60,
+            left: modalPosition.left,
+            top: modalPosition.top,
+            width: modalPosition.width,
+            maxHeight: modalPosition.maxHeight,
             transformOrigin: 'top left',
           }}
         >
@@ -391,7 +452,10 @@ export default function NotificationCenter() {
             </button>
           </div>
 
-          <div className="max-h-[58vh] space-y-3 overflow-y-auto p-4">
+          <div
+            className="space-y-3 overflow-y-auto p-4"
+            style={{ maxHeight: Math.max(120, modalPosition.maxHeight - 92) }}
+          >
             {permission === 'default' && (
               <button
                 type="button"
