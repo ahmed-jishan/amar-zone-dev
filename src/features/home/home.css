@@ -1238,7 +1238,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'SF Pro Display', 'Inter Display', 'Plus Jakarta Sans', 'SF Mono', 'JetBrains Mono', monospace;
+  font-family: var(--font-ubuntu), 'SF Pro Display', 'Inter Display', monospace;
   font-size: 48px;
   font-weight: 700;
   letter-spacing: -2px;
@@ -1261,7 +1261,7 @@
 
 /* ─── Colon ─── */
 .premium-colon {
-  font-family: 'SF Pro Display', 'Inter Display', 'Plus Jakarta Sans', monospace;
+  font-family: var(--font-ubuntu), 'SF Pro Display', 'Inter Display', monospace;
   font-size: 42px;
   font-weight: 300;
   color: var(--hm-accent);
@@ -1545,7 +1545,7 @@
 }
 
 .countdown-value {
-  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  font-family: var(--font-ubuntu), 'SF Mono', 'JetBrains Mono', monospace;
   font-size: 20px;
   font-weight: 700;
   color: var(--hm-accent);

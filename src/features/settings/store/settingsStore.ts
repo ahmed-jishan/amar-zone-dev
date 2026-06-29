@@ -16,7 +16,6 @@ export interface AppSettings {
   onboardingComplete: boolean
   notificationsEnabled: boolean
   calculatorEnabled: boolean
-  voiceEnabled: boolean
   notificationCategories: {
     tasks: boolean
     money: boolean
@@ -48,7 +47,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   onboardingComplete: true,
   notificationsEnabled: true,
   calculatorEnabled: true,
-  voiceEnabled: true,
   notificationCategories: {
     tasks: true,
     money: true,

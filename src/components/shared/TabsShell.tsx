@@ -19,10 +19,6 @@ const NotificationCenter = dynamic(() => import('@/components/ui/NotificationCen
   ssr: false,
   loading: () => null,
 })
-const VoiceFloatingButton = dynamic(() => import('@/components/ui/VoiceFloatingButton'), {
-  ssr: false,
-  loading: () => null,
-})
 const PermissionOnboarding = dynamic(() => import('@/components/shared/PermissionOnboarding'), {
   ssr: false,
   loading: () => null,
@@ -117,9 +113,6 @@ export default function TabsShell({
       </SafeRender>
       <SafeRender name="AppLockGate">
         <AppLockGate />
-      </SafeRender>
-      <SafeRender name="VoiceFloatingButton">
-        <VoiceFloatingButton />
       </SafeRender>
       <SafeRender name="PermissionOnboarding">
         <PermissionOnboarding />

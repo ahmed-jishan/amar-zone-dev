@@ -61,8 +61,6 @@ const translations = {
     quietEnd: 'শেষ',
     calculatorToggle: 'ফ্লোটিং ক্যালকুলেটর',
     calculatorSub: 'স্ক্রিনে ক্যালকুলেটর আইকন দেখাবে',
-    voiceToggle: 'ভয়েস কমান্ড',
-    voiceSub: 'স্ক্রিনে ভয়েস আইকন দেখাবে',
     security: 'নিরাপত্তা',
     pinLock: 'PIN লক',
     pinActive: 'সক্রিয় আছে ✓',
@@ -171,8 +169,6 @@ const translations = {
     quietEnd: 'End',
     calculatorToggle: 'Floating Calculator',
     calculatorSub: 'Show calculator icon on screen',
-    voiceToggle: 'Voice Commands',
-    voiceSub: 'Show voice mic button on screen',
     security: 'Security',
     pinLock: 'PIN Lock',
     pinActive: 'Active ✓',
@@ -300,30 +296,6 @@ function getStorageSizeBytes(): number {
   return total / 1024
 }
 
-async function requestMicrophonePermission(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return false
-
-  try {
-    const permissions = navigator.permissions as Permissions | undefined
-    const query = permissions?.query?.bind(permissions)
-    if (query) {
-      try {
-        const status = await query({ name: 'microphone' as PermissionName })
-        if (status.state === 'granted') return true
-        if (status.state === 'denied') return false
-      } catch {
-        // Android WebView support varies; getUserMedia below still opens the native prompt.
-      }
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    stream.getTracks().forEach((track) => track.stop())
-    return true
-  } catch {
-    return false
-  }
-}
-
 function getGreeting(language: Language): string {
   const hour = new Date().getHours()
   const t = translations[language]
@@ -363,7 +335,6 @@ export default function SettingsPage() {
     biometricLockEnabled,
     notificationsEnabled,
     calculatorEnabled,
-    voiceEnabled,
     notificationCategories,
     quietHoursEnabled,
     quietHoursStart,
@@ -614,24 +585,6 @@ export default function SettingsPage() {
     } else if (!notificationsEnabled) {
       await handleNotificationsToggle(true)
     }
-  }
-
-  const handleVoiceToggle = async (next: boolean) => {
-    if (!next) {
-      update({ voiceEnabled: false })
-      showToast(language === 'bn' ? 'ভয়েস কমান্ড বন্ধ হয়েছে' : 'Voice commands disabled')
-      return
-    }
-
-    const granted = await requestMicrophonePermission()
-    if (!granted) {
-      update({ voiceEnabled: false })
-      showToast(language === 'bn' ? 'মাইক্রোফোন পারমিশন দরকার' : 'Microphone permission needed')
-      return
-    }
-
-    update({ voiceEnabled: true })
-    showToast(language === 'bn' ? 'ভয়েস কমান্ড চালু হয়েছে' : 'Voice commands enabled')
   }
 
   // Compute storage
@@ -962,15 +915,6 @@ export default function SettingsPage() {
             sub={t.calculatorSub}
             value={calculatorEnabled}
             onChange={v => update({ calculatorEnabled: v })}
-          />
-          <div className="st-divider" />
-          <RowSwitch
-            icon={<Smartphone size={14} />}
-            iconType="neutral"
-            label={t.voiceToggle}
-            sub={t.voiceSub}
-            value={voiceEnabled}
-            onChange={handleVoiceToggle}
           />
         </Section>
 

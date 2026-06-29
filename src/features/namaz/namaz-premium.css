@@ -64,7 +64,7 @@
 
 /* ── Root Container ── */
 .np-root {
-  font-family: 'Siyam Rupali', 'Noto Sans Bengali', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ubuntu), 'Siyam Rupali', 'Noto Sans Bengali', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
