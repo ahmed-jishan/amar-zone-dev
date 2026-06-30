@@ -99,18 +99,16 @@ export function NamazTabWrapper() {
         }}
       />
       
+      <TopbarNav 
+        activeTab={activeTab} 
+        onTabChange={handleTabChange} 
+        language={language}
+      />
+      
       <div 
         className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6"
         {...(isPrimaryTab ? swipeHandlers : {})}
       >
-        <div className="relative" style={{ zIndex: 50 }}>
-          <TopbarNav 
-            activeTab={activeTab} 
-            onTabChange={handleTabChange} 
-            language={language}
-          />
-        </div>
-        
         <div className="mt-6 transition-all duration-300 relative" style={{ zIndex: 1 }}>
           <AnimatePresence mode="wait">
             <motion.div

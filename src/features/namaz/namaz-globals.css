@@ -60,6 +60,7 @@
   padding-bottom: 8px;
   pointer-events: none; /* allow only inner pill to receive pointer events */
   background: transparent;
+  will-change: transform;
 }
 
 .namaz-root .namaz-topbar > .inline-flex {

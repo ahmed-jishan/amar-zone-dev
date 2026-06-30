@@ -52,8 +52,8 @@ body {
   overflow-y: auto;
   /* Enable GPU compositing for the main container */
   -webkit-overflow-scrolling: touch;
-  transform: translateZ(0);
-  will-change: scroll-position;
+  /* Note: don't use transform here - it breaks position: fixed for descendants */
+  isolation: isolate;
 }
 
 .card {
@@ -250,5 +250,5 @@ button, a, [role="button"], input, select, textarea {
 /* GPU compositing for smoother scrolling on all scroll containers */
 main, [style*="overflow-y: auto"], .overflow-y-auto, .overflow-auto {
   -webkit-overflow-scrolling: touch;
-  transform: translateZ(0);
+  /* Note: don't use transform here - it breaks position: fixed for descendants */
 }

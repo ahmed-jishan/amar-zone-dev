@@ -90,7 +90,7 @@ function TopbarNav({ activeTab, onTabChange, language }: TopbarNavProps) {
 
   return (
     <>
-      <nav className="relative flex justify-center namaz-topbar" aria-label="Namaz topbar">
+      <nav className="flex justify-center namaz-topbar" aria-label="Namaz topbar">
         <div
           ref={topbarInnerRef}
           className="inline-flex items-center gap-1 p-1 rounded-xl overflow-visible"
