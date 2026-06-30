@@ -20,6 +20,7 @@ import MoneyGlanceCard from './MoneyGlanceCard'
 import AIWellnessScore from './AIWellnessScore'
 import AIInsightsList from './AIInsightsList'
 import AIFocusCard from './AIFocusCard'
+import QuickNoteWidget from '@/features/notes/components/QuickNoteWidget'
 
 interface DashboardViewProps {
   onNavigate: (tab: HomeSubTab) => void
@@ -320,6 +321,11 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
           {isComputing ? 'Analyzing...' : 'Refresh AI'}
         </button>
       </div>
+
+      {/* Quick Note Widget */}
+      <SafeRender name="QuickNoteWidget">
+        <QuickNoteWidget />
+      </SafeRender>
 
       {/* Quick Actions */}
       <div>

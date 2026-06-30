@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -25,11 +25,20 @@ import {
   ImagePlus,
   Type,
   ArrowUpDown,
+  Archive,
+  RotateCcw,
+  BarChart3,
+  Bell,
+  Filter,
+  ChevronDown,
 } from 'lucide-react'
 import { useNotesStore } from '../store/notesStore'
-import { Note, NOTE_CATEGORY_COLORS, NOTE_CATEGORIES, NoteCategory, NoteType } from '../types'
+import { Note, NOTE_CATEGORY_COLORS, NOTE_CATEGORIES, NoteCategory, NoteType, NoteSortKey, NoteFilterStatus } from '../types'
 import AddNoteModal from './AddNoteModal'
 import NoteReaderModal from './NoteReaderModal'
+import NoteTemplates from './NoteTemplates'
+import NoteAnalytics from './NoteAnalytics'
+import QuickNoteWidget from './QuickNoteWidget'
 
 type ViewMode = 'list' | 'grid'
 

@@ -2,9 +2,11 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Type, Lock, Image as ImageIcon, Link, Plus, Upload, Save } from 'lucide-react'
+import { X, Type, Lock, Image as ImageIcon, Link, Plus, Upload, Save, Bell, Clock } from 'lucide-react'
 import { useNotesStore } from '../store/notesStore'
-import { NoteType, NoteCategory, Note, NOTE_CATEGORIES, NOTE_CATEGORY_COLORS } from '../types'
+import { NoteType, NoteCategory, Note, NOTE_CATEGORIES, NOTE_CATEGORY_COLORS, NOTE_TEMPLATES, NoteTemplate } from '../types'
+import MarkdownEditor from './MarkdownEditor'
+import NoteTemplates from './NoteTemplates'
 
 interface AddNoteModalProps {
   open: boolean
@@ -17,7 +19,7 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
   const updateNote = useNotesStore((s) => s.updateNote)
   const isEditing = !!editNote
 
-  const [step, setStep] = useState<'choose' | 'fill'>(editNote ? 'fill' : 'choose')
+  const [step, setStep] = useState<'choose' | 'fill' | 'template'>(editNote ? 'fill' : 'choose')
   const [selectedType, setSelectedType] = useState<NoteType>(editNote?.type || 'text')
   const [title, setTitle] = useState(editNote?.title || '')
   const [category, setCategory] = useState<NoteCategory>(editNote?.category || 'personal')
@@ -34,6 +36,10 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
   const [imageDataUrl, setImageDataUrl] = useState(editNote?.type === 'image' ? (editNote as any).dataUrl || '' : '')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [imageFileName, setImageFileName] = useState('')
+  const [templateId, setTemplateId] = useState(editNote?.templateId || '')
+  // Reminder
+  const [reminderDate, setReminderDate] = useState('')
+  const [reminderTime, setReminderTime] = useState('')
 
   const resetForm = () => {
     setStep('choose')
@@ -49,21 +55,20 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
     setCaption('')
     setImageDataUrl('')
     setImageFileName('')
+    setTemplateId('')
+    setReminderDate('')
+    setReminderTime('')
   }
 
   const handleClose = () => {
-    if (!isEditing) {
-      resetForm()
-    }
+    if (!isEditing) resetForm()
     onClose()
   }
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     setImageFileName(file.name)
-
     const reader = new FileReader()
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string
@@ -94,6 +99,15 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
     reader.readAsDataURL(file)
   }, [])
 
+  const handleTemplateSelect = useCallback((template: NoteTemplate) => {
+    setSelectedType(template.type)
+    setCategory(template.category)
+    if (template.presetBody) setBody(template.presetBody)
+    if (template.presetTags) setTags(template.presetTags.join(', '))
+    setTemplateId(template.id)
+    setStep('fill')
+  }, [])
+
   const handleSubmit = () => {
     if (!title.trim()) return
 
@@ -102,12 +116,22 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
       .map((t) => t.trim())
       .filter(Boolean)
 
+    // Calculate reminder timestamp
+    let reminderAt: number | undefined
+    if (reminderDate) {
+      const dateStr = reminderTime ? `${reminderDate}T${reminderTime}` : `${reminderDate}T09:00`
+      const parsed = Date.parse(dateStr)
+      if (!isNaN(parsed)) reminderAt = parsed
+    }
+
     if (isEditing && editNote) {
       const updates: any = {
         title: title.trim(),
         category,
         tags: tagList,
         type: selectedType,
+        templateId: templateId || undefined,
+        reminderAt,
       }
       if (selectedType === 'text') updates.body = body
       if (selectedType === 'password') { updates.username = username; updates.password = password; updates.url = url }
@@ -119,11 +143,20 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
         title: title.trim(),
         category,
         tags: tagList,
+        templateId: templateId || undefined,
         ...(selectedType === 'text' && { body }),
         ...(selectedType === 'password' && { username, password, url }),
         ...(selectedType === 'image' && { dataUrl: imageDataUrl, caption }),
         ...(selectedType === 'link' && { url, description }),
       })
+      // Set reminder if provided
+      if (reminderAt) {
+        const notes = useNotesStore.getState().notes
+        const newNote = notes[0]
+        if (newNote) {
+          useNotesStore.getState().setReminder(newNote.id, reminderAt)
+        }
+      }
     }
 
     handleClose()
@@ -154,14 +187,15 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
           >
-
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-[var(--hm-text)]">
                 {isEditing
-                  ? `Edit ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Note`
+                  ? `Edit Note`
                   : step === 'choose'
                     ? 'New Note'
-                    : `New ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Note`}
+                    : step === 'template'
+                      ? 'Choose a Template'
+                      : `New Note`}
               </h2>
               <button
                 onClick={handleClose}
@@ -171,28 +205,42 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
               </button>
             </div>
 
-            {step === 'choose' && !isEditing ? (
-              <div className="grid grid-cols-2 gap-3">
-                {typeOptions.map(({ type, icon: Icon, label, color }) => (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      setSelectedType(type)
-                      setStep('fill')
-                    }}
-                    className="hm-action-btn py-6"
-                  >
-                    <div
-                      className="icon-wrapper"
-                      style={{ background: `${color}20`, color }}
+            {step === 'choose' && !isEditing && (
+              <div className="space-y-4">
+                {/* Quick type selection */}
+                <div className="grid grid-cols-2 gap-3">
+                  {typeOptions.map(({ type, icon: Icon, label, color }) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setSelectedType(type)
+                        setStep('fill')
+                      }}
+                      className="hm-action-btn py-6"
                     >
-                      <Icon size={20} />
-                    </div>
-                    <span className="font-medium text-sm text-[var(--hm-text)]">{label}</span>
-                  </button>
-                ))}
+                      <div className="icon-wrapper" style={{ background: `${color}20`, color }}>
+                        <Icon size={20} />
+                      </div>
+                      <span className="font-medium text-sm text-[var(--hm-text)]">{label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-[var(--hm-border)]" />
+                  <span className="text-xs text-[var(--hm-muted)] font-medium">OR USE A TEMPLATE</span>
+                  <div className="flex-1 h-px bg-[var(--hm-border)]" />
+                </div>
+
+                {/* Templates */}
+                <div className="max-h-[200px] overflow-y-auto">
+                  <NoteTemplates onSelect={handleTemplateSelect} />
+                </div>
               </div>
-            ) : (
+            )}
+
+            {step === 'fill' && (
               <div className="space-y-4">
                 {/* Title */}
                 <div>
@@ -250,15 +298,9 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
                 {selectedType === 'text' && (
                   <div>
                     <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                      Body
+                      Body <span className="text-[var(--hm-muted)] font-normal normal-case">(Markdown supported)</span>
                     </label>
-                    <textarea
-                      value={body}
-                      onChange={(e) => setBody(e.target.value)}
-                      placeholder="Write your note here..."
-                      rows={6}
-                      className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors resize-none"
-                    />
+                    <MarkdownEditor value={body} onChange={setBody} minRows={8} />
                   </div>
                 )}
 
@@ -313,20 +355,10 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
                           {imageFileName || 'Tap to upload image'}
                         </span>
                         {imageDataUrl && (
-                          <img
-                            src={imageDataUrl}
-                            alt="Preview"
-                            className="w-20 h-20 object-cover rounded-lg mt-2"
-                          />
+                          <img src={imageDataUrl} alt="Preview" className="w-20 h-20 object-cover rounded-lg mt-2" />
                         )}
                       </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleImageUpload}
-                      />
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
@@ -370,9 +402,30 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
                   </>
                 )}
 
+                {/* Reminder */}
+                <div>
+                  <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Bell size={12} /> Reminder (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
+                      className="flex-1 bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                    />
+                    <input
+                      type="time"
+                      value={reminderTime}
+                      onChange={(e) => setReminderTime(e.target.value)}
+                      className="flex-shrink-0 bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                    />
+                  </div>
+                </div>
+
                 {/* Actions */}
                 <div className="flex gap-3 pt-2">
-                  {!isEditing && step === 'fill' && (
+                  {!isEditing && (
                     <button
                       onClick={() => setStep('choose')}
                       className="flex-1 py-2.5 rounded-xl bg-[var(--hm-soft)] text-[var(--hm-muted)] font-medium text-sm hover:bg-[var(--hm-border)] transition-colors"
@@ -384,7 +437,7 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
                     onClick={handleSubmit}
                     disabled={!title.trim()}
                     className={`py-2.5 rounded-xl bg-[var(--hm-accent)] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-40 ${
-                      isEditing || step === 'fill' ? 'flex-1' : ''
+                      isEditing ? 'flex-1' : ''
                     }`}
                   >
                     {isEditing ? (

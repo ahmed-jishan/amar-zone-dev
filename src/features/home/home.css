@@ -2351,3 +2351,573 @@
   background: var(--hm-border);
   border-radius: 2px;
 }
+
+/* ═══════════════════════════════════════════
+   ─── MARKDOWN EDITOR (Premium) ───
+   ═══════════════════════════════════════════ */
+
+.hm-md-editor {
+  border: 1px solid var(--hm-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--hm-soft);
+  transition: border-color 0.2s;
+}
+
+.hm-md-editor:focus-within {
+  border-color: var(--hm-accent);
+  box-shadow: 0 0 0 3px var(--hm-accent-soft);
+}
+
+.hm-md-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--hm-border);
+  background: var(--hm-surface);
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.hm-md-toolbar-group {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.hm-md-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--hm-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hm-md-btn:hover {
+  background: var(--hm-accent-soft);
+  color: var(--hm-accent);
+}
+
+.hm-md-btn.active {
+  background: var(--hm-accent-soft);
+  color: var(--hm-accent);
+}
+
+.hm-md-preview-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--hm-border);
+  background: transparent;
+  color: var(--hm-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hm-md-preview-toggle:hover,
+.hm-md-preview-toggle.active {
+  background: var(--hm-accent-soft);
+  color: var(--hm-accent);
+  border-color: var(--hm-accent-soft);
+}
+
+.hm-md-textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--hm-text);
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  min-height: 120px;
+}
+
+.hm-md-textarea::placeholder {
+  color: var(--hm-muted);
+}
+
+.hm-md-preview {
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--hm-text);
+  min-height: 120px;
+  word-break: break-word;
+}
+
+.hm-md-preview h1 { font-size: 20px; font-weight: 700; margin: 12px 0 6px; }
+.hm-md-preview h2 { font-size: 17px; font-weight: 700; margin: 10px 0 5px; }
+.hm-md-preview h3 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
+.hm-md-preview p { margin: 6px 0; }
+.hm-md-preview ul, .hm-md-preview ol { padding-left: 20px; margin: 6px 0; }
+.hm-md-preview li { margin: 2px 0; }
+.hm-md-preview code {
+  background: var(--hm-accent-softer);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--hm-accent);
+}
+.hm-md-preview pre {
+  background: var(--hm-surface-strong);
+  border: 1px solid var(--hm-border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.hm-md-preview pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--hm-text);
+}
+.hm-md-preview a {
+  color: var(--hm-accent);
+  text-decoration: underline;
+}
+.hm-md-preview hr {
+  border: none;
+  border-top: 1px solid var(--hm-border);
+  margin: 12px 0;
+}
+.hm-md-preview strong { font-weight: 700; }
+.hm-md-preview em { font-style: italic; }
+
+.hm-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  cursor: default;
+}
+
+.hm-checklist-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  accent-color: var(--hm-accent);
+  cursor: default;
+}
+
+.hm-checklist-item span {
+  flex: 1;
+}
+
+.hm-wiki-link {
+  color: var(--hm-accent);
+  background: var(--hm-accent-softer);
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  border-bottom: 1px dashed var(--hm-accent);
+}
+
+.hm-md-stats {
+  display: flex;
+  gap: 12px;
+  padding: 4px 14px 6px;
+  border-top: 1px solid var(--hm-border);
+  font-size: 10px;
+  color: var(--hm-muted);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════
+   ─── NOTE TEMPLATES ───
+   ═══════════════════════════════════════════ */
+
+.hm-templates-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hm-template-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hm-border);
+  background: var(--hm-surface);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  text-align: left;
+}
+
+.hm-template-card:hover {
+  border-color: var(--hm-border-strong);
+  background: var(--hm-card-hover);
+  transform: translateX(2px);
+}
+
+.hm-template-card:active {
+  transform: scale(0.99);
+}
+
+.hm-template-emoji {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.hm-template-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hm-template-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hm-text);
+}
+
+.hm-template-desc {
+  font-size: 11px;
+  color: var(--hm-muted);
+}
+
+.hm-template-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   ─── QUICK NOTE WIDGET (Dashboard) ───
+   ═══════════════════════════════════════════ */
+
+.hm-quick-widget {
+  background: var(--hm-surface);
+  border: 1px solid var(--hm-border);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: var(--hm-shadow-soft);
+}
+
+.hm-quick-capture {
+  margin-bottom: 8px;
+}
+
+.hm-quick-capture-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--hm-border);
+  background: var(--hm-accent-softer);
+  color: var(--hm-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hm-quick-capture-btn:hover {
+  border-color: var(--hm-accent);
+  background: var(--hm-accent-soft);
+}
+
+.hm-quick-capture-btn:active {
+  transform: scale(0.98);
+}
+
+.hm-quick-capture.expanded {
+  border: 1px solid var(--hm-accent);
+  border-radius: 10px;
+  background: var(--hm-accent-softer);
+}
+
+.hm-quick-capture-form {
+  padding: 8px;
+}
+
+.hm-quick-capture-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--hm-text);
+  outline: none;
+  min-width: 0;
+}
+
+.hm-quick-capture-input::placeholder {
+  color: var(--hm-muted);
+}
+
+.hm-quick-capture-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--hm-soft);
+  color: var(--hm-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.hm-quick-capture-close:hover {
+  background: var(--hm-border);
+  color: var(--hm-text);
+}
+
+.hm-quick-note-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.hm-quick-note-item:hover {
+  background: var(--hm-soft);
+}
+
+.hm-quick-note-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--hm-text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════
+   ─── NOTE ANALYTICS ───
+   ═══════════════════════════════════════════ */
+
+.hm-analytics-root {
+  padding-bottom: 8px;
+}
+
+.hm-mini-bar-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--hm-soft);
+  overflow: hidden;
+}
+
+.hm-mini-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════
+   ─── STATUS FILTER BAR ───
+   ═══════════════════════════════════════════ */
+
+.hm-status-bar {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  background: var(--hm-soft);
+  border-radius: 10px;
+  border: 1px solid var(--hm-border);
+}
+
+.hm-status-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--hm-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hm-status-btn:hover {
+  color: var(--hm-text);
+}
+
+.hm-status-btn.active {
+  background: var(--hm-surface);
+  color: var(--hm-accent);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  font-weight: 600;
+}
+
+.hm-status-count {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════════
+   ─── SORT DROPDOWN ───
+   ═══════════════════════════════════════════ */
+
+.hm-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--hm-border);
+  background: var(--hm-surface);
+  color: var(--hm-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.hm-sort-btn:hover {
+  border-color: var(--hm-border-strong);
+  color: var(--hm-text);
+}
+
+.hm-sort-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--hm-surface-strong);
+  border: 1px solid var(--hm-border);
+  border-radius: 10px;
+  box-shadow: var(--hm-shadow);
+  z-index: 30;
+  min-width: 140px;
+  overflow: hidden;
+  animation: hm-fade-in 0.12s ease-out;
+}
+
+.hm-sort-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--hm-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s;
+  text-align: left;
+}
+
+.hm-sort-option:hover {
+  background: var(--hm-soft);
+}
+
+.hm-sort-option.active {
+  color: var(--hm-accent);
+  background: var(--hm-accent-softer);
+}
+
+/* ═══════════════════════════════════════════
+   ─── TYPE FILTER CHIPS ───
+   ═══════════════════════════════════════════ */
+
+.hm-type-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.hm-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--hm-border);
+  background: var(--hm-surface);
+  color: var(--hm-muted);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hm-type-chip:hover {
+  border-color: var(--hm-border-strong);
+  color: var(--hm-text);
+}
+
+.hm-type-chip.active {
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════
+   ─── REMINDER BADGE ON CARDS ───
+   ═══════════════════════════════════════════ */
+
+.hm-reminder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--hm-amber);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.1);
+  animation: hm-reminder-pulse 2s ease-in-out infinite;
+}
+
+@keyframes hm-reminder-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════
+   ─── RESPONSIVE ───
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 420px) {
+  .hm-md-toolbar {
+    padding: 4px 6px;
+  }
+  .hm-md-btn {
+    width: 26px;
+    height: 26px;
+  }
+  .hm-template-card {
+    padding: 8px 10px;
+  }
+  .hm-quick-widget {
+    padding: 10px;
+  }
+}

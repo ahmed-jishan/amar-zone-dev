@@ -21,6 +21,10 @@ import {
   Image as ImageIcon,
   Calendar,
   ChevronLeft,
+  Archive,
+  RotateCcw,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { Note, NOTE_CATEGORY_COLORS, NOTE_CATEGORIES, NoteCategory } from '../types'
 import { useNotesStore } from '../store/notesStore'
@@ -73,6 +77,11 @@ export default function NoteReaderModal({ noteId, onClose }: NoteReaderModalProp
   const notes = useNotesStore((s) => s.notes)
   const deleteNote = useNotesStore((s) => s.deleteNote)
   const togglePin = useNotesStore((s) => s.togglePin)
+  const softDeleteNote = useNotesStore((s) => s.softDeleteNote)
+  const restoreNote = useNotesStore((s) => s.restoreNote)
+  const archiveNote = useNotesStore((s) => s.archiveNote)
+  const unarchiveNote = useNotesStore((s) => s.unarchiveNote)
+  const setReminder = useNotesStore((s) => s.setReminder)
 
   // Always get fresh note from store by ID - solves stale data after edit
   const note = noteId ? notes.find((n) => n.id === noteId) ?? null : null
@@ -415,12 +424,86 @@ export default function NoteReaderModal({ noteId, onClose }: NoteReaderModalProp
 
             {/* Footer */}
             <div className="notes-reader-footer" style={{ borderTopColor: `${noteColor}15` }}>
-              <span className="notes-reader-footer-text">
-                {note.type === 'text' && `${bodyContent.length} characters`}
-                {note.type === 'link' && 'Link saved'}
-                {note.type === 'password' && 'Credentials saved'}
-                {note.type === 'image' && 'Image saved'}
-              </span>
+              <div className="flex items-center justify-between w-full">
+                <span className="notes-reader-footer-text">
+                  {note.type === 'text' && `${bodyContent.length} characters`}
+                  {note.type === 'link' && 'Link saved'}
+                  {note.type === 'password' && 'Credentials saved'}
+                  {note.type === 'image' && 'Image saved'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {/* Reminder */}
+                  <button
+                    onClick={() => {
+                      const d = prompt('Set reminder date (YYYY-MM-DD HH:MM) or leave empty to remove:')
+                      if (d === null) return
+                      if (!d.trim()) {
+                        setReminder(note.id, undefined)
+                      } else {
+                        const ts = Date.parse(d.trim())
+                        if (!isNaN(ts)) {
+                          setReminder(note.id, ts)
+                        }
+                      }
+                    }}
+                    className="notes-reader-btn"
+                    title={note.reminderAt ? 'Has reminder' : 'Set reminder'}
+                    style={note.reminderAt ? { color: noteColor } : undefined}
+                  >
+                    {note.reminderAt ? <Bell size={14} /> : <BellOff size={14} />}
+                  </button>
+                  {/* Archive */}
+                  {!note.archivedAt && !note.trashedAt && (
+                    <button
+                      onClick={() => { archiveNote(note.id); onClose() }}
+                      className="notes-reader-btn"
+                      title="Archive"
+                    >
+                      <Archive size={14} />
+                    </button>
+                  )}
+                  {/* Restore if trashed */}
+                  {note.trashedAt && (
+                    <button
+                      onClick={() => { restoreNote(note.id); onClose() }}
+                      className="notes-reader-btn"
+                      title="Restore"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                  {/* Restore if archived */}
+                  {note.archivedAt && !note.trashedAt && (
+                    <button
+                      onClick={() => { unarchiveNote(note.id); onClose() }}
+                      className="notes-reader-btn"
+                      title="Unarchive"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                  {/* Delete confirmation */}
+                  {showDeleteConfirm ? (
+                    <div className="notes-reader-delete-confirm">
+                      <span className="text-xs font-medium text-[var(--hm-red)]">Delete?</span>
+                      <button onClick={() => { softDeleteNote(note.id); onClose() }} className="notes-reader-btn danger" title="Move to trash">
+                        <Check size={14} />
+                      </button>
+                      <button onClick={() => setShowDeleteConfirm(false)} className="notes-reader-btn" title="Cancel">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="notes-reader-btn"
+                      title="Move to trash"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </motion.div>
         </motion.div>
