@@ -185,7 +185,7 @@ export class VoiceActivityDetector {
         return
       }
 
-      // Get time-domain data
+      // Get time-domain data (cast through unknown to handle TS 5.9+ typed array variance)
       this.analyser.getFloatTimeDomainData(this.audioLevels as unknown as Float32Array<ArrayBuffer>)
 
       // Compute RMS (root mean square) for smooth level detection
