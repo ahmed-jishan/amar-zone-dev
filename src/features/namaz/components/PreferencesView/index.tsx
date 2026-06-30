@@ -151,18 +151,16 @@ function PremiumLocationPicker() {
           <div className="np-group-row-icon np-group-row-icon--success">
             <MapPin size={14} />
           </div>
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div className="np-group-row-label">
               {language === 'bn' ? 'বর্তমান অবস্থান' : 'Current Location'}
             </div>
             <div className="np-group-row-sub" style={{ fontFamily: 'monospace', fontSize: 10 }}>
               {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
             </div>
-          </div>
-        </div>
-        <div className="np-group-row-right">
-          <div style={{ fontSize: 12, color: 'var(--st-text-3, #5c5e72)' }}>
-            {formatPrayerLocation(location)}
+            <div style={{ fontSize: 11, color: 'var(--st-text-3, #5c5e72)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {formatPrayerLocation(location)}
+            </div>
           </div>
         </div>
       </div>

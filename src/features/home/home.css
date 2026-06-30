@@ -710,15 +710,15 @@
   color: var(--hm-muted);
 }
 
-/* ─── Fixed + Button (aligned with bell icon right edge) ─── */
+/* ─── Fixed + Button (positioned above calculator floating button) ─── */
 .hm-notes-float-add {
   position: fixed;
-  top: calc(80px + env(safe-area-inset-top));
-  right: calc(20px + env(safe-area-inset-right));
-  z-index: 10060;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  bottom: calc(5rem + env(safe-area-inset-bottom) + 66px);
+  right: 24px;
+  z-index: 10015;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   background: var(--hm-accent);
   color: white;
   border: none;
@@ -726,18 +726,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
-  transform: translateZ(0);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
   transition: all 0.2s;
 }
 
 .hm-notes-float-add:hover {
   background: var(--hm-accent-strong);
-  box-shadow: 0 5px 18px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.45);
+  transform: translateY(-2px);
 }
 
 .hm-notes-float-add:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 /* ─── Quick Create Strip (top area, below search) ─── */
@@ -1130,14 +1130,38 @@
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--hm-surface-strong);
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
   overflow: hidden;
   transform: translateZ(0);
   will-change: transform;
+}
+
+.dark .flip-card {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.flip-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  z-index: 7;
+  pointer-events: none;
+}
+
+.dark .flip-card::before {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
 }
 
 .flip-card::after {
@@ -1147,12 +1171,12 @@
   right: 0;
   top: 50%;
   height: 1px;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.04);
   z-index: 5;
 }
 
 .dark .flip-card::after {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .flip-card-face {
@@ -1161,10 +1185,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .flip-flap {
@@ -1175,12 +1197,9 @@
   display: flex;
   justify-content: center;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--hm-surface-strong);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform-style: preserve-3d;
-  will-change: transform, opacity;
+  will-change: transform;
   z-index: 6;
 }
 
@@ -1190,7 +1209,6 @@
   transform-origin: bottom center;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
-  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.08);
 }
 
 .flip-flap-bottom {
@@ -1199,22 +1217,16 @@
   transform-origin: top center;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  box-shadow: 0 -8px 14px rgba(0, 0, 0, 0.06);
 }
 
 .flip-card-face-top {
   clip-path: inset(0 0 50% 0);
   background: var(--hm-surface-strong);
-  border-bottom: 1px solid transparent;
 }
 
 .flip-card-face-bottom {
   clip-path: inset(50% 0 0 0);
-  background: linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
-}
-
-.dark .flip-card-face-bottom {
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+  background: var(--hm-surface-strong);
 }
 
 .flip-card-face-back {
@@ -1223,11 +1235,6 @@
 
 .flip-card-face-back.flip-card-face-top {
   clip-path: inset(0 0 50% 0);
-  background: linear-gradient(0deg, rgba(0,0,0,0.02), transparent);
-}
-
-.dark .flip-card-face-back.flip-card-face-top {
-  background: linear-gradient(0deg, rgba(255,255,255,0.03), transparent);
 }
 
 .flip-card-face-back.flip-card-face-bottom {
@@ -1358,6 +1365,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--hm-accent);
+  box-shadow: 0 0 6px var(--hm-accent-soft);
 }
 
 /* ─── AM/PM Badge ─── */
@@ -1366,15 +1374,16 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--hm-accent-strong);
-  margin-left: 8px;
-  padding: 3px 9px;
-  border-radius: 6px;
+  margin-left: 10px;
+  padding: 4px 10px;
+  border-radius: 8px;
   background: var(--hm-accent-softer);
   border: 1px solid var(--hm-accent-soft);
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08);
 }
 
 /* ─── Date Row ─── */
@@ -1463,32 +1472,35 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* CSS-only flip animations for digit cards */
+/* CSS-only flip animations for digit cards - using 2D scale for zero artifacts */
 .flip-anim-top {
-  animation: flipTop 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  will-change: transform;
+  animation: flipTop 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform-origin: bottom center;
+  will-change: transform, opacity;
 }
 @keyframes flipTop {
-  from { transform: rotateX(0); opacity: 1; }
-  to { transform: rotateX(-86deg); opacity: 0.68; }
+  from { transform: scaleY(1); opacity: 1; }
+  to { transform: scaleY(0); opacity: 0; }
 }
 
 .flip-anim-bottom {
-  animation: flipBottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
-  will-change: transform;
+  animation: flipBottom 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+  transform-origin: top center;
+  will-change: transform, opacity;
 }
 @keyframes flipBottom {
-  from { transform: rotateX(86deg); opacity: 0.68; }
-  to { transform: rotateX(0); opacity: 1; }
+  from { transform: scaleY(0); opacity: 0; }
+  to { transform: scaleY(1); opacity: 1; }
 }
 
 /* CSS-only colon pulsating glow */
 .premium-colon-css {
   animation: colonPulse 1s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px var(--hm-accent-soft));
 }
 @keyframes colonPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.42; }
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px var(--hm-accent-soft)); }
+  50% { opacity: 0.4; filter: drop-shadow(0 0 8px var(--hm-accent-soft)); }
 }
 
 /* ─── Second Tick Pulse ─── */
