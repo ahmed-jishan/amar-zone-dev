@@ -36,8 +36,13 @@ export async function getNotificationPermission(): Promise<AppNotificationPermis
   if (typeof window === 'undefined') return 'denied';
 
   if (isNativeNotificationPlatform()) {
-    const status = await LocalNotifications.checkPermissions();
-    return permissionFromNative(status.display);
+    try {
+      const status = await LocalNotifications.checkPermissions();
+      return permissionFromNative(status.display);
+    } catch (error) {
+      console.warn('Notification permission check failed:', error);
+      return 'default';
+    }
   }
 
   if (!('Notification' in window)) return 'denied';
@@ -48,12 +53,17 @@ export async function requestAppNotificationPermission(): Promise<AppNotificatio
   if (typeof window === 'undefined') return 'denied';
 
   if (isNativeNotificationPlatform()) {
-    const current = await LocalNotifications.checkPermissions();
-    if (current.display === 'granted' || current.display === 'denied') {
-      return permissionFromNative(current.display);
+    try {
+      const current = await LocalNotifications.checkPermissions();
+      if (current.display === 'granted' || current.display === 'denied') {
+        return permissionFromNative(current.display);
+      }
+      const next = await LocalNotifications.requestPermissions();
+      return permissionFromNative(next.display);
+    } catch (error) {
+      console.warn('Notification permission request failed:', error);
+      return 'default';
     }
-    const next = await LocalNotifications.requestPermissions();
-    return permissionFromNative(next.display);
   }
 
   if (!('Notification' in window)) return 'denied';
@@ -66,25 +76,29 @@ export async function ensureNotificationChannels(): Promise<void> {
   const platform = Capacitor.getPlatform();
   if (platform !== 'android') return;
 
-  await LocalNotifications.createChannel({
-    id: 'selfsync_alerts',
-    name: 'SelfSync Alerts',
-    description: 'Tasks, money, prayer and app reminders',
-    importance: 5,
-    visibility: 1,
-    lights: true,
-    vibration: true,
-  });
-  await LocalNotifications.createChannel({
-    id: 'selfsync_azan',
-    name: 'Azan Alerts',
-    description: 'Prayer time azan reminders',
-    importance: 5,
-    visibility: 1,
-    lights: true,
-    vibration: true,
-  });
-  channelsReady = true;
+  try {
+    await LocalNotifications.createChannel({
+      id: 'selfsync_alerts',
+      name: 'SelfSync Alerts',
+      description: 'Tasks, money, prayer and app reminders',
+      importance: 5,
+      visibility: 1,
+      lights: true,
+      vibration: true,
+    });
+    await LocalNotifications.createChannel({
+      id: 'selfsync_azan',
+      name: 'Azan Alerts',
+      description: 'Prayer time azan reminders',
+      importance: 5,
+      visibility: 1,
+      lights: true,
+      vibration: true,
+    });
+    channelsReady = true;
+  } catch (error) {
+    console.warn('Notification channel setup failed:', error);
+  }
 }
 
 export async function scheduleAppNotification(params: {
@@ -101,20 +115,25 @@ export async function scheduleAppNotification(params: {
   if (permission !== 'granted') return false;
 
   if (isNativeNotificationPlatform()) {
-    await ensureNotificationChannels();
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          id: notificationId(params.tag),
-          title: params.title,
-          body: params.body,
-          schedule: { at: params.at, allowWhileIdle: true },
-          channelId: params.channelId || 'selfsync_alerts',
-          extra: { tag: params.tag },
-        },
-      ],
-    });
-    return true;
+    try {
+      await ensureNotificationChannels();
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: notificationId(params.tag),
+            title: params.title,
+            body: params.body,
+            schedule: { at: params.at, allowWhileIdle: true },
+            channelId: params.channelId || 'selfsync_alerts',
+            extra: { tag: params.tag },
+          },
+        ],
+      });
+      return true;
+    } catch (error) {
+      console.warn('Native notification schedule failed:', error);
+      return false;
+    }
   }
 
   return true;
@@ -122,14 +141,22 @@ export async function scheduleAppNotification(params: {
 
 export async function cancelAppNotification(tag: string): Promise<void> {
   if (!isNativeNotificationPlatform()) return;
-  await LocalNotifications.cancel({ notifications: [{ id: notificationId(tag) }] });
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: notificationId(tag) }] });
+  } catch (error) {
+    console.warn('Native notification cancel failed:', error);
+  }
 }
 
 export async function cancelAllAppNotifications(): Promise<void> {
   if (!isNativeNotificationPlatform()) return;
-  const pending = await LocalNotifications.getPending();
-  if (pending.notifications.length > 0) {
-    await LocalNotifications.cancel({ notifications: pending.notifications.map((item) => ({ id: item.id })) });
+  try {
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications.length > 0) {
+      await LocalNotifications.cancel({ notifications: pending.notifications.map((item) => ({ id: item.id })) });
+    }
+  } catch (error) {
+    console.warn('Native notification cancel-all failed:', error);
   }
 }
 
