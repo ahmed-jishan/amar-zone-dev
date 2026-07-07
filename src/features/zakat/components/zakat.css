@@ -473,9 +473,9 @@
   padding-top: 10px;
 }
 
-/* ─── Pure CSS Chevron Rotation ─── */
+/* ─── Smooth Chevron Rotation ─── */
 .zk-chevron {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   transform: rotate(0deg);
   will-change: transform;
 }
@@ -484,22 +484,23 @@
   transform: rotate(180deg);
 }
 
-/* ─── Pure CSS Collapse (grid-template-rows — works 100% on all mobile WebViews) ─── */
+/* ─── Max-Height Collapse (smooth 60fps on mobile) ─── */
 .zk-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
+  max-height: 0;
   opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  will-change: max-height, opacity;
+  transform: translateZ(0);
 }
 
 .zk-collapse-open {
-  grid-template-rows: 1fr;
+  max-height: 600px;
   opacity: 1;
 }
 
-.zk-collapse > div {
+.zk-collapse-inner {
   overflow: hidden;
-  min-height: 0;
 }
 
 /* ─── Purity Buttons ─── */

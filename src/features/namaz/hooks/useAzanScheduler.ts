@@ -58,6 +58,8 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   const [now, setNow] = useState(new Date());
   const firedRef = useRef<Set<string>>(new Set());
   const nativeScheduledIdsRef = useRef<string[]>([]);
+  const lastWebScheduledDateRef = useRef<string>('');
+  const lastNativeScheduledDateRef = useRef<string>('');
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 1000);
@@ -70,6 +72,13 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   // to ensure audio plays even if Android defers/suppresses the native alarm.
   useEffect(() => {
     if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes) return;
+
+    // Check if the date has changed — if same date as last scheduled, skip re-scheduling
+    const todayDate = now.toDateString();
+    if (lastWebScheduledDateRef.current === todayDate) return;
+    lastWebScheduledDateRef.current = todayDate;
+    // Clear firedRef for the new day so prayers can fire again
+    firedRef.current = new Set();
 
     try {
       const timers = AZAN_PRAYER_ORDER.map((prayer) => {
@@ -132,7 +141,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       console.warn('Azan scheduler effect error:', error);
       return undefined;
     }
-  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
+  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart, now]);
 
   // === NATIVE ANDROID SCHEDULING (separate, parallel path) ===
   // This uses Android AlarmManager to wake the device and play audio
@@ -146,6 +155,14 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   // ensures the user ALWAYS gets a notification they can interact with.
   useEffect(() => {
     if (!prayerTimes || !isNativeAzanSupported()) return;
+
+    // Check if the date has changed — if same date as last scheduled, skip re-scheduling
+    const todayDate = now.toDateString();
+    if (lastNativeScheduledDateRef.current === todayDate) return;
+    lastNativeScheduledDateRef.current = todayDate;
+    // Clear firedRef for the new day so prayers can fire again
+    firedRef.current = new Set();
+
     let cancelled = false;
 
     try {
@@ -217,7 +234,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       console.warn('Native azan scheduler effect error:', error);
       return undefined;
     }
-  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
+  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart, now]);
 
   // Custom getNextAzan that uses user's configured azan times
   const nextAzan = useMemo(() => {

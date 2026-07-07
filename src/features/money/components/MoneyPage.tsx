@@ -27,6 +27,11 @@ import AddLoanModal from './AddLoanModal'
 import AddSubscriptionModal from './AddSubscriptionModal'
 import AddTransactionModal from './AddTransactionModal'
 const AnalyticsTab = dynamic(() => import('./AnalyticsTab'), { ssr: false })
+const NetWorthSparkline = dynamic(() => import('./premium/NetWorthSparkline'), { ssr: false })
+const SmartInsights = dynamic(() => import('./premium/SmartInsights'), { ssr: false })
+const GoalRing = dynamic(() => import('./premium/GoalRing'), { ssr: false })
+import TransactionFilterBar from './TransactionFilterBar'
+import type { FilterState } from './TransactionFilterBar'
 import BudgetTab from './BudgetTab'
 const BudgetCoach = dynamic(() => import('./BudgetCoach'), { ssr: false })
 const CashflowForecast = dynamic(() => import('./CashflowForecast'), { ssr: false })
@@ -47,8 +52,9 @@ import CategoryLimits from './CategoryLimits'
 import RecurringManager from './RecurringManager'
 import NetWorthCard from './NetWorthCard'
 import MoneySkeleton from './SkeletonLoader'
+import type { MoneyTabKey } from './premium/types'
 
-type TabKey = 'overview' | 'transactions' | 'budget' | 'bills' | 'goals' | 'loans' | 'analytics'
+type TabKey = MoneyTabKey
 
 const TAB_KEYS: TabKey[] = ['overview', 'transactions', 'budget', 'bills', 'goals', 'loans', 'analytics']
 
@@ -160,6 +166,31 @@ export default function MoneyPage() {
   const [pillScrolled, setPillScrolled] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [snackbar, setSnackbar] = useState<SnackbarState>({ message: '', visible: false, exiting: false })
+
+  // Advanced filter state for TransactionFilterBar
+  const [filterState, setFilterState] = useState<FilterState>({
+    query: '',
+    type: 'all',
+    categories: [],
+    walletId: null,
+    dateFrom: '',
+    dateTo: '',
+    minAmount: '',
+    maxAmount: '',
+  })
+
+  const resetFilter = useCallback(() => {
+    setFilterState({ query: '', type: 'all', categories: [], walletId: null, dateFrom: '', dateTo: '', minAmount: '', maxAmount: '' })
+    setSearchQuery('')
+    setFilterType('all')
+  }, [])
+
+  // Sync searchQuery/filterType with filterState for backward compat
+  const handleFilterChange = useCallback((f: FilterState) => {
+    setFilterState(f)
+    setSearchQuery(f.query)
+    setFilterType(f.type)
+  }, [])
 
   const { language, currency_symbol } = useSettingsStore()
   const router = useRouter()
@@ -423,7 +454,7 @@ export default function MoneyPage() {
             month={month}
             currencySymbol={currency_symbol}
             onDismissInsight={store.dismissInsight}
-            onSetTab={(tab: string) => handleTabChange(tab as TabKey)}
+            onSetTab={handleTabChange}
             onDeleteTxn={handleDeleteTransaction}
             language={language}
           />
@@ -473,6 +504,19 @@ export default function MoneyPage() {
         <div key={tab} className="mon-tab-content">
           {tab === 'overview' && (
             <div className="space-y-5">
+              <SmartInsights
+                transactions={transactions}
+                insights={insights}
+                month={month}
+                currencySymbol={currency_symbol}
+                onDismiss={store.dismissInsight}
+                onSetTab={handleTabChange}
+              />
+              <NetWorthSparkline
+                history={store.netWorthHistory}
+                currencySymbol={currency_symbol}
+                days={30}
+              />
               <CashflowForecast
                 transactions={transactions}
                 loans={loans}
@@ -512,13 +556,22 @@ export default function MoneyPage() {
           )}
 
           {tab === 'transactions' && (
-            <TransactionsTab
-              t={t} monthTxns={monthTxns} searchQuery={searchQuery} filterType={filterType}
-              currency_symbol={currency_symbol} language={language}
-              onSearch={setSearchQuery} onFilter={setFilterType}
-              onDelete={handleDeleteTransaction}
-              onEdit={setEditingTxn}
-            />
+            <div className="space-y-4">
+              <TransactionFilterBar
+                transactions={transactions}
+                wallets={wallets.map(w => ({ id: w.id, name: w.name, icon: w.icon }))}
+                filter={filterState}
+                onChange={handleFilterChange}
+                onReset={resetFilter}
+              />
+              <TransactionsTab
+                t={t} monthTxns={monthTxns} searchQuery={searchQuery} filterType={filterType}
+                currency_symbol={currency_symbol} language={language}
+                onSearch={setSearchQuery} onFilter={setFilterType}
+                onDelete={handleDeleteTransaction}
+                onEdit={setEditingTxn}
+              />
+            </div>
           )}
 
           {tab === 'loans' && (

@@ -1583,6 +1583,261 @@
   margin-top: 1px;
 }
 
+/* ═══════════════════════════════════════════
+   ─── DOT MATRIX CLOCK (5x7 Pixel Display) ───
+   Premium dot matrix LED clock
+   ═══════════════════════════════════════════ */
+
+/* ─── Theme Colors ─── */
+.retro-led-clock {
+  --dm-dot-on: #5c3d0e;
+  --dm-dot-off: transparent;
+  --dm-dot-glow: 0 0 3px rgba(92, 61, 14, 0.15);
+  --dm-digit-bg: transparent;
+  --dm-text-primary: rgba(70, 45, 8, 0.5);
+  --dm-text-secondary: rgba(70, 45, 8, 0.35);
+  --dm-text-tertiary: rgba(70, 45, 8, 0.22);
+  --dm-border-info: transparent;
+  --dm-ampm-dim: 0.08;
+  background: linear-gradient(145deg, #faf7f2 0%, #f5f0e8 100%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  border-radius: 20px;
+  padding: 0.75rem 1rem;
+}
+
+.dark .retro-led-clock {
+  --dm-dot-on: #ffb432;
+  --dm-dot-off: transparent;
+  --dm-dot-glow: 0 0 3px rgba(255, 180, 50, 0.35);
+  --dm-digit-bg: rgba(255, 255, 255, 0.03);
+  --dm-text-primary: rgba(255, 180, 50, 0.4);
+  --dm-text-secondary: rgba(255, 180, 50, 0.3);
+  --dm-text-tertiary: rgba(255, 180, 50, 0.2);
+  --dm-border-info: transparent;
+  --dm-ampm-dim: 0.06;
+  background: #111121;
+}
+
+/* ─── Panel ─── */
+.dm-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ─── Time Row ─── */
+.dm-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+/* ─── Digit Pair ─── */
+.dm-pair {
+  display: flex;
+  gap: 4px;
+}
+
+/* ─── Digit Box ─── */
+.dm-digit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--dm-digit-bg);
+}
+
+/* ─── Row of 5 Dots ─── */
+.dm-row {
+  display: flex;
+  gap: 2px;
+}
+
+/* ─── Dot ─── */
+.dm-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 0.1s ease;
+}
+
+.dm-dot-on {
+  background: var(--dm-dot-on);
+  box-shadow: var(--dm-dot-glow);
+}
+
+.dm-dot-off {
+  background: var(--dm-dot-off);
+}
+
+/* ─── Digit Flash Animation ─── */
+.dm-digit-flash {
+  animation: dmFlash 0.15s ease-out;
+}
+
+@keyframes dmFlash {
+  0% { transform: scale(0.85); opacity: 0.5; filter: brightness(1.5); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+}
+
+/* ─── Colon ─── */
+.dm-colon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.dm-colon .dm-colon-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dm-dot-on);
+  box-shadow: var(--dm-dot-glow);
+  animation: dmColonBlink 1s step-end infinite;
+}
+
+@keyframes dmColonBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+/* ─── AM/PM ─── */
+.dm-ampm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.dm-ampm-label {
+  font-family: var(--font-ubuntu), 'SF Pro Display', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.dm-ampm-active {
+  color: var(--dm-dot-on);
+  text-shadow: var(--dm-dot-glow);
+  opacity: 1;
+}
+
+.dm-ampm-dim {
+  color: var(--dm-dot-on);
+  opacity: var(--dm-ampm-dim);
+}
+
+/* ─── Info Row ─── */
+.dm-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid var(--dm-border-info);
+}
+
+.dm-greeting {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dm-greeting-emoji {
+  font-size: 12px;
+  line-height: 1;
+  filter: brightness(0.8) sepia(1) hue-rotate(-10deg) saturate(0.5);
+}
+
+.dm-greeting-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--dm-text-primary);
+  letter-spacing: 0.2px;
+}
+
+.dm-date-text {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--dm-text-secondary);
+  letter-spacing: 0.1px;
+}
+
+.dm-location {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--dm-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.dm-flag {
+  width: 12px;
+  height: 8px;
+  border-radius: 1px;
+  opacity: 0.5;
+}
+
+/* ─── Entry Animation ─── */
+.animate-led-fade-in {
+  animation: dmFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dmFadeIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ─── Small Screen Adjustments ─── */
+@media (max-width: 380px) {
+  .dm-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .dm-digit-box {
+    gap: 1.5px;
+    padding: 3px;
+  }
+
+  .dm-row {
+    gap: 1.5px;
+  }
+
+  .dm-colon {
+    gap: 6px;
+  }
+
+  .dm-colon .dm-colon-dot {
+    width: 4px;
+    height: 4px;
+  }
+
+  .dm-ampm-label {
+    font-size: 7px;
+  }
+
+  .dm-greeting-text {
+    font-size: 9px;
+  }
+
+  .dm-date-text {
+    font-size: 8px;
+  }
+}
+
 /* ─── Namaz Pulse Card ─── */
 
 .next-prayer-banner {

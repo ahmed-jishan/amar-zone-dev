@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, ChevronRight, X, Bell, Target, AlertTriangle 
 import { formatCurrency } from '../../utils'
 import { CATEGORY_META } from '../../constants'
 import type { Transaction, Subscription, MonthlyBudget, FinancialInsight, Loan, SavingsGoal } from '@/lib/types'
+import type { MoneyTabKey } from './types'
 
 interface ActivityItem {
   id: string
@@ -33,7 +34,7 @@ interface ActivityFeedProps {
   month: string
   currencySymbol: string
   onDismissInsight: (id: string) => void
-  onSetTab: (tab: string) => void
+  onSetTab: (tab: MoneyTabKey) => void
   onDeleteTxn: (id: string) => void
   language: string
 }

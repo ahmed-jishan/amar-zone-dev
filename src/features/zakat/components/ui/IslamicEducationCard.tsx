@@ -169,7 +169,7 @@ export default function IslamicEducationCard() {
 
               <div className={`zk-collapse ${isOpen ? 'zk-collapse-open' : ''}`}>
                 <div className="zk-collapse-inner">
-                  {isOpen && <div className="zk-education-body">
+                  <div className="zk-education-body">
                     <div className="text-xs text-[var(--zk-muted)] leading-relaxed whitespace-pre-line">
                       {section.title === section.titleEn ? section.content : (
                         <>
@@ -179,7 +179,7 @@ export default function IslamicEducationCard() {
                         </>
                       )}
                     </div>
-                  </div>}
+                  </div>
                 </div>
               </div>
             </div>

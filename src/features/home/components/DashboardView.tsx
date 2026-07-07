@@ -13,7 +13,7 @@ import type { Note } from '@/features/notes/types'
 import type { BMIRecord } from '@/features/health/types'
 import type { Task } from '@/app/(tabs)/tasks/types'
 import { HomeSubTab } from './HomeTabs'
-import LiveTimeHeader from './LiveTimeHeader'
+import RetroLEDClock from './RetroLEDClock'
 import NamazPulseCard from './NamazPulseCard'
 import TodayFocusCard from './TodayFocusCard'
 import MoneyGlanceCard from './MoneyGlanceCard'
@@ -266,9 +266,9 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Live Time Header — animated clock + date */}
-      <SafeRender name="LiveTimeHeader">
-        <LiveTimeHeader />
+      {/* Retro LED Clock — premium 7-segment display */}
+      <SafeRender name="RetroLEDClock">
+        <RetroLEDClock />
       </SafeRender>
 
       {/* Premium Cards Grid */}

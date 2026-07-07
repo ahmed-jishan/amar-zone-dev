@@ -10,7 +10,7 @@ import { toLocalDateISO, todayISO } from '@/features/money/utils'
 // ─── Undo Action Types ───
 type MoneyUndoAction =
   | { type: 'deleteTxn'; transaction: Transaction }
-  | { type: 'deleteLoan'; loan: Loan }
+  | { type: 'deleteLoan'; loan: Loan; transactions: Transaction[]; wallets: Wallet[] }
   | { type: 'updateLoan'; id: string; previous: Partial<Loan> }
   | { type: 'bulkDeleteTxn'; transactions: Transaction[] }
 
@@ -383,14 +383,39 @@ export const useMoneyStore = create<MoneyState>()(
         set((s) => {
           const loan = s.loans.find((l) => l.id === id)
           if (!loan) return s
-          // Also remove any loan-associated transactions
-          const remainingTxns = s.transactions.filter(
-            (t) => !(t.tags && t.tags.includes(id)) && !(t.tags && t.tags.includes('loan') && t.note?.includes(loan.personName))
+
+          // Find all transactions associated with this loan (via loanId tag)
+          const loanTxns = s.transactions.filter(
+            (t) => t.tags && t.tags.includes(id)
           )
+
+          // Snapshot wallets before we modify them (for undo)
+          const walletsBefore = s.wallets.map(w => ({ ...w }))
+
+          // R6: Reverse wallet balance changes from the loan transactions
+          // When loan was created: taken → income (+balance), given → expense (-balance)
+          // When deleting: we must reverse those effects
+          const wallets = s.wallets.map((w) => {
+            let balance = w.balance
+            for (const txn of loanTxns) {
+              if ((txn.walletId || s.selectedWalletId || 'default') === w.id) {
+                // Reverse: income added money → subtract it back; expense removed money → add it back
+                balance += txn.type === 'income' ? -txn.amount : txn.amount
+              }
+            }
+            return balance === w.balance ? w : { ...w, balance }
+          })
+
+          // Remove loan and all its associated transactions
+          const remainingTxns = s.transactions.filter(
+            (t) => !(t.tags && t.tags.includes(id))
+          )
+
           return {
             loans: s.loans.filter((l) => l.id !== id),
             transactions: remainingTxns,
-            undoStack: [{ type: 'deleteLoan' as const, loan }, ...s.undoStack].slice(0, 50),
+            wallets,
+            undoStack: [{ type: 'deleteLoan' as const, loan, transactions: loanTxns, wallets: walletsBefore }, ...s.undoStack].slice(0, 50),
             canUndo: true,
           }
         }),
@@ -1000,7 +1025,11 @@ export const useMoneyStore = create<MoneyState>()(
           if (action.type === 'deleteTxn') {
             newState = { transactions: [action.transaction, ...s.transactions] }
           } else if (action.type === 'deleteLoan') {
-            newState = { loans: [...s.loans, action.loan] }
+            newState = {
+              loans: [...s.loans, action.loan],
+              transactions: [...action.transactions, ...s.transactions],
+              wallets: action.wallets.map(w => ({ ...w })),
+            }
           } else if (action.type === 'updateLoan') {
             newState = {
               loans: s.loans.map((l) =>
