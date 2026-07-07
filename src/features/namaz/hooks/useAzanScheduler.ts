@@ -71,97 +71,152 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   useEffect(() => {
     if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes) return;
 
-    const timers = AZAN_PRAYER_ORDER.map((prayer) => {
-      const entry = prayerTimes.timings[prayer];
-      // Use user's configured azan time instead of prayer start time
-      const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
-      const azanTimeStr = config.azanTime;
-      const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
-      const delay = target.getTime() - Date.now();
-      const key = `${prayerTimes.date}:${prayer}:${azanTimeStr}`;
+    try {
+      const timers = AZAN_PRAYER_ORDER.map((prayer) => {
+        try {
+          const entry = prayerTimes.timings[prayer];
+          if (!entry || !entry.time) return null;
+          // Use user's configured azan time instead of prayer start time
+          const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
+          const azanTimeStr = config.azanTime;
+          const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
+          const delay = target.getTime() - Date.now();
+          const key = `${prayerTimes.date}:${prayer}:${azanTimeStr}`;
 
-      if (delay <= 0 || firedRef.current.has(key) || isWithinQuietHours(target, quietHoursEnabled, quietHoursStart, quietHoursEnd)) return null;
+          if (delay <= 0 || firedRef.current.has(key) || isWithinQuietHours(target, quietHoursEnabled, quietHoursStart, quietHoursEnd)) return null;
 
-      if (isNativeNotificationPlatform()) {
-        void (async () => {
-          const permission = await getNotificationPermission();
-          if (permission !== 'granted') return;
-          await scheduleAppNotification({
-            tag: key,
-            title: `${entry.label} Azan`,
-            body: `Azan time at ${azanTimeStr}. Use mobile media controls to pause or resume.`,
-            at: target,
-            channelId: 'selfsync_azan',
-            category: 'prayer',
-          });
-        })();
-      }
+          if (isNativeNotificationPlatform()) {
+            void (async () => {
+              try {
+                const permission = await getNotificationPermission();
+                if (permission !== 'granted') return;
+                await scheduleAppNotification({
+                  tag: key,
+                  title: `${entry.label} Azan`,
+                  body: `Azan time at ${azanTimeStr}. Use mobile media controls to pause or resume.`,
+                  at: target,
+                  channelId: 'selfsync_azan',
+                  category: 'prayer',
+                });
+              } catch (error) {
+                console.warn('Failed to schedule azan notification:', error);
+              }
+            })();
+          }
 
-      // Schedule in-app audio playback via setTimeout (ALWAYS, regardless of native support)
-      // This ensures audio plays when the app is in the foreground or background (with page active)
-      // Native Android AlarmManager is a SEPARATE fallback for cold-start scenarios.
-      return window.setTimeout(() => {
-        firedRef.current.add(key);
-        playAzan(entry.label);
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(`${entry.label} Azan`, {
-            body: 'Prayer time has started. Use mobile media controls to pause or resume.',
-            tag: key,
-          });
+          // Schedule in-app audio playback via setTimeout (ALWAYS, regardless of native support)
+          // This ensures audio plays when the app is in the foreground or background (with page active)
+          // Native Android AlarmManager is a SEPARATE fallback for cold-start scenarios.
+          return window.setTimeout(() => {
+            firedRef.current.add(key);
+            playAzan(entry.label);
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(`${entry.label} Azan`, {
+                body: 'Prayer time has started. Use mobile media controls to pause or resume.',
+                tag: key,
+              });
+            }
+          }, delay);
+        } catch (error) {
+          console.warn(`Failed to schedule azan for ${prayer}:`, error);
+          return null;
         }
-      }, delay);
-    });
-
-    return () => {
-      timers.forEach((timer) => {
-        if (timer) window.clearTimeout(timer);
       });
-    };
+
+      return () => {
+        timers.forEach((timer) => {
+          if (timer) window.clearTimeout(timer);
+        });
+      };
+    } catch (error) {
+      console.warn('Azan scheduler effect error:', error);
+      return undefined;
+    }
   }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   // === NATIVE ANDROID SCHEDULING (separate, parallel path) ===
   // This uses Android AlarmManager to wake the device and play audio
   // even if the app process is killed by the OS.
+  // NOTE: Native Azan scheduling only depends on azanEnabled, NOT on notification settings.
+  // The Azan audio plays via a foreground service (AzanPlaybackService) which is independent
+  // of notification permissions. Notifications are a separate bonus UI element.
+  // We ALSO schedule a Capacitor LocalNotification here so the user sees a system notification
+  // with the azan name. The AzanPlaybackService shows its own foreground notification (with
+  // Play/Pause/Stop controls), but some Android skins may suppress it. This dual approach
+  // ensures the user ALWAYS gets a notification they can interact with.
   useEffect(() => {
     if (!prayerTimes || !isNativeAzanSupported()) return;
     let cancelled = false;
 
-    const items = AZAN_PRAYER_ORDER.map((prayer) => {
-      const entry = prayerTimes.timings[prayer];
-      const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
-      const azanTimeStr = config.azanTime;
-      const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
-      return {
-        id: `${prayerTimes.date}:${prayer}:${azanTimeStr}`,
-        label: entry.label,
-        time: target.getTime(),
+    try {
+      const items = AZAN_PRAYER_ORDER.map((prayer) => {
+        try {
+          const entry = prayerTimes.timings[prayer];
+          if (!entry || !entry.time) return null;
+          const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
+          const azanTimeStr = config.azanTime;
+          const target = buildPrayerDate(azanTimeStr, new Date(), prayerTimes.timezone);
+          return {
+            id: `${prayerTimes.date}:${prayer}:${azanTimeStr}`,
+            label: entry.label,
+            time: target.getTime(),
+          };
+        } catch (error) {
+          console.warn(`Failed to compute native azan time for ${prayer}:`, error);
+          return null;
+        }
+      }).filter((item): item is NonNullable<typeof item> => item !== null && item.time > Date.now() && !isWithinQuietHours(new Date(item.time), quietHoursEnabled, quietHoursStart, quietHoursEnd));
+      const nextIds = items.map((item) => item.id);
+      const enabled = azanEnabled; // Only check azanEnabled - native foreground service plays audio independently
+
+      if (!enabled) {
+        const previousIds = nativeScheduledIdsRef.current;
+        nativeScheduledIdsRef.current = [];
+        void cancelNativeAzan(previousIds);
+        return;
+      }
+
+      const staleIds = nativeScheduledIdsRef.current.filter((id) => !nextIds.includes(id));
+      if (staleIds.length > 0) {
+        void cancelNativeAzan(staleIds);
+      }
+      nativeScheduledIdsRef.current = nextIds;
+
+      // Also schedule a Capacitor notification for each azan (visible even on restrictive Android skins)
+      for (const item of items) {
+        const targetDate = new Date(item.time);
+        const key = item.id;
+        void (async () => {
+          try {
+            const permission = await getNotificationPermission();
+            if (permission !== 'granted') return;
+            await scheduleAppNotification({
+              tag: key,
+              title: `${item.label} Azan`,
+              body: `Azan time. Use phone controls to pause or stop.`,
+              at: targetDate,
+              channelId: 'selfsync_azan',
+              category: 'prayer',
+            });
+          } catch (err) {
+            console.warn('Failed to schedule native azan notification:', err);
+          }
+        })();
+      }
+
+      const scheduleTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        void scheduleNativeAzan(items, AZAN_AUDIO_URL);
+      }, 1500);
+
+      return () => {
+        cancelled = true;
+        window.clearTimeout(scheduleTimer);
       };
-    }).filter((item) => item.time > Date.now() && !isWithinQuietHours(new Date(item.time), quietHoursEnabled, quietHoursStart, quietHoursEnd));
-    const nextIds = items.map((item) => item.id);
-    const enabled = azanEnabled && notificationsEnabled && prayerNotificationsEnabled;
-
-    if (!enabled) {
-      const previousIds = nativeScheduledIdsRef.current;
-      nativeScheduledIdsRef.current = [];
-      void cancelNativeAzan(previousIds).catch((error) => console.warn('Native azan cancel failed:', error));
-      return;
+    } catch (error) {
+      console.warn('Native azan scheduler effect error:', error);
+      return undefined;
     }
-
-    const staleIds = nativeScheduledIdsRef.current.filter((id) => !nextIds.includes(id));
-    if (staleIds.length > 0) {
-      void cancelNativeAzan(staleIds).catch((error) => console.warn('Native azan stale cancel failed:', error));
-    }
-    nativeScheduledIdsRef.current = nextIds;
-
-    const scheduleTimer = window.setTimeout(() => {
-      if (cancelled) return;
-      void scheduleNativeAzan(items, AZAN_AUDIO_URL).catch((error) => console.warn('Native azan schedule failed:', error));
-    }, 1500);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(scheduleTimer);
-    };
   }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   // Custom getNextAzan that uses user's configured azan times
@@ -169,21 +224,28 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
     if (!prayerTimes) return null;
     const timeZone = prayerTimes.timezone || 'Asia/Dhaka';
 
-    for (const prayer of AZAN_PRAYER_ORDER) {
-      const entry = prayerTimes.timings[prayer];
-      const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
-      const azanTarget = buildPrayerDate(config.azanTime, now, timeZone);
-      if (azanTarget.getTime() > now.getTime()) {
-        return { prayer, label: entry.label, time: config.azanTime, displayTime: config.azanDisplay, target: azanTarget };
+    try {
+      for (const prayer of AZAN_PRAYER_ORDER) {
+        const entry = prayerTimes.timings[prayer];
+        if (!entry || !entry.time) continue;
+        const config = computePrayerTimeConfig(entry.time, prayerTimePreferences[prayer as ConfigurablePrayerName]);
+        const azanTarget = buildPrayerDate(config.azanTime, now, timeZone);
+        if (azanTarget.getTime() > now.getTime()) {
+          return { prayer, label: entry.label, time: config.azanTime, displayTime: config.azanDisplay, target: azanTarget };
+        }
       }
-    }
 
-    // Next day Fajr
-    const fajr = prayerTimes.timings.fajr;
-    const config = computePrayerTimeConfig(fajr.time, prayerTimePreferences.fajr);
-    const target = buildPrayerDate(config.azanTime, now, timeZone);
-    target.setUTCDate(target.getUTCDate() + 1);
-    return { prayer: 'fajr' as const, label: fajr.label, time: config.azanTime, displayTime: config.azanDisplay, target };
+      // Next day Fajr
+      const fajr = prayerTimes.timings.fajr;
+      if (!fajr || !fajr.time) return null;
+      const config = computePrayerTimeConfig(fajr.time, prayerTimePreferences.fajr);
+      const target = buildPrayerDate(config.azanTime, now, timeZone);
+      target.setUTCDate(target.getUTCDate() + 1);
+      return { prayer: 'fajr' as const, label: fajr.label, time: config.azanTime, displayTime: config.azanDisplay, target };
+    } catch (error) {
+      console.warn('nextAzan computation error:', error);
+      return null;
+    }
   }, [prayerTimes, now, prayerTimePreferences]);
 
   return {

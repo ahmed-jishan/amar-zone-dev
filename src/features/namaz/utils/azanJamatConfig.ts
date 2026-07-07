@@ -23,7 +23,10 @@ export interface ComputedPrayerTimeConfig {
 }
 
 function parseTimeToMinutes(value: string): number {
-  const [rawHours, rawMinutes] = value.split(':').map(Number);
+  if (!value || typeof value !== 'string') return 0;
+  const parts = value.split(':');
+  if (parts.length < 2) return 0;
+  const [rawHours, rawMinutes] = parts.map(Number);
   const hours = Number.isFinite(rawHours) ? rawHours : 0;
   const minutes = Number.isFinite(rawMinutes) ? rawMinutes : 0;
   return Math.max(0, Math.min(23, hours)) * 60 + Math.max(0, Math.min(59, minutes));
@@ -49,32 +52,46 @@ function withSafePreference(startTime: string, preference?: PrayerTimePreference
 }
 
 export function computePrayerTimeConfig(startTime: string, preference?: PrayerTimePreference): ComputedPrayerTimeConfig {
-  const safePreference = withSafePreference(startTime, preference);
-  const startMinutes = parseTimeToMinutes(startTime);
-  const azanMinutes = safePreference.azanMode === 'fixed'
-    ? parseTimeToMinutes(safePreference.azanFixedTime)
-    : startMinutes + safePreference.azanOffsetMinutes;
-  const jamatMinutes = safePreference.jamatMode === 'fixed'
-    ? parseTimeToMinutes(safePreference.jamatFixedTime)
-    : azanMinutes + safePreference.jamatOffsetMinutes;
+  try {
+    const safePreference = withSafePreference(startTime, preference);
+    const startMinutes = parseTimeToMinutes(startTime);
+    const azanMinutes = safePreference.azanMode === 'fixed'
+      ? parseTimeToMinutes(safePreference.azanFixedTime)
+      : startMinutes + safePreference.azanOffsetMinutes;
+    const jamatMinutes = safePreference.jamatMode === 'fixed'
+      ? parseTimeToMinutes(safePreference.jamatFixedTime)
+      : azanMinutes + safePreference.jamatOffsetMinutes;
 
-  const errors: string[] = [];
-  if (azanMinutes < startMinutes) errors.push('Azan time cannot be earlier than prayer start time.');
-  if (jamatMinutes < azanMinutes) errors.push('Jamat time cannot be earlier than Azan time.');
-  if (jamatMinutes < startMinutes) errors.push('Jamat time must be after prayer start time.');
+    const errors: string[] = [];
+    if (azanMinutes < startMinutes) errors.push('Azan time cannot be earlier than prayer start time.');
+    if (jamatMinutes < azanMinutes) errors.push('Jamat time cannot be earlier than Azan time.');
+    if (jamatMinutes < startMinutes) errors.push('Jamat time must be after prayer start time.');
 
-  const azanTime = minutesToTime(azanMinutes);
-  const jamatTime = minutesToTime(jamatMinutes);
+    const azanTime = minutesToTime(azanMinutes);
+    const jamatTime = minutesToTime(jamatMinutes);
 
-  return {
-    prayerStart: minutesToTime(startMinutes),
-    azanTime,
-    jamatTime,
-    prayerStartDisplay: formatPrayerTime12h(minutesToTime(startMinutes), { padHour: true }),
-    azanDisplay: formatPrayerTime12h(azanTime, { padHour: true }),
-    jamatDisplay: formatPrayerTime12h(jamatTime, { padHour: true }),
-    errors,
-  };
+    return {
+      prayerStart: minutesToTime(startMinutes),
+      azanTime,
+      jamatTime,
+      prayerStartDisplay: formatPrayerTime12h(minutesToTime(startMinutes), { padHour: true }),
+      azanDisplay: formatPrayerTime12h(azanTime, { padHour: true }),
+      jamatDisplay: formatPrayerTime12h(jamatTime, { padHour: true }),
+      errors,
+    };
+  } catch (error) {
+    console.warn('computePrayerTimeConfig error:', error);
+    const fallback = minutesToTime(parseTimeToMinutes(startTime));
+    return {
+      prayerStart: fallback,
+      azanTime: fallback,
+      jamatTime: fallback,
+      prayerStartDisplay: formatPrayerTime12h(fallback, { padHour: true }),
+      azanDisplay: formatPrayerTime12h(fallback, { padHour: true }),
+      jamatDisplay: formatPrayerTime12h(fallback, { padHour: true }),
+      errors: ['Invalid configuration. Using prayer start time as fallback.'],
+    };
+  }
 }
 
 export function getConfiguredAzanTime(

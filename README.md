@@ -52,7 +52,7 @@ Built with **Next.js 14 + TypeScript** - works completely offline, stores everyt
 >
 > **Web + Mobile** - Runs as a Progressive Web App (PWA) in browsers and compiles into a native Android APK using Capacitor 6.
 >
-> **Islamic-Friendly** - Built-in prayer time calculations (Adhan library), Qibla direction compass, Quran viewer, Tasbih counter, Dua collection, and Zakat calculator.
+> **Islamic-Friendly** - Built-in prayer time calculations (Adhan library), Qibla direction compass, Quran viewer with media playback, Tasbih counter, Dua collection, Ramadan/Travel modes, Azan audio reminders, and Zakat calculator.
 >
 > **AI-Powered** - Voice command assistant with Groq AI integration, smart task planning, and intent-based automation.
 >
@@ -62,22 +62,24 @@ Built with **Next.js 14 + TypeScript** - works completely offline, stores everyt
 
 ## Features
 
-### Home Hub
+### 🏠 Home Hub
 
 A centralized dashboard that brings together all modules in one place:
 
 | Feature | Description |
 |---------|-------------|
 | **Dashboard View** | Summary cards showing task stats, prayer progress, financial health, and quick insights |
-| **Notes** | Rich markdown notes with create/edit/delete; stored locally |
+| **Floating Action Button** | Draggable quick-action button for instant task creation and navigation |
+| **Notes** | Rich markdown notes system with QuickNoteWidget for fast capture, trash/archive management |
 | **Health (BMI)** | Calculate Body Mass Index with health category classification |
-| **Zakat Calculator** | Step-by-step wizard for calculating Zakat based on gold, silver, cash, and assets |
+| **Zakat Calculator** | Step-by-step wizard for calculating Zakat based on gold, silver, cash savings, market prices, and nisab method selection |
+| **Quick Actions** | Smart morning dashboard with daily routine shortcuts |
 
 The Home tab serves as the landing hub with lazy-loaded sub-tabs for optimal performance.
 
 ---
 
-### Task Manager
+### ✅ Task Manager
 
 A powerful task management system with focus tools and multiple views:
 
@@ -93,16 +95,18 @@ A powerful task management system with focus tools and multiple views:
 | **Archive System** | Archive completed/old tasks without deleting |
 | **Multiple Views** | List view, Board view (Kanban), Timeline view |
 | **Quick Add** | Floating action button for instant task creation |
-| **Dashboard Sheet** | Summary dashboard with stats and next task |
-| **Smart Plan** | AI-powered daily planning suggestions |
+| **Dashboard Sheet** | Bottom sheet dashboard with stats, weekly review, and next task |
+| **Smart Plan** | AI-powered daily planning suggestions and prioritization |
 | **Today Plan** | Focus on today's prioritized tasks |
 | **Weekly Review** | Reflect on weekly accomplishments |
-| **Productivity Heatmap** | Visual heatmap showing task activity patterns |
+| **Productivity Heatmap** | Visual heatmap showing task activity patterns over time |
 | **Bulk Actions** | Batch edit, delete, or move tasks |
 | **Command Palette** | Quick keyboard commands for power users |
 | **Context Menu** | Right-click / long-press context actions |
 | **Onboarding Overlay** | Guided tour for first-time users |
 | **Advanced Filtering** | Filter by status, priority, category, date range |
+| **Focus Card** | Dedicated card view for focused work on a single task |
+| **Smart Planning Section** | AI-organized task groupings for efficient daily planning |
 
 **Task Status Flow:**
 `
@@ -111,31 +115,48 @@ Backlog -> Today -> In Progress -> Done -> Archived
 
 ---
 
-### Namaz (Prayer) Tracker
+### 🕌 Namaz (Prayer) Tracker
 
-Complete Islamic prayer management with spiritual tools:
+Complete Islamic prayer management with spiritual tools and special modes:
 
 | Feature | Description |
 |---------|-------------|
-| **5 Waqt Prayer Times** | Automatic calculation for Fajr, Dhuhr, Asr, Maghrib, Isha |
-| **Adhan Library** | Uses the adhan npm package for accurate prayer times |
+| **5 Waqt Prayer Times** | Automatic calculation for Fajr, Dhuhr, Asr, Maghrib, Isha using the Adhan library |
 | **Prayer Status** | Mark each prayer as: Pending / Prayed / Missed / Qaza |
 | **Heatmap Calendar** | Visual calendar showing prayer consistency over time |
 | **Qibla Compass** | Direction indicator towards Mecca |
 | **Location-Based** | Auto-detects location via Capacitor Geolocation for accurate timings |
-| **Adhan Reminders** | Optional audio reminders before prayer time |
+| **Adhan Audio Reminders** | Native Azan audio playback with foreground service and alarm scheduling |
 | **Notification Support** | Local push notifications via Capacitor Local Notifications |
-| **Quran Viewer** | Browse and read Quran with chapter navigation |
+| **Quran Viewer** | Browse and read Quran with chapter navigation and audio media playback |
+| **Quran Media Player** | Full media notification controls (play, pause, next, previous) for Quran audio |
 | **Tasbih Counter** | Digital counter for dhikr (remembrance of Allah) |
 | **Dua Collection** | Categorized duas for various occasions |
 | **Prayer Insights** | Analytics on prayer consistency, trends, and monthly stats |
-| **Preferences** | Configure calculation method, madhab, and adjustments |
+| **Azan & Jamat Config** | Customizable Azan and Jamat time configuration panel |
+| **Wudu Timer** | Track wudu (ablution) duration with timer |
+| **Quick Actions** | Quick access to Quran, Qibla, Tasbih, Dua, and Wudu timer |
+
+**Special Modes:**
+
+| Mode | Features |
+|------|----------|
+| **🌙 Ramadan Mode** | Iftar countdown, Fasting tracker, Taraweeh tracker, Ramadan special duas |
+| **✈️ Travel Mode** | Adjusted prayer timings and rules for travelers (Qasr/Jam) |
+| **🔄 Combined Mode** | Smart combination of prayer timings based on travel conditions |
+| **📅 Next Ramadan** | Countdown to next Ramadan with preparation checklist |
+
+| Feature | Description |
+|---------|-------------|
+| **Preferences** | Configure calculation method (Karachi, Makkah, ISNA, etc.), madhab, and time adjustments |
+| **More Sheet** | Extended tools and additional features bottom sheet |
+| **Swipe Navigation** | Smooth horizontal swipe between Namaz dashboard views |
 
 ---
 
-### Money Manager
+### 💰 Money Manager
 
-Comprehensive personal finance tracking with budgeting tools:
+Comprehensive personal finance tracking with budgeting and wealth management tools:
 
 | Feature | Description |
 |---------|-------------|
@@ -146,15 +167,25 @@ Comprehensive personal finance tracking with budgeting tools:
 | **Loan Manager** | Track money Given vs Taken with repayment history |
 | **Monthly Budget** | Set budget limits per category with progress tracking |
 | **Savings Goals** | Create goals with target amounts and deadlines |
-| **Subscriptions** | Track recurring subscriptions (Netflix, Spotify, etc.) |
+| **Subscriptions** | Track recurring subscriptions (Netflix, Spotify, etc.) with renewal dates |
 | **Financial Insights** | Smart warnings, tips, and spending trend analysis |
 | **Transaction Status** | Completed / Pending / Cancelled |
 | **Tags & Filtering** | Add custom tags and filter transactions |
 | **PDF Export** | Generate downloadable financial reports |
+| **Spending Pulse** | Real-time spending activity indicator |
+| **Quick Transaction** | Fast transaction logging widget |
+
+**Premium Features (Wealth Hub):**
+
+| Feature | Description |
+|---------|-------------|
+| **WealthHub** | Advanced net worth tracking with asset/liability breakdown |
+| **ActivityFeed** | Detailed chronological feed of all financial activities |
+| **SmartMorningDashboard** | Daily financial summary with smart morning briefing |
 
 ---
 
-### Analytics & Reports
+### 📊 Analytics & Reports
 
 Visual insights across all modules:
 
@@ -169,7 +200,7 @@ Visual insights across all modules:
 
 ---
 
-### App Settings
+### ⚙️ App Settings
 
 Personalization, security, and data management:
 
@@ -180,27 +211,30 @@ Personalization, security, and data management:
 | **Currency** | BDT / USD / EUR |
 | **PIN Lock** | 4-6 digit PIN for app security |
 | **Biometric Lock** | Fingerprint/Face ID via Capacitor Native Biometric |
-| **Google Drive Backup** | Backup/restore data to Google Drive (OAuth 2.0) |
+| **Google Drive Backup** | Backup/restore data to Google Drive (OAuth 2.0) with encrypted App Data folder |
 | **JSON Export/Import** | Manual encrypted backup/restore as JSON file |
-| **Auto Backup Scheduler** | Configure automatic periodic backups |
+| **Auto Backup Scheduler** | Configure automatic periodic backups at set intervals |
+| **Backup Manager** | Dialog interface for managing backup operations and history |
+| **Notification Center** | Centralized view of all app notifications and reminders |
 | **Onboarding** | First-time user tutorial with step-by-step guide |
-| **Notifications** | Customizable reminder settings for prayers & tasks |
+| **Cloud Sync Card** | Interface for managing Google Drive sync status and operations |
 
 ---
 
-### AI & Voice Assistant
+### 🎤 AI & Voice Assistant
 
 Intelligent voice-powered assistant with natural language understanding:
 
 | Feature | Description |
 |---------|-------------|
-| **Voice Commands** | Speech-to-text for creating tasks, logging expenses, etc. |
-| **Groq AI Integration** | High-speed LLM inference for intent processing |
+| **Voice Commands** | Speech-to-text for creating tasks, logging expenses, and more |
+| **Groq AI Integration** | High-speed LLM inference for intent processing and smart responses |
 | **Intent Parser** | Extract structured data from natural language commands |
 | **Command Registry** | Extensible command system for all app modules |
 | **Text-to-Speech** | Voice feedback and responses via speech synthesis |
-| **Voice Activity Detection (VAD)** | Smart listening with silence detection |
+| **Voice Activity Detection (VAD)** | Smart listening with silence detection and auto-stop |
 | **Smart Task Planning** | AI-assisted daily task organization and prioritization |
+| **Floating Voice Button** | Always-accessible microphone button for quick voice commands |
 
 **Example Commands:**
 - "Add a task to buy groceries tomorrow at 5pm"
@@ -209,20 +243,24 @@ Intelligent voice-powered assistant with natural language understanding:
 
 ---
 
-### Backup & Sync
+### 💾 Backup & Sync
 
 Multi-layered data protection and synchronization:
 
 | Feature | Description |
 |---------|-------------|
-| **Google Drive Backup** | Encrypted backup to Google Drive App Data folder |
-| **JSON Export/Import** | Manual backup with optional encryption |
-| **Auto Scheduler** | Configurable automatic backup intervals |
+| **Google Drive Backup** | Encrypted backup to Google Drive App Data folder (4.0+) |
+| **JSON Export/Import** | Manual backup with optional AES encryption |
+| **Auto Scheduler** | Configurable automatic backup intervals (daily, weekly, monthly) |
 | **Backup Validator** | Validate backup integrity before restore |
-| **Backup Merger** | Merge multiple backups intelligently |
-| **WebRTC P2P Sync** | Peer-to-peer data transfer between devices (PeerJS) |
+| **Backup Merger** | Merge multiple backups intelligently to recover maximum data |
+| **Backup Collector** | Comprehensive collection of all app state for backup |
+| **WebRTC P2P Sync** | Peer-to-peer data transfer between devices (PeerJS) with QR code pairing |
+| **Quick Transfer Dialog** | Easy-to-use interface for initiating P2P transfers |
+| **Sync Engine** | Conflict resolution and data merge during synchronization |
 | **Sync Encryption** | AES encryption for in-transit sync data |
-| **Post-Sync Rehydration** | Seamless state restoration after sync |
+| **Post-Sync Rehydration** | Seamless state restoration after sync completes |
+| **Google Auth Integration** | OAuth 2.0 with scoped Drive access for secure cloud backup |
 
 ---
 
@@ -273,7 +311,7 @@ Multi-layered data protection and synchronization:
 ### QR & Barcode
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **qrcode** | 1.5 | QR code generation for sharing |
+| **qrcode** | 1.5 | QR code generation for sharing & P2P pairing |
 | **@zxing/browser** | 0.1 | Barcode/QR scanning via camera |
 
 ### AI & Voice
@@ -316,7 +354,7 @@ Multi-layered data protection and synchronization:
 
 ### Installation
 
-`ash
+```bash
 # 1. Clone the repository
 git clone https://github.com/ahmed-jishan/amar-zone-dev.git
 cd amar-zone-dev
@@ -329,7 +367,7 @@ npm run dev
 
 # 4. Open in browser
 # -> http://localhost:3000
-`
+```
 
 The app will automatically redirect to the Home dashboard on first load.
 
@@ -344,7 +382,7 @@ The app will automatically redirect to the Home dashboard on first load.
 
 ### Build Steps
 
-`ash
+```bash
 # Step 1: Create optimized static build
 npm run build
 
@@ -358,7 +396,7 @@ npm run cap:sync
 npm run cap:open:android
 
 # Step 5: In Android Studio -> Build -> Generate Signed Bundle/APK
-`
+```
 
 > Tip: The cap:sync script automatically patches Google Auth scopes, ensures Android permissions, generates app icons, and validates environment variables.
 
@@ -366,7 +404,7 @@ npm run cap:open:android
 
 ## Project Structure
 
-`
+```
 amar-zone/
 ├── src/
 │   ├── app/                              # Next.js App Router
@@ -385,89 +423,42 @@ amar-zone/
 │   ├── features/                        # Feature modules (domain-driven)
 │   │   ├── home/                        # Home tab with Dashboard, tabs management
 │   │   ├── tasks/                       # Tasks CRUD, Board, Timeline, Pomodoro, Streaks
-│   │   ├── namaz/                       # Prayer times, Qibla, Quran, Tasbih, Dua, Insights
-│   │   ├── money/                       # Transactions, Loans, Wallets, Budgets, Goals
+│   │   ├── namaz/                       # Prayer times, Qibla, Quran, Tasbih, Dua, Insights, Modes
+│   │   ├── money/                       # Transactions, Loans, Wallets, Budgets, Goals, WealthHub
 │   │   ├── analytics/                   # Charts, reports, PDF export
-│   │   ├── settings/                    # Theme, language, security, backup
-│   │   ├── notes/                       # Markdown notes (create, edit, delete)
+│   │   ├── settings/                    # Theme, language, security, backup, sync
+│   │   ├── notes/                       # Markdown notes (create, edit, delete, archive)
 │   │   ├── health/                      # BMI Calculator
-│   │   └── zakat/                       # Zakat calculation wizard
+│   │   └── zakat/                       # Zakat calculation wizard (gold, silver, cash)
 │   │
 │   ├── components/                      # Shared UI components
-│   │   ├── ui/                          # Atomic: Button, Input, Badge, Card, Modal
-│   │   └── shared/                      # Layout: SafeRender, TabErrorBoundary, PageHeader
+│   │   ├── ui/                          # Atomic: Button, Input, Badge, Card, Modal, Calculator
+│   │   ├── shared/                      # Layout: TabsShell, ErrorBoundary, PageHeader
+│   │   ├── settings/                    # Settings components (BackupManager, CloudSync)
+│   │   ├── splash/                      # Splash screen & app initialization
+│   │   └── sync/                        # P2P sync UI components
 │   │
 │   ├── lib/                             # Core libraries & utilities
 │   │   ├── types/                       # TypeScript interfaces & type definitions
-│   │   │   ├── index.ts                 # Core types (Task, PrayerRecord, AppSettings)
-│   │   │   └── money.ts                 # Financial types (Transaction, Loan, Wallet, etc.)
 │   │   ├── store/                       # Zustand stores (persisted to localStorage)
-│   │   │   ├── taskStore.ts
-│   │   │   ├── namazStore.ts
-│   │   │   ├── moneyStore.ts
-│   │   │   └── settingsStore.ts
-│   │   ├── hooks/                       # Custom React hooks
-│   │   │   ├── useTimer.ts              # Pomodoro countdown logic
-│   │   │   └── useTheme.ts              # Dark/light/system theme handler
-│   │   ├── utils/                       # Utility functions
-│   │   │   ├── helpers.ts               # generateId, formatCurrency, etc.
-│   │   │   ├── compress.ts              # pako-based data compression
-│   │   │   ├── encryptedBackup.ts        # AES encrypted backup utility
-│   │   │   └── pdfExport.ts             # jsPDF monthly report generator
+│   │   ├── hooks/                       # Custom React hooks (useTheme, useDraggable, etc.)
+│   │   ├── utils/                       # Utility functions (compress, encrypt, PDF export)
 │   │   ├── native/                      # Capacitor native bridge wrappers
-│   │   │   ├── azan.ts                  # Adhan audio playback
-│   │   │   ├── fileSave.ts              # Native file system save
-│   │   │   ├── haptics.ts               # Haptic feedback triggers
-│   │   │   ├── location.ts              # GPS location utilities
-│   │   │   ├── notifications.ts          # Local notification scheduling
-│   │   │   └── quranMedia.ts            # Quran audio/media handling
-│   │   ├── ai/                          # AI integration
-│   │   │   ├── orchestrator.ts
-│   │   │   ├── store.ts
-│   │   │   └── types.ts
-│   │   ├── voice/                       # Voice command system
-│   │   │   ├── listener.ts
-│   │   │   ├── synthesizer.ts
-│   │   │   ├── intent-parser.ts
-│   │   │   ├── command-registry.ts
-│   │   │   ├── groq-service.ts
-│   │   │   ├── ai-intent-processor.ts
-│   │   │   ├── vad.ts
-│   │   │   └── types.ts
-│   │   ├── sync/                        # Data synchronization
-│   │   │   ├── sync-engine.ts
-│   │   │   ├── sync-manager.ts
-│   │   │   ├── gdrive-auth.ts
-│   │   │   ├── crypto.ts
-│   │   │   ├── webrtc-transfer.ts
-│   │   │   └── post-sync-rehydration.ts
-│   │   ├── backup/                      # Backup system
-│   │   │   ├── collector.ts
-│   │   │   ├── serializer.ts
-│   │   │   ├── validator.ts
-│   │   │   ├── restorer.ts
-│   │   │   ├── merger.ts
-│   │   │   ├── autoscheduler.ts
-│   │   │   └── types.ts
-│   │   ├── server/                      # Server-side utilities
-│   │   │   └── googleDrive.ts
-│   │   └── startup/                     # Application startup
-│   │       └── storageRepairScript.ts   # localStorage repair & migration
+│   │   ├── voice/                       # Voice command system (VAD, Groq, TTS, STT)
+│   │   ├── ai/                          # AI integration (orchestrator, intent processing)
+│   │   ├── sync/                        # Data synchronization (sync engine, WebRTC, crypto)
+│   │   ├── backup/                      # Backup system (collector, serializer, validator, restorer, merger)
+│   │   ├── server/                      # Server-side utilities (Google Drive API)
+│   │   └── startup/                     # Application startup & storage repair
 │   │
 │   └── types/                           # Global type declarations
-│       └── global.ts                    # Ambient type extensions
 │
 ├── public/
 │   ├── manifest.json                    # PWA manifest
 │   ├── icons/                           # App icons (192x192, 512x512)
-│   └── sounds/                          # Adhan audio files (optional)
+│   └── sounds/                          # Adhan audio files
 │
 ├── scripts/                             # Build & automation scripts
-│   ├── patch-google-auth-drive-scope.cjs
-│   ├── generate-app-icons.cjs
-│   ├── ensure-android-permissions.cjs
-│   └── validate-google-auth-env.cjs
-│
 ├── screenshots/                         # App screenshots for README
 ├── android/                             # Android native project (Capacitor)
 ├── next.config.mjs                      # Static export config for Capacitor
@@ -477,13 +468,13 @@ amar-zone/
 ├── postcss.config.js                    # PostCSS configuration
 ├── package.json                         # Dependencies & scripts
 └── GOOGLE_AUTH_FIX.md                   # Google Auth troubleshooting guide
-`
+```
 
 ---
 
 ## Data Storage
 
-All data is stored **locally** in the browser's localStorage. No data leaves your device unless you explicitly use Google Drive backup.
+All data is stored **locally** in the browser's localStorage. No data leaves your device unless you explicitly use Google Drive backup or P2P sync.
 
 | localStorage Key | Module | Data Type |
 |------------------|--------|-----------|
@@ -492,10 +483,14 @@ All data is stored **locally** in the browser's localStorage. No data leaves you
 | amar-zone-money | Money Manager | Transactions, loans, wallets, budgets, goals |
 | amar-zone-settings | App Settings | Theme, language, currency, PIN, biometric |
 | amar-zone-notes | Notes | Markdown notes collection |
+| amar-zone-zakat | Zakat Calculator | Gold/silver prices, savings data |
+| amar-zone-health | Health | BMI records |
 
 > Backup: Use Settings -> Google Drive Backup or JSON Export/Import to prevent data loss.
 >
 > Security: PIN lock and Biometric authentication (Fingerprint/Face ID) available for app access control.
+>
+> Sync: Use P2P Quick Transfer to sync data between devices without any cloud server.
 
 ---
 
@@ -503,14 +498,14 @@ All data is stored **locally** in the browser's localStorage. No data leaves you
 
 Create a .env.local file in the root directory for optional integrations:
 
-`env
+```env
 # Google OAuth (for Drive Backup & Sign-In)
 NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
 NEXT_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your_android_client_id.apps.googleusercontent.com
 
 # Groq AI (for Voice Assistant)
 NEXT_PUBLIC_GROQ_API_KEY=your_groq_api_key
-`
+```
 
 > Note: These are only required for optional features (Google Drive backup & Voice AI assistant). The app works fully offline without them.
 
@@ -521,7 +516,7 @@ NEXT_PUBLIC_GROQ_API_KEY=your_groq_api_key
 | Script | Description |
 |--------|-------------|
 | npm run dev | Start development server (with .next cleanup) |
-| npm run build | Create optimized production static build |
+| npm run build | Create optimized production static build (with validation) |
 | npm run start | Start production server |
 | npm run lint | Run ESLint code quality checks |
 | npm run icons | Generate app icons for Android |

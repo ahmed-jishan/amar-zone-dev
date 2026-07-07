@@ -21,10 +21,18 @@ export function isNativeAzanSupported() {
 
 export async function scheduleNativeAzan(items: AzanScheduleItem[], audioUrl?: string) {
   if (!isNativeAzanSupported() || items.length === 0) return;
-  await AzanNative.schedule({ items, audioUrl });
+  try {
+    await AzanNative.schedule({ items, audioUrl });
+  } catch (error) {
+    console.warn('Native azan schedule failed:', error);
+  }
 }
 
 export async function cancelNativeAzan(ids: string[]) {
   if (!isNativeAzanSupported() || ids.length === 0) return;
-  await AzanNative.cancelAll({ ids });
+  try {
+    await AzanNative.cancelAll({ ids });
+  } catch (error) {
+    console.warn('Native azan cancel failed:', error);
+  }
 }

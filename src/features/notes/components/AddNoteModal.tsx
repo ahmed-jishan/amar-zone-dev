@@ -206,7 +206,7 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
             </div>
 
             {step === 'choose' && !isEditing && (
-              <div className="space-y-4">
+              <div className="hm-modal-body space-y-4">
                 {/* Quick type selection */}
                 <div className="grid grid-cols-2 gap-3">
                   {typeOptions.map(({ type, icon: Icon, label, color }) => (
@@ -234,203 +234,205 @@ export default function AddNoteModal({ open, onClose, editNote }: AddNoteModalPr
                 </div>
 
                 {/* Templates */}
-                <div className="max-h-[200px] overflow-y-auto">
+                <div className="hm-templates-scroll">
                   <NoteTemplates onSelect={handleTemplateSelect} />
                 </div>
               </div>
             )}
 
             {step === 'fill' && (
-              <div className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                    Title
-                  </label>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter title..."
-                    className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                    autoFocus
-                  />
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                    Category
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {NOTE_CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.value}
-                        onClick={() => setCategory(cat.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          category === cat.value
-                            ? 'text-white shadow-sm'
-                            : 'bg-[var(--hm-soft)] text-[var(--hm-muted)] hover:bg-[var(--hm-border)]'
-                        }`}
-                        style={{
-                          background: category === cat.value ? NOTE_CATEGORY_COLORS[cat.value] : undefined,
-                        }}
-                      >
-                        {cat.emoji} {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                    Tags (comma separated)
-                  </label>
-                  <input
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    placeholder="e.g. work, important, ideas"
-                    className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                  />
-                </div>
-
-                {/* Type-specific fields */}
-                {selectedType === 'text' && (
+              <div className="hm-modal-with-footer">
+                <div className="hm-modal-body space-y-4">
+                  {/* Title */}
                   <div>
                     <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                      Body <span className="text-[var(--hm-muted)] font-normal normal-case">(Markdown supported)</span>
+                      Title
                     </label>
-                    <MarkdownEditor value={body} onChange={setBody} minRows={8} />
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Enter title..."
+                      className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                      autoFocus
+                    />
                   </div>
-                )}
 
-                {selectedType === 'password' && (
-                  <>
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                        Username / Email
-                      </label>
-                      <input
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="username@example.com"
-                        className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                      />
+                  {/* Category */}
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                      Category
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {NOTE_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.value}
+                          onClick={() => setCategory(cat.value)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            category === cat.value
+                              ? 'text-white shadow-sm'
+                              : 'bg-[var(--hm-soft)] text-[var(--hm-muted)] hover:bg-[var(--hm-border)]'
+                          }`}
+                          style={{
+                            background: category === cat.value ? NOTE_CATEGORY_COLORS[cat.value] : undefined,
+                          }}
+                        >
+                          {cat.emoji} {cat.label}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                        Password
-                      </label>
-                      <input
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        type="text"
-                        className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                        URL (optional)
-                      </label>
-                      <input
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://example.com"
-                        className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                      />
-                    </div>
-                  </>
-                )}
+                  </div>
 
-                {selectedType === 'image' && (
-                  <>
-                    <div>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-8 rounded-xl border-2 border-dashed border-[var(--hm-border)] bg-[var(--hm-soft)] hover:border-[var(--hm-accent)] transition-colors flex flex-col items-center justify-center gap-2 text-[var(--hm-muted)]"
-                      >
-                        <Upload size={24} />
-                        <span className="text-sm font-medium">
-                          {imageFileName || 'Tap to upload image'}
-                        </span>
-                        {imageDataUrl && (
-                          <img src={imageDataUrl} alt="Preview" className="w-20 h-20 object-cover rounded-lg mt-2" />
-                        )}
-                      </button>
-                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                        Caption
-                      </label>
-                      <input
-                        value={caption}
-                        onChange={(e) => setCaption(e.target.value)}
-                        placeholder="Add a caption..."
-                        className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {selectedType === 'link' && (
-                  <>
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                        URL
-                      </label>
-                      <input
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://example.com"
-                        className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
-                        Description
-                      </label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Brief description..."
-                        rows={2}
-                        className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors resize-none"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* Reminder */}
-                <div>
-                  <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Bell size={12} /> Reminder (optional)
-                  </label>
-                  <div className="flex gap-2">
+                  {/* Tags */}
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                      Tags (comma separated)
+                    </label>
                     <input
-                      type="date"
-                      value={reminderDate}
-                      onChange={(e) => setReminderDate(e.target.value)}
-                      className="flex-1 bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      placeholder="e.g. work, important, ideas"
+                      className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
                     />
-                    <input
-                      type="time"
-                      value={reminderTime}
-                      onChange={(e) => setReminderTime(e.target.value)}
-                      className="flex-shrink-0 bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] outline-none focus:border-[var(--hm-accent)] transition-colors"
-                    />
+                  </div>
+
+                  {/* Type-specific fields */}
+                  {selectedType === 'text' && (
+                    <div>
+                      <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                        Body <span className="text-[var(--hm-muted)] font-normal normal-case">(Markdown supported)</span>
+                      </label>
+                      <MarkdownEditor value={body} onChange={setBody} minRows={8} />
+                    </div>
+                  )}
+
+                  {selectedType === 'password' && (
+                    <>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                          Username / Email
+                        </label>
+                        <input
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          placeholder="username@example.com"
+                          className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                          Password
+                        </label>
+                        <input
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          type="text"
+                          className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                          URL (optional)
+                        </label>
+                        <input
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          placeholder="https://example.com"
+                          className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {selectedType === 'image' && (
+                    <>
+                      <div>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full py-8 rounded-xl border-2 border-dashed border-[var(--hm-border)] bg-[var(--hm-soft)] hover:border-[var(--hm-accent)] transition-colors flex flex-col items-center justify-center gap-2 text-[var(--hm-muted)]"
+                        >
+                          <Upload size={24} />
+                          <span className="text-sm font-medium">
+                            {imageFileName || 'Tap to upload image'}
+                          </span>
+                          {imageDataUrl && (
+                            <img src={imageDataUrl} alt="Preview" className="w-20 h-20 object-cover rounded-lg mt-2" />
+                          )}
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                          Caption
+                        </label>
+                        <input
+                          value={caption}
+                          onChange={(e) => setCaption(e.target.value)}
+                          placeholder="Add a caption..."
+                          className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {selectedType === 'link' && (
+                    <>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                          URL
+                        </label>
+                        <input
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          placeholder="https://example.com"
+                          className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 block">
+                          Description
+                        </label>
+                        <textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Brief description..."
+                          rows={2}
+                          className="w-full bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] placeholder:text-[var(--hm-muted)] outline-none focus:border-[var(--hm-accent)] transition-colors resize-none"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Reminder */}
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--hm-muted)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                      <Bell size={12} /> Reminder (optional)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={reminderDate}
+                        onChange={(e) => setReminderDate(e.target.value)}
+                        className="flex-1 bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                      />
+                      <input
+                        type="time"
+                        value={reminderTime}
+                        onChange={(e) => setReminderTime(e.target.value)}
+                        className="flex-shrink-0 bg-[var(--hm-soft)] border border-[var(--hm-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--hm-text)] outline-none focus:border-[var(--hm-accent)] transition-colors"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
+                {/* Actions - Sticky Footer */}
+                <div className="hm-modal-footer flex gap-3 pt-3">
                   {!isEditing && (
                     <button
                       onClick={() => setStep('choose')}
                       className="flex-1 py-2.5 rounded-xl bg-[var(--hm-soft)] text-[var(--hm-muted)] font-medium text-sm hover:bg-[var(--hm-border)] transition-colors"
                     >
-                      Back
+                      Cancel
                     </button>
                   )}
                   <button
