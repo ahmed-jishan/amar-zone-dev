@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useCallback } from 'react'
 import { BookOpen, ChevronDown, Gem, Scale, Calculator, Clock, FileText } from 'lucide-react'
 
 const SECTIONS = [
@@ -131,9 +130,9 @@ Zakat is an act of worship, so accurate calculation is important. Using your loc
 export default function IslamicEducationCard() {
   const [openSection, setOpenSection] = useState<string | null>('zakat-obligation')
 
-  const toggleSection = (id: string) => {
-    setOpenSection(openSection === id ? null : id)
-  }
+  const toggleSection = useCallback((id: string) => {
+    setOpenSection(prev => prev === id ? null : id)
+  }, [])
 
   return (
     <div className="zk-card zk-education-card">
@@ -154,6 +153,7 @@ export default function IslamicEducationCard() {
               <button
                 onClick={() => toggleSection(section.id)}
                 className="zk-education-header"
+                aria-expanded={isOpen}
               >
                 <div className="flex items-center gap-2">
                   <Icon size={14} className="text-[var(--zk-accent)]" />
@@ -161,37 +161,27 @@ export default function IslamicEducationCard() {
                     {section.title}
                   </span>
                 </div>
-                <motion.div
-                  animate={{ rotate: isOpen ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChevronDown size={14} className="text-[var(--zk-muted)]" />
-                </motion.div>
+                <ChevronDown
+                  size={14}
+                  className={`zk-chevron text-[var(--zk-muted)] ${isOpen ? 'zk-chevron-open' : ''}`}
+                />
               </button>
 
-              <AnimatePresence>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="zk-education-body">
-                      <div className="text-xs text-[var(--zk-muted)] leading-relaxed whitespace-pre-line">
-                        {section.title === section.titleEn ? section.content : (
-                          <>
-                            <p className="mb-2">{section.content}</p>
-                            <hr className="my-2 border-[var(--zk-border)]" />
-                            <p className="text-[10px] text-[var(--zk-muted)] opacity-70 italic">{section.contentEn}</p>
-                          </>
-                        )}
-                      </div>
+              <div className={`zk-collapse ${isOpen ? 'zk-collapse-open' : ''}`}>
+                <div className="zk-collapse-inner">
+                  {isOpen && <div className="zk-education-body">
+                    <div className="text-xs text-[var(--zk-muted)] leading-relaxed whitespace-pre-line">
+                      {section.title === section.titleEn ? section.content : (
+                        <>
+                          <p className="mb-2">{section.content}</p>
+                          <hr className="my-2 border-[var(--zk-border)]" />
+                          <p className="text-[10px] text-[var(--zk-muted)] opacity-70 italic">{section.contentEn}</p>
+                        </>
+                      )}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>}
+                </div>
+              </div>
             </div>
           )
         })}
