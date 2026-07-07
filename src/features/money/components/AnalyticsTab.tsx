@@ -168,7 +168,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
               key={item}
               type="button"
               onClick={() => setRange(item)}
-              className={`rounded-[10px] px-3 py-2 text-[12px] font-bold capitalize transition-all ${range === item ? 'bg-[var(--mon-gold)] text-[#080c14]' : 'text-[var(--mon-text-3)]'}`}
+              className={`rounded-[10px] px-3 py-2 text-[12px] font-bold capitalize transition-all ${range === item ? 'bg-[var(--mon-gold)] text-[var(--mon-text-1)]' : 'text-[var(--mon-text-3)]'}`}
             >
               {item}
             </button>
@@ -194,7 +194,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
 
       <div className="rounded-[var(--mon-radius-xl)] bg-[var(--mon-surface-1)] p-4 border border-[var(--mon-border)]">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[var(--mon-text-3)]">Income vs Expense</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[var(--mon-text-3)]">{range === 'week' ? 'Income vs Expense (7 days)' : 'Income vs Expense (Monthly)'}</h3>
           <TrendBadge growth={analytics.growth} />
         </div>
         <div className="h-56">
@@ -203,7 +203,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
               <CartesianGrid stroke="var(--mon-border)" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: 'var(--mon-text-3)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis hide />
-              <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12 }} />
+              <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12, color: 'var(--mon-text-1)' }} labelStyle={{ color: 'var(--mon-text-1)' }} itemStyle={{ color: 'var(--mon-text-2)' }} />
               <Bar dataKey="income" fill="var(--mon-income)" radius={[6, 6, 0, 0]} />
               <Bar dataKey="expense" fill="var(--mon-expense)" radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -220,7 +220,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
                 <Pie data={analytics.categoryData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={3}>
                   {analytics.categoryData.map((entry) => <Cell key={entry.category} fill={entry.fill} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12, color: 'var(--mon-text-1)' }} labelStyle={{ color: 'var(--mon-text-1)' }} itemStyle={{ color: 'var(--mon-text-2)' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -239,7 +239,7 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
                 </defs>
                 <XAxis dataKey="day" tick={{ fill: 'var(--mon-text-3)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis hide />
-                <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12, color: 'var(--mon-text-1)' }} labelStyle={{ color: 'var(--mon-text-1)' }} itemStyle={{ color: 'var(--mon-text-2)' }} />
                 <Area type="monotone" dataKey="expense" stroke="var(--mon-expense)" fill="url(#expenseTrend)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
@@ -266,13 +266,13 @@ export default function AnalyticsTab({ transactions, currency_symbol, language, 
       </div>
 
       <div className="rounded-[var(--mon-radius-xl)] bg-[var(--mon-surface-1)] p-4 border border-[var(--mon-border)]">
-        <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-[1.2px] text-[var(--mon-text-3)]">Monthly Line</h3>
+        <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-[1.2px] text-[var(--mon-text-3)]">{range === 'week' ? 'Weekly Trend' : 'Monthly Line'}</h3>
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={analytics.dailyData}>
               <XAxis dataKey="day" hide />
               <YAxis hide />
-              <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12 }} />
+              <Tooltip contentStyle={{ background: 'var(--mon-surface-2)', border: '1px solid var(--mon-border)', borderRadius: 12, color: 'var(--mon-text-1)' }} labelStyle={{ color: 'var(--mon-text-1)' }} itemStyle={{ color: 'var(--mon-text-2)' }} />
               <Line type="monotone" dataKey="income" stroke="var(--mon-income)" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="expense" stroke="var(--mon-expense)" strokeWidth={2} dot={false} />
             </LineChart>

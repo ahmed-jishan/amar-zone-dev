@@ -273,7 +273,6 @@ export const useMoneyStore = create<MoneyState>()(
         const txns = asArray<Transaction>(get().transactions).filter(
           (t) => typeof t.date === 'string' && t.date.startsWith(month) && t.status === 'completed'
             && !INTERNAL_CATEGORIES.has(t.category)
-            && !(t.tags && t.tags.includes('loan')) // R9: Loan txns are NOT income/expense
         )
         const income = txns.filter((t) => t.type === 'income').reduce((a, t) => a + safeNumber(t.amount), 0)
         const expense = txns.filter((t) => t.type === 'expense').reduce((a, t) => a + safeNumber(t.amount), 0)
@@ -285,7 +284,6 @@ export const useMoneyStore = create<MoneyState>()(
         const txns = asArray<Transaction>(get().transactions).filter(
           (t) => typeof t.date === 'string' && t.date.startsWith(month) && t.type === 'expense'
             && !INTERNAL_CATEGORIES.has(t.category)
-            && !(t.tags && t.tags.includes('loan')) // R9: Loan repayments are NOT expenses
         )
         const breakdown: Record<string, number> = {}
         txns.forEach((t) => {
@@ -436,7 +434,7 @@ export const useMoneyStore = create<MoneyState>()(
             id: generateId(),
             type: amount < 0 ? 'expense' : 'income', // repayment (negative) = expense, addition (positive) = income
             amount: Math.abs(amount),
-            category: 'other-income' as any,
+            category: (amount < 0 ? 'loan-repayment' : 'other-income') as any,
             note: note || (amount < 0
               ? `Loan repayment → ${loan.personName}`
               : `Loan addition ← ${loan.personName}`),

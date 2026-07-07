@@ -21,11 +21,12 @@ export const CATEGORY_META: Record<string, {
   investment: { icon: '📈', color: '#10b981', bg: '#10b98115', labelEn: 'Investment', labelBn: 'বিনিয়োগ' },
   gift: { icon: '🎁', color: '#ec4899', bg: '#ec489915', labelEn: 'Gift', labelBn: 'উপহার' },
   'other-income': { icon: '📥', color: '#6b7280', bg: '#6b728015', labelEn: 'Other Income', labelBn: 'অন্যান্য আয়' },
+  'loan-repayment': { icon: '🔄', color: '#ef4444', bg: '#ef444415', labelEn: 'Loan Repayment', labelBn: 'ঋণ পরিশোধ' },
 }
 
 export const EXPENSE_CATEGORIES = [
   'food', 'transport', 'utilities', 'health',
-  'education', 'entertainment', 'shopping', 'rent', 'transfer', 'adjustment', 'other',
+  'education', 'entertainment', 'shopping', 'rent', 'transfer', 'adjustment', 'loan-repayment', 'other',
 ] as const
 
 export const INCOME_CATEGORIES = [

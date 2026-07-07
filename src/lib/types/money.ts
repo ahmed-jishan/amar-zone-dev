@@ -3,7 +3,7 @@
 export type TransactionType = 'income' | 'expense'
 export type ExpenseCategory =
   | 'food' | 'transport' | 'utilities' | 'health'
-  | 'education' | 'entertainment' | 'shopping' | 'rent' | 'transfer' | 'adjustment' | 'other'
+  | 'education' | 'entertainment' | 'shopping' | 'rent' | 'transfer' | 'adjustment' | 'loan-repayment' | 'other'
 
 export type IncomeCategory = 'salary' | 'freelance' | 'investment' | 'gift' | 'transfer' | 'adjustment' | 'other-income'
 

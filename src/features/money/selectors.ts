@@ -9,8 +9,11 @@ import type { Transaction, Wallet, Loan, SavingsGoal, Asset } from '@/lib/types'
  * - Net Worth = Assets - Liabilities
  * - Available Balance = Total wallet cash (for spending)
  *
- * Internal categories excluded from income/expense summaries:
- * transfer, adjustment, and loan-related transactions.
+ * Excluded from income/expense summaries:
+ * - transfer, adjustment (internal movements)
+ * - savings-goal contributions (R7: ≠ expense)
+ * - loan additions (R9: ≠ income from user perspective)
+ * Loan repayments ARE counted as expense (category: 'loan-repayment').
  */
 
 /** Internal categories that should be excluded from income/expense summaries */
@@ -19,7 +22,6 @@ const INTERNAL_CATEGORIES = new Set(['transfer', 'adjustment'])
 /** Check if a transaction should be counted in user-facing summaries */
 const isExternalTransaction = (t: Transaction): boolean =>
   !INTERNAL_CATEGORIES.has(t.category) &&
-  !(t.tags && t.tags.includes('loan')) &&      // R9: Loan ≠ Income/Expense
   !(t.tags && t.tags.includes('savings-goal')) // R7: Savings contributions ≠ Expense
 
 /** Safe number helper */
@@ -120,7 +122,7 @@ export function selectMonthSummary(
       isExternalTransaction(t)
   )
   const income = txns
-    .filter((t) => t.type === 'income')
+    .filter((t) => t.type === 'income' && !(t.tags && t.tags.includes('loan'))) // Loan additions are NOT income
     .reduce((a, t) => a + safeNumber(t.amount), 0)
   const expense = txns
     .filter((t) => t.type === 'expense')
@@ -161,7 +163,8 @@ export function selectIncomeBreakdown(
       typeof t.date === 'string' &&
       t.date.startsWith(month) &&
       t.type === 'income' &&
-      isExternalTransaction(t)
+      isExternalTransaction(t) &&
+      !(t.tags && t.tags.includes('loan')) // Loan additions are NOT income
   )
   const breakdown: Record<string, number> = {}
   txns.forEach((t) => {
@@ -219,7 +222,8 @@ export function selectMonthlyIncome(
         t.type === 'income' &&
         t.date.startsWith(month) &&
         t.status === 'completed' &&
-        isExternalTransaction(t)
+        isExternalTransaction(t) &&
+        !(t.tags && t.tags.includes('loan')) // Loan additions are NOT income
     )
     .reduce((sum, t) => sum + safeNumber(t.amount), 0)
 }
