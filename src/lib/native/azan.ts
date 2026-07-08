@@ -6,6 +6,8 @@ type AzanScheduleItem = {
   id: string;
   label: string;
   time: number;
+  prayerName: string;
+  timeString: string;
 };
 
 type AzanNativePlugin = {

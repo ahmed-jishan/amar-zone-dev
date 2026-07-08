@@ -203,6 +203,8 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
             id: `${prayerTimes.date}:${prayer}:${azanTimeStr}`,
             label: entry.label,
             time: target.getTime(),
+            prayerName: prayer,
+            timeString: azanTimeStr,
           };
         } catch (error) {
           console.warn(`Failed to compute native azan time for ${prayer}:`, error);
@@ -261,7 +263,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   // scheduling setTimeout from being cancelled by React cleanup on every
   // 1-second re-render. Date-change detection is handled by the 60s interval above.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [azanEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
+  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   // Custom getNextAzan that uses user's configured azan times
   const nextAzan = useMemo(() => {
