@@ -61,8 +61,35 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   const lastWebScheduledDateRef = useRef<string>('');
   const lastNativeScheduledDateRef = useRef<string>('');
 
+  // Track current time for UI display updates (no second-level dependencies needed for scheduling)
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  // === DAILY DATE CHANGE DETECTOR ===
+  // Runs every 60s to detect date boundary crossing and clear fired/native refs.
+  // This lets us remove `now` from scheduling effect dependencies,
+  // preventing the bug where setTimeout-based native scheduling gets cancelled
+  // by rapid re-renders every second.
+  useEffect(() => {
+    const check = () => {
+      const today = new Date().toDateString();
+      const webDate = lastWebScheduledDateRef.current;
+      const nativeDate = lastNativeScheduledDateRef.current;
+
+      // If today doesn't match what we've scheduled, clear refs so effects re-schedule
+      if (webDate !== today) {
+        lastWebScheduledDateRef.current = '';
+        firedRef.current = new Set();
+      }
+      if (nativeDate !== today) {
+        lastNativeScheduledDateRef.current = '';
+        firedRef.current = new Set();
+      }
+    };
+
+    const interval = window.setInterval(check, 60_000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -70,11 +97,13 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
   // This handles foreground playback on ALL platforms (Web + Native)
   // On native Android, this runs alongside the native AlarmManager scheduling
   // to ensure audio plays even if Android defers/suppresses the native alarm.
+  // NOTE: `now` is intentionally NOT in deps — we use `Date.now()` inside.
+  // The date-change detector above handles daily re-scheduling.
   useEffect(() => {
     if (!azanEnabled || !notificationsEnabled || !prayerNotificationsEnabled || !prayerTimes) return;
 
     // Check if the date has changed — if same date as last scheduled, skip re-scheduling
-    const todayDate = now.toDateString();
+    const todayDate = new Date().toDateString();
     if (lastWebScheduledDateRef.current === todayDate) return;
     lastWebScheduledDateRef.current = todayDate;
     // Clear firedRef for the new day so prayers can fire again
@@ -113,9 +142,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
             })();
           }
 
-          // Schedule in-app audio playback via setTimeout (ALWAYS, regardless of native support)
-          // This ensures audio plays when the app is in the foreground or background (with page active)
-          // Native Android AlarmManager is a SEPARATE fallback for cold-start scenarios.
+          // Schedule in-app audio playback via setTimeout
           return window.setTimeout(() => {
             firedRef.current.add(key);
             playAzan(entry.label);
@@ -141,29 +168,28 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       console.warn('Azan scheduler effect error:', error);
       return undefined;
     }
-  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart, now]);
+  // CRITICAL: `now` removed from deps to prevent 1-second re-renders from
+  // cancelling the timers before they fire. Date-change detection is handled
+  // by a separate 60-second interval above.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   // === NATIVE ANDROID SCHEDULING (separate, parallel path) ===
   // This uses Android AlarmManager to wake the device and play audio
   // even if the app process is killed by the OS.
-  // NOTE: Native Azan scheduling only depends on azanEnabled, NOT on notification settings.
-  // The Azan audio plays via a foreground service (AzanPlaybackService) which is independent
-  // of notification permissions. Notifications are a separate bonus UI element.
-  // We ALSO schedule a Capacitor LocalNotification here so the user sees a system notification
-  // with the azan name. The AzanPlaybackService shows its own foreground notification (with
-  // Play/Pause/Stop controls), but some Android skins may suppress it. This dual approach
-  // ensures the user ALWAYS gets a notification they can interact with.
+  // NOTE: The `now` dependency is intentionally removed — the 60s date-change
+  // detector above handles daily re-scheduling. This prevents the critical bug
+  // where the 1500ms setTimeout for scheduleNativeAzan was being cancelled
+  // by React's cleanup on every 1-second re-render.
   useEffect(() => {
     if (!prayerTimes || !isNativeAzanSupported()) return;
 
     // Check if the date has changed — if same date as last scheduled, skip re-scheduling
-    const todayDate = now.toDateString();
+    const todayDate = new Date().toDateString();
     if (lastNativeScheduledDateRef.current === todayDate) return;
     lastNativeScheduledDateRef.current = todayDate;
     // Clear firedRef for the new day so prayers can fire again
     firedRef.current = new Set();
-
-    let cancelled = false;
 
     try {
       const items = AZAN_PRAYER_ORDER.map((prayer) => {
@@ -183,8 +209,8 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
           return null;
         }
       }).filter((item): item is NonNullable<typeof item> => item !== null && item.time > Date.now() && !isWithinQuietHours(new Date(item.time), quietHoursEnabled, quietHoursStart, quietHoursEnd));
-      const nextIds = items.map((item) => item.id);
-      const enabled = azanEnabled; // Only check azanEnabled - native foreground service plays audio independently
+
+      const enabled = azanEnabled;
 
       if (!enabled) {
         const previousIds = nativeScheduledIdsRef.current;
@@ -193,13 +219,14 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         return;
       }
 
+      const nextIds = items.map((item) => item.id);
       const staleIds = nativeScheduledIdsRef.current.filter((id) => !nextIds.includes(id));
       if (staleIds.length > 0) {
         void cancelNativeAzan(staleIds);
       }
       nativeScheduledIdsRef.current = nextIds;
 
-      // Also schedule a Capacitor notification for each azan (visible even on restrictive Android skins)
+      // Schedule Capacitor notifications for each azan (visible even on restrictive Android skins)
       for (const item of items) {
         const targetDate = new Date(item.time);
         const key = item.id;
@@ -221,20 +248,20 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
         })();
       }
 
-      const scheduleTimer = window.setTimeout(() => {
-        if (cancelled) return;
-        void scheduleNativeAzan(items, AZAN_AUDIO_URL);
-      }, 1500);
-
-      return () => {
-        cancelled = true;
-        window.clearTimeout(scheduleTimer);
-      };
+      // Schedule native Android AlarmManager alarms DIRECTLY (no setTimeout wrapper)
+      // The old setTimeout(1500ms) was getting cancelled by React cleanup on every
+      // second-level re-render due to `now` in deps. With `now` removed from deps,
+      // this runs once per configuration change and directly schedules the alarms.
+      void scheduleNativeAzan(items, AZAN_AUDIO_URL);
     } catch (error) {
       console.warn('Native azan scheduler effect error:', error);
       return undefined;
     }
-  }, [azanEnabled, notificationsEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart, now]);
+  // CRITICAL: `now` removed from deps to prevent the 1500ms native alarm
+  // scheduling setTimeout from being cancelled by React cleanup on every
+  // 1-second re-render. Date-change detection is handled by the 60s interval above.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [azanEnabled, prayerNotificationsEnabled, prayerTimes, prayerTimePreferences, quietHoursEnabled, quietHoursEnd, quietHoursStart]);
 
   // Custom getNextAzan that uses user's configured azan times
   const nextAzan = useMemo(() => {
