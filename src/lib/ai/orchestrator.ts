@@ -3,18 +3,14 @@
 // It runs in a Web Worker for performance, but also has a sync fallback.
 
 import type { AIContextSnapshot, WellnessScores, AIInsight, FocusSuggestion, DailyBrief, Pattern } from './types'
-import { generateId } from '@/lib/utils/helpers'
+import { generateId, todayISO, toLocalDateISO } from '@/lib/utils/helpers'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0]
-}
 
 function daysAgo(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  return toLocalDateISO(d)
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -326,7 +322,7 @@ export function computeSnapshot(input: AggregatorInput): AIContextSnapshot {
 
   // Health tracking consistency: how many days in last 30 have a record
   const healthDays = new Set(
-    healthHistory.map((r: any) => new Date(r.date || r.createdAt).toISOString().split('T')[0])
+    healthHistory.map((r: any) => toLocalDateISO(new Date(r.date || r.createdAt)))
   )
   const healthTrackingConsistency = clamp(healthDays.size / 30, 0, 1)
 
@@ -334,7 +330,7 @@ export function computeSnapshot(input: AggregatorInput): AIContextSnapshot {
   const notes = input.notes || []
   const totalNotes = notes.length
   const notesThisWeek = notes.filter((n: any) => {
-    const noteDate = new Date(n.createdAt || n.updatedAt).toISOString().split('T')[0]
+    const noteDate = toLocalDateISO(new Date(n.createdAt || n.updatedAt))
     return noteDate >= weekAgo
   }).length
   const pinnedNotes = notes.filter((n: any) => n.pinned).length

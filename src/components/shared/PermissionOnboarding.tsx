@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Camera, CheckCircle2, Loader2, MapPin, Mic, Settings, Bell, AlertCircle } from 'lucide-react'
+import { Camera, CheckCircle2, Loader2, MapPin, Settings, Bell, AlertCircle } from 'lucide-react'
 import { requestLocationPermission, getCurrentPrayerLocation } from '@/lib/native/location'
 import { requestAppNotificationPermission } from '@/lib/native/notifications'
 
-type PermissionKey = 'location' | 'camera' | 'microphone' | 'notifications'
+type PermissionKey = 'location' | 'camera' | 'notifications'
 type PermissionState = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'
 
 const STORAGE_KEY = 'selfsync-permission-onboarding-v1'
@@ -29,12 +29,6 @@ const PERMISSIONS: Array<{
     body: 'Required for QR scan and Quick Transfer receiving.',
   },
   {
-    key: 'microphone',
-    icon: <Mic size={18} />,
-    title: 'Microphone',
-    body: 'Required for voice command and assistant listening.',
-  },
-  {
     key: 'notifications',
     icon: <Bell size={18} />,
     title: 'Notifications',
@@ -48,7 +42,6 @@ export default function PermissionOnboarding() {
   const [states, setStates] = useState<Record<PermissionKey, PermissionState>>({
     location: 'idle',
     camera: 'idle',
-    microphone: 'idle',
     notifications: 'idle',
   })
 
@@ -93,12 +86,6 @@ export default function PermissionOnboarding() {
         return
       }
 
-      if (key === 'microphone') {
-        const granted = await requestMediaPermission({ audio: true })
-        updateState(key, granted ? 'granted' : 'denied')
-        return
-      }
-
       const permission = await requestAppNotificationPermission()
       updateState(key, permission === 'granted' ? 'granted' : 'denied')
     } catch {
@@ -135,7 +122,7 @@ export default function PermissionOnboarding() {
             <div className="min-w-0">
               <h2 className="text-base font-bold">Set up app permissions</h2>
               <p className="mt-0.5 text-xs leading-relaxed text-[rgb(var(--muted))]">
-                Allow these once so scan, voice, reminders and location features work smoothly.
+                Allow these once so location, QR scan and reminders work smoothly.
               </p>
             </div>
           </div>

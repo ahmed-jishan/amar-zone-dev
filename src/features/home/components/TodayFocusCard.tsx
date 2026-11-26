@@ -1,4 +1,5 @@
 'use client'
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
@@ -40,7 +41,7 @@ function safeDateMs(value: unknown): number {
 }
 
 function getTodayTasks(tasks: Task[]): Task[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   return tasks.filter(
     (t) =>
       t.status !== 'archived' &&
@@ -94,7 +95,7 @@ export default function TodayFocusCard() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">📋</span>
-          <span className="card-title">Today's Focus</span>
+          <span className="card-title">Today&apos;s Focus</span>
         </div>
         {stats.overdueCount > 0 && (
           <div className="overdue-badge">

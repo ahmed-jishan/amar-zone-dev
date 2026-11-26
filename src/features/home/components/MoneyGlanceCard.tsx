@@ -1,4 +1,5 @@
 'use client'
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useMemo, useEffect } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
@@ -25,7 +26,7 @@ function AnimatedNumber({ value, prefix = '', suffix = '' }: { value: number; pr
 }
 
 function getTodayISO(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayISO()
 }
 
 function getMonthISO(): string {
@@ -155,7 +156,7 @@ export default function MoneyGlanceCard() {
       {/* Today's Spending Pulse */}
       <div className="pulse-row">
         <div className="pulse-info">
-          <span className="pulse-label">Today's Spending</span>
+          <span className="pulse-label">Today&apos;s Spending</span>
           <span className="pulse-amount">৳{stats.pulse.todaySpent.toLocaleString('en-BD')}</span>
         </div>
         <div className="pulse-bar-track">

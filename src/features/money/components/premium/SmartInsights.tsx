@@ -43,7 +43,7 @@ export default function SmartInsights({
     // Compare vs last month
     const prevMonth = new Date(month + '-01')
     prevMonth.setMonth(prevMonth.getMonth() - 1)
-    const prevMonthStr = prevMonth.toISOString().slice(0, 7)
+    const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
     const prevTxns = transactions.filter(t => t.date.startsWith(prevMonthStr) && t.status === 'completed')
 
     const categorySpend: Record<string, number> = {}

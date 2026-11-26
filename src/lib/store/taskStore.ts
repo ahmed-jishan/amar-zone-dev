@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Task, CreateTaskInput, SortMode, ViewMode, TimeSession, TaskReminder } from '@/app/(tabs)/tasks/types';
-import { generateId } from '@/lib/utils/helpers';
+import { generateId, todayISO } from '@/lib/utils/helpers';
 
 // ─── Undo Action Types ───
 type UndoAction =
@@ -146,7 +146,7 @@ export const useTaskStore = create<TaskState>()(
 
       toggleComplete: (id) =>
         set((state) => {
-          const today = new Date().toISOString().split('T')[0];
+          const today = todayISO();
           return {
             tasks: state.tasks.map((t) => {
               if (t.id !== id) return t;
@@ -161,7 +161,7 @@ export const useTaskStore = create<TaskState>()(
 
       toggleTask: (id) =>
         set((state) => {
-          const today = new Date().toISOString().split('T')[0];
+          const today = todayISO();
           return {
             tasks: state.tasks.map((t) => {
               if (t.id !== id) return t;
@@ -175,7 +175,7 @@ export const useTaskStore = create<TaskState>()(
         }),
 
       getTodaysTasks: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayISO();
         return get().tasks.filter(
           (t) =>
             t.recurring !== 'none' || t.dueDate === today || t.createdAt.startsWith(today)
@@ -259,7 +259,7 @@ export const useTaskStore = create<TaskState>()(
 
       bulkComplete: (completed) =>
         set((state) => {
-          const today = new Date().toISOString().split('T')[0];
+          const today = todayISO();
           const previous = state.tasks
             .filter((t) => state.selectedIds.includes(t.id))
             .map((t) => ({ completed: t.completed, completedDates: t.completedDates }));

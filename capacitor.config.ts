@@ -39,7 +39,6 @@ const config: CapacitorConfig = {
   },
   android: {
     // Hardware acceleration & WebView optimizations for native-like performance
-    allowMixedContent: true,
     // Capture back button for smoother navigation
     captureInput: true,
     // Enable hardware accelerated rendering
@@ -56,7 +55,7 @@ const config: CapacitorConfig = {
       clientId: googleWebClientId,
       androidClientId: googleAndroidClientId,
       serverClientId: googleWebClientId,
-      scopes: ['profile', 'email', 'https://www.googleapis.com/auth/drive.appdata'],
+      scopes: ['profile', 'email', 'https://www.googleapis.com/auth/drive.appdata', 'https://www.googleapis.com/auth/gmail.modify'],
       forceCodeForRefreshToken: true,
     },
     LocalNotifications: {

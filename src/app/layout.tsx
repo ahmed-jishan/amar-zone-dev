@@ -34,7 +34,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="bn" suppressHydrationWarning className={ubuntu.variable}>
+    <html lang="bn" suppressHydrationWarning className={`${ubuntu.variable} dark`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: storageRepairScript }} />
       </head>

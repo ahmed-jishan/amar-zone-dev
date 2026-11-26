@@ -359,7 +359,7 @@ export default function QiblaView() {
             className="mt-3 flex items-start gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-3"
           >
             <span>⚠️</span>
-            <span>iOS এ কম্পাস চালু করতে অ্যাকুরেসি মিটারে <strong className="text-amber-200">"পারমিশন দিন"</strong> বাটনে ক্লিক করুন</span>
+            <span>iOS এ কম্পাস চালু করতে অ্যাকুরেসি মিটারে <strong className="text-amber-200">&quot;পারমিশন দিন&quot;</strong> বাটনে ক্লিক করুন</span>
           </motion.div>
         )}
       </motion.div>
@@ -378,7 +378,7 @@ export default function QiblaView() {
           وَمِنْ حَيْثُ خَرَجْتَ فَوَلِّ وَجْهَكَ شَطْرَ الْمَسْجِدِ الْحَرَامِ
         </p>
         <p className="text-xs text-emerald-700/60 dark:text-emerald-400/50 leading-relaxed max-w-md mx-auto">
-          "যেখান থেকেই বেরিয়ে যাও, মসজুল হারামের দিকে মুখ কর।" — সূরা বাকারা: ১৪৯
+          &ldquo;যেখান থেকেই বেরিয়ে যাও, মসজুল হারামের দিকে মুখ কর।&rdquo; — সূরা বাকারা: ১৪৯
         </p>
       </motion.div>
     </motion.div>

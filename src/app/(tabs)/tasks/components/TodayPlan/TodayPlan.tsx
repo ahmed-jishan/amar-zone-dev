@@ -1,4 +1,5 @@
 'use client';
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useMemo } from 'react';
 import { Task } from '../../types';
@@ -13,7 +14,6 @@ interface Props {
   onShowToday: () => void;
 }
 
-const todayISO = () => new Date().toISOString().split('T')[0];
 
 const priorityScore: Record<Task['priority'], number> = {
   critical: 100,

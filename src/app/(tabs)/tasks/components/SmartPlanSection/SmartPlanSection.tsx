@@ -1,4 +1,5 @@
 'use client';
+import { todayISO, toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +17,6 @@ interface Props {
   onArchive: (task: Task) => void;
 }
 
-const todayISO = () => new Date().toISOString().split('T')[0];
 const dayMs = 24 * 60 * 60 * 1000;
 
 const priorityScore: Record<Task['priority'], number> = {
@@ -50,7 +50,7 @@ export default function SmartPlanSection({
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
     const weekDates = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart.getTime() + i * dayMs);
-      return d.toISOString().split('T')[0];
+      return toLocalDateISO(d);
     });
 
     const active = tasks.filter((t) => !t.completed && t.status !== 'archived');

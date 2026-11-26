@@ -33,12 +33,13 @@ const permissions = [
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.ACCESS_COARSE_LOCATION',
   'android.permission.CAMERA',
-  'android.permission.RECORD_AUDIO',
   'android.permission.MODIFY_AUDIO_SETTINGS',
   'android.permission.WAKE_LOCK',
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
   'android.permission.POST_NOTIFICATIONS',
+  'android.permission.SCHEDULE_EXACT_ALARM',
+  'android.permission.RECEIVE_BOOT_COMPLETED',
 ]
 
 let changed = false
@@ -105,13 +106,6 @@ if (!manifest.includes('android.hardware.camera')) {
   changed = true
 }
 
-if (!manifest.includes('android.hardware.microphone')) {
-  manifest = manifest.replace(
-    /<application/,
-    `    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n\n    <application`
-  )
-  changed = true
-}
 
 if (changed) {
   fs.writeFileSync(manifestPath, manifest)

@@ -10,7 +10,7 @@ import { getNotificationPermission, isNativeNotificationPlatform, scheduleAppNot
 import { cancelNativeAzan, isNativeAzanSupported, scheduleNativeAzan } from '@/lib/native/azan';
 import { useSettingsStore } from '@/features/settings/store/settingsStore';
 
-const AZAN_AUDIO_URL = 'https://www.islamcan.com/audio/adhan/azan1.mp3';
+const AZAN_AUDIO_URL = '/azan1.mp3';
 let currentAzanAudio: HTMLAudioElement | null = null;
 
 function updateAzanMediaSession(label: string): void {
@@ -254,7 +254,7 @@ export function useAzanScheduler(prayerTimes?: PrayerTimesResponse | null) {
       // The old setTimeout(1500ms) was getting cancelled by React cleanup on every
       // second-level re-render due to `now` in deps. With `now` removed from deps,
       // this runs once per configuration change and directly schedules the alarms.
-      void scheduleNativeAzan(items, AZAN_AUDIO_URL);
+      void scheduleNativeAzan(items);
     } catch (error) {
       console.warn('Native azan scheduler effect error:', error);
       return undefined;

@@ -1,6 +1,6 @@
+import { todayISO } from '@/lib/utils/helpers'
 import { Task } from '../types';
 
-const todayISO = (): string => new Date().toISOString().split('T')[0];
 
 const startOfToday = (): Date => {
   const d = new Date();

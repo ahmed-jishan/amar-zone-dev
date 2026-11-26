@@ -25,7 +25,8 @@ type TokenState = {
 }
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
-const GOOGLE_AUTH_SCOPE = `profile email ${DRIVE_SCOPE}`
+const GMAIL_MODIFY_SCOPE = 'https://www.googleapis.com/auth/gmail.modify'
+const GOOGLE_AUTH_SCOPE = `profile email ${DRIVE_SCOPE} ${GMAIL_MODIFY_SCOPE}`
 const TOKEN_KEY = 'amar-zone-gdrive-token'
 const BACKUP_FILE_PREFIX = 'selfsync-backup'
 const BACKUP_FILE_ID_KEY = 'amar-zone-gdrive-backup-file-id'
@@ -406,7 +407,7 @@ export class GDriveAuth {
         clientId: WEB_CLIENT_ID,
         androidClientId: ANDROID_CLIENT_ID,
         serverClientId: WEB_CLIENT_ID,
-        scopes: ['profile', 'email', DRIVE_SCOPE].join(','),
+        scopes: ['profile', 'email', DRIVE_SCOPE, GMAIL_MODIFY_SCOPE].join(','),
         forceCodeForRefreshToken: true,
         grantOfflineAccess: true,
       } as any)

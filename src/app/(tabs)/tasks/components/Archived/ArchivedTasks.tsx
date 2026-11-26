@@ -1,4 +1,5 @@
 'use client';
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useMemo, useState } from 'react';
 import { Task } from '../../types';
@@ -75,7 +76,7 @@ export default function ArchivedTasks({ tasks }: Props) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `archived-tasks-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `archived-tasks-${todayISO()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };

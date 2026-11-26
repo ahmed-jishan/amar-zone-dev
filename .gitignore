@@ -1,8 +1,12 @@
 node_modules/
 .next/
 out/
-android/*
-!android/app/debug.keystore
+android/.gradle/
+android/local.properties
+android/**/build/
+android/app/src/main/assets/public/
+*.apk
+*.aab
 ios/
 .env*.local
 *.tsbuildinfo

@@ -1,4 +1,5 @@
 'use client'
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useMemo, useCallback, memo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -202,7 +203,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     bmiRecords: healthHistory.length,
     latestBMI: healthHistory[0] ?? null,
     tasksCompletedToday: tasks.filter((t) => {
-      const today = new Date().toISOString().split('T')[0]
+      const today = todayISO()
       return t.completedDates?.includes(today)
     }).length,
   }), [notes, healthHistory, tasks])

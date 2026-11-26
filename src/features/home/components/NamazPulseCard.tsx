@@ -1,4 +1,5 @@
 'use client'
+import { todayISO, toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
@@ -65,12 +66,12 @@ function getCountdown(now: Date, target: Date): string {
 }
 
 function getWeeklyStreak(records: { date: string; prayers: Record<PrayerName, PrayerStatus> }[]): number {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   let streak = 0
   for (let i = 0; i < 7; i++) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const dateStr = d.toISOString().split('T')[0]
+    const dateStr = toLocalDateISO(d)
     const record = records.find((r) => r.date === dateStr)
     if (!record) break
     const allPrayed = PRAYER_ORDER.every((p) => record.prayers[p] === 'prayed')
@@ -98,7 +99,7 @@ function asArray<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
 export default function NamazPulseCard() {
   const router = useRouter()
   const records = useNamazStore((s) => asArray(s.records, isPrayerRecord))
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   const todayRecord = records.find((r) => r.date === today)
 
   const stats = useMemo(() => {
@@ -120,7 +121,7 @@ export default function NamazPulseCard() {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
       d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toLocalDateISO(d);
       const record = records.find((r) => r.date === dateStr);
       const count = record
         ? PRAYER_ORDER.filter((p) => record.prayers[p] === 'prayed').length

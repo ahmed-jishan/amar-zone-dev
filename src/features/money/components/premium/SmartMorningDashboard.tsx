@@ -1,4 +1,5 @@
 'use client'
+import { toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useState, useMemo, useCallback } from 'react'
 import { Sun, Moon, Bell, Target, ArrowRight, Check, TrendingUp, TrendingDown, CreditCard, CalendarClock, AlertTriangle, ChevronRight } from 'lucide-react'
@@ -52,7 +53,7 @@ export default function SmartMorningDashboard({
   const yesterdaySpend = useMemo(() => {
     const y = new Date()
     y.setDate(y.getDate() - 1)
-    return selectDailySpending(transactions, y.toISOString().split('T')[0])
+    return selectDailySpending(transactions, toLocalDateISO(y))
   }, [transactions])
   const monthSpend = useMemo(() => selectMonthlyExpense(transactions, month), [transactions, month])
   const hasBudget = !!budget

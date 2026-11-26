@@ -1,4 +1,5 @@
 'use client';
+import { todayISO } from '@/lib/utils/helpers'
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TaskHeader from './components/TaskList/TaskHeader';
@@ -172,7 +173,7 @@ function TasksPageInner() {
           onFocus={startFocus}
           onOpenDetails={setDetailsTask}
           onShowToday={() => setFilter('today')}
-          onCarryForward={(task) => updateTask(task.id, { status: 'today', dueDate: new Date().toISOString().split('T')[0] })}
+          onCarryForward={(task) => updateTask(task.id, { status: 'today', dueDate: todayISO() })}
           onArchive={(task) => archiveTask(task.id)}
         />
 

@@ -1,5 +1,6 @@
-// src/app/(tabs)/settings/page.tsx
 'use client'
+// src/app/(tabs)/settings/page.tsx
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import {
@@ -11,7 +12,7 @@ import {
   Key, Share2, RefreshCw, Search, MoonStar, Sun as SunIcon,
   ShieldBan, Fingerprint, Wifi, Activity, BatteryFull,
   Server, HardDrive as HDD, User, ChevronRight, ChevronLeft,
-  Heart, Cloud
+  Heart, Cloud, Mail
 } from 'lucide-react'
 import { useSettingsStore, type Theme, type Language } from '@/features/settings/store/settingsStore'
 import { usePrefsStore } from '@/features/namaz/store/prefsStore'
@@ -524,7 +525,7 @@ export default function SettingsPage() {
         task.updatedAt,
       ]),
     ]
-    downloadCsv(`selfsync-tasks-${new Date().toISOString().split('T')[0]}.csv`, rows)
+    downloadCsv(`selfsync-tasks-${todayISO()}.csv`, rows)
     setShowExportModal(false)
   }
 
@@ -540,7 +541,7 @@ export default function SettingsPage() {
         txn.walletId || '',
       ]),
     ]
-    downloadCsv(`selfsync-money-${new Date().toISOString().split('T')[0]}.csv`, rows)
+    downloadCsv(`selfsync-money-${todayISO()}.csv`, rows)
     setShowExportModal(false)
   }
 
@@ -691,6 +692,13 @@ export default function SettingsPage() {
           >
             <Shield size={14} />
             {t.quickSecurity}
+          </button>
+          <button
+            className="st-quick-dock-pill"
+            onClick={() => { window.location.href = '/mail/' }}
+          >
+            <Mail size={14} />
+            Mail Cleaner
           </button>
           <button
             className={`st-quick-dock-pill ${notificationsEnabled ? 'st-quick-dock-pill--active' : ''}`}

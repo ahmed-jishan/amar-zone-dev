@@ -1,4 +1,5 @@
 'use client';
+import { toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useMemo, useState } from 'react';
 import { Task } from '../../types';
@@ -18,7 +19,7 @@ export default function Dashboard({ tasks }: Props) {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const iso = d.toISOString().split('T')[0];
+      const iso = toLocalDateISO(d);
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
       data.push({
         day: dayName,
@@ -35,7 +36,7 @@ export default function Dashboard({ tasks }: Props) {
     const days = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     for (let day = 1; day <= days; day += 1) {
       const d = new Date(today.getFullYear(), today.getMonth(), day);
-      const iso = d.toISOString().split('T')[0];
+      const iso = toLocalDateISO(d);
       data.push({
         day: String(day),
         completed: tasks.filter((t) => (t.completedDates || []).includes(iso)).length,

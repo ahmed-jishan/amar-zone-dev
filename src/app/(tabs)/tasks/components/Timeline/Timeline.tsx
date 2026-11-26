@@ -1,4 +1,5 @@
 'use client';
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useMemo } from 'react';
 import { Task } from '../../types';
@@ -52,7 +53,7 @@ export default function Timeline({ tasks, onToggle, onOpenDetails }: Props) {
           const dateTasks = timelineItems.groups[date];
           const isOverdue = isDateOverdue(date);
           const d = new Date(date);
-          const isToday = date === new Date().toISOString().split('T')[0];
+          const isToday = date === todayISO();
 
           return (
             <div key={date} className="relative">

@@ -1,4 +1,5 @@
 'use client';
+import { todayISO, toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useMemo } from 'react';
 import { Task } from '../../types';
@@ -16,7 +17,7 @@ export default function ProductivityHeatmap({ tasks }: Props) {
     for (let i = 0; i < 112; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const iso = d.toISOString().split('T')[0];
+      const iso = toLocalDateISO(d);
       const count = tasks.filter((t) => t.completedDates.includes(iso)).length;
       data[iso] = count;
     }
@@ -104,7 +105,7 @@ export default function ProductivityHeatmap({ tasks }: Props) {
             {week.map((date) => {
               const count = tasks.filter((t) => t.completedDates.includes(date)).length;
               const d = new Date(date);
-              const isToday = date === new Date().toISOString().split('T')[0];
+              const isToday = date === todayISO();
               return (
                 <div
                   key={date}

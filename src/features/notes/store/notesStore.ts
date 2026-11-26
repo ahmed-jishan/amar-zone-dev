@@ -1,3 +1,4 @@
+import { todayISO, toLocalDateISO } from '@/lib/utils/helpers'
 // ── Notes Zustand Store with localStorage Persistence (Premium Enhanced) ──
 
 import { create } from 'zustand'
@@ -49,17 +50,17 @@ function computeAnalytics(notes: Note[]): NoteAnalytics {
   // Writing streak (consecutive days with at least one note created/updated)
   const dates = new Set<string>()
   active.forEach((n) => {
-    const d = new Date(n.createdAt).toISOString().split('T')[0]
+    const d = toLocalDateISO(new Date(n.createdAt))
     dates.add(d)
-    const ud = new Date(n.updatedAt).toISOString().split('T')[0]
+    const ud = toLocalDateISO(new Date(n.updatedAt))
     dates.add(ud)
   })
   const sortedDates = Array.from(dates).sort().reverse()
   let streak = 0
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   const checkDate = new Date(today)
   for (const d of sortedDates) {
-    const expected = checkDate.toISOString().split('T')[0]
+    const expected = toLocalDateISO(checkDate)
     if (d === expected) {
       streak++
       checkDate.setDate(checkDate.getDate() - 1)

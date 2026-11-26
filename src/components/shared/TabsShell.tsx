@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { App } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
 import { CheckSquare, Moon, Home, Wallet, Settings } from 'lucide-react'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useEffect, useState, memo } from 'react'
@@ -41,12 +43,40 @@ export default function TabsShell({
 }) {
   useTheme()
   const { calculatorEnabled } = useSettingsStore()
-  const pathname = activePathname ?? usePathname()
+  const routePathname = usePathname()
+  const pathname = activePathname ?? routePathname
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    let handle: Awaited<ReturnType<typeof App.addListener>> | undefined
+    void App.addListener('backButton', () => {
+      const openModal = document.querySelector('[role="dialog"], [data-modal-open="true"]')
+      if (openModal) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        return
+      }
+
+      if (pathname !== '/home' && pathname !== '/home/') {
+        router.push('/home/')
+        return
+      }
+
+      void App.exitApp()
+    }).then((listener) => {
+      handle = listener
+    })
+
+    return () => {
+      void handle?.remove()
+    }
+  }, [pathname, router])
 
   if (!mounted) {
     return (

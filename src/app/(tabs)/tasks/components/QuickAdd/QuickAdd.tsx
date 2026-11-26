@@ -1,4 +1,5 @@
 'use client';
+import { todayISO, toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,7 +14,7 @@ import { springs } from '@/hooks/useSpringAnimation';
 function addDays(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  return toLocalDateISO(date);
 }
 
 function parseNaturalTaskInput(rawTitle: string) {
@@ -142,7 +143,7 @@ export default function QuickAdd() {
       title: natural.title,
       priority: finalPriority,
       category: finalCategory,
-      status: finalDueDate && finalDueDate <= new Date().toISOString().split('T')[0] ? 'today' : 'inbox',
+      status: finalDueDate && finalDueDate <= todayISO() ? 'today' : 'inbox',
       completed: false,
       recurring: 'none',
       dueDate: finalDueDate || undefined,

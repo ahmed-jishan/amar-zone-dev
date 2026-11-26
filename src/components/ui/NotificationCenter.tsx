@@ -9,6 +9,7 @@ import { useMoneyStore } from '@/features/money/store/moneyStore'
 import { formatCurrency, getCurrentMonth } from '@/features/money/utils'
 import { useSettingsStore } from '@/features/settings/store/settingsStore'
 import { useTaskStore } from '@/lib/store/taskStore'
+import { todayISO } from '@/lib/utils/helpers'
 import type { Loan, MonthlyBudget, SavingsGoal, Subscription, Transaction } from '@/lib/types'
 import type { Task } from '@/app/(tabs)/tasks/types'
 import {
@@ -102,7 +103,7 @@ const readFiredAlerts = (): Record<string, string> => {
 }
 
 const markAlertFired = (id: string) => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO()
   const fired = readFiredAlerts()
   window.localStorage.setItem(FIRED_KEY, JSON.stringify({ ...fired, [id]: today }))
 }
@@ -317,7 +318,7 @@ export default function NotificationCenter() {
 
   useEffect(() => {
     if (!notificationsEnabled || permission !== 'granted' || isWithinQuietHours(new Date()) || !notificationCategories.money) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayISO()
     const fired = readFiredAlerts()
     alerts
       .filter((alert) => alert.kind !== 'task' && alert.severity !== 'low')

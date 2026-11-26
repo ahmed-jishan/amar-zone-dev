@@ -214,7 +214,7 @@ export default function WalletToolsModal({ wallets, selectedWalletId, onClose, o
                   </div>
                 </div>
                 <p className="text-[12px] text-center" style={{ color: 'var(--mon-text-3)' }}>
-                  After transfer, '{wallets.find(w => w.id === fromWalletId)?.name}' balance will be{' '}
+                  After transfer, &apos;{wallets.find(w => w.id === fromWalletId)?.name}&apos; balance will be{' '}
                   {currencySymbol}{((selectedWallet?.balance ?? 0) - Number(amount)).toLocaleString('en-BD')}
                 </p>
                 <button type="button" onClick={() => setConfirmStep('form')}

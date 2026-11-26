@@ -1,4 +1,5 @@
 'use client';
+import { toLocalDateISO } from '@/lib/utils/helpers'
 
 import { useMemo } from 'react';
 import { Task } from '../../types';
@@ -12,7 +13,7 @@ interface Props {
 const dayMs = 24 * 60 * 60 * 1000;
 
 function toISO(date: Date) {
-  return date.toISOString().split('T')[0];
+  return toLocalDateISO(date);
 }
 
 export default function WeeklyReview({ tasks, onCarryForward, onArchive }: Props) {

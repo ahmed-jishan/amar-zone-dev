@@ -1,4 +1,5 @@
 'use client';
+import { todayISO } from '@/lib/utils/helpers'
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -224,7 +225,7 @@ function PremiumHeatmap({ logs, month, language }: { logs: Record<string, any>; 
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
   const startCol = new Date(year, monthIndex, 1).getDay();
   const totalCells = Math.ceil((startCol + daysInMonth) / 7) * 7;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISO();
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
   const heatmapByDate = useMemo(() => new Map(heatmapData.map((d) => [d.date, d])), [heatmapData]);

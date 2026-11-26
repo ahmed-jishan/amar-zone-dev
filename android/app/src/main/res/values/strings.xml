@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SelfSync</string>
+    <string name="title_activity_main">SelfSync</string>
+    <string name="package_name">com.selfsync.app</string>
+    <string name="custom_url_scheme">com.selfsync.app</string>
+    <string name="title_activity_auth_activity">SelfSync authentication</string>
+    <string name="server_client_id">000000000000-placeholder.apps.googleusercontent.com</string>
+</resources>

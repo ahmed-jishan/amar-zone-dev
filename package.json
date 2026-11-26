@@ -17,10 +17,12 @@
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
+    "@capacitor/app": "^6.0.3",
     "@capacitor/core": "^6.0.0",
     "@capacitor/geolocation": "^6.0.0",
     "@capacitor/haptics": "^6.0.0",
     "@capacitor/local-notifications": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.4",
     "@capgo/capacitor-native-biometric": "^6.0.2",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@zxing/browser": "^0.1.5",

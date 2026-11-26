@@ -2,6 +2,8 @@ export const storageRepairScript = `
 (function () {
   try {
     if (!window.localStorage) return;
+    var repairVersion = '1';
+    if (localStorage.getItem('selfsync-storage-repair-version') === repairVersion) return;
     var nowIso = new Date().toISOString();
     var nowMs = Date.now();
     var isObj = function (v) { return v && typeof v === 'object' && !Array.isArray(v); };
@@ -176,6 +178,7 @@ export const storageRepairScript = `
       var value = read(key);
       if (value !== null && !isObj(value)) localStorage.removeItem(key);
     });
+    localStorage.setItem('selfsync-storage-repair-version', repairVersion);
   } catch (error) {
     console.warn('[SelfSync] Startup storage repair skipped:', error);
   }
